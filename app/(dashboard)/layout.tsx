@@ -43,7 +43,7 @@ export default async function DashboardLayout({
           asignados: asignadosCount ?? 0,
         }}
       />
-      <main className="flex-1 min-w-0">
+      <main className="flex-1 min-w-0 w-full">
         {children}
       </main>
     </div>
