@@ -1,8 +1,6 @@
 import { z } from 'zod'
 
 export const newTicketSchema = z.object({
-  area_id: z.string().uuid('Selecciona un área'),
-  problem_catalog_id: z.string().uuid('Selecciona un tipo de problema'),
   grupo: z.string().optional(),
   cliente: z.string().optional(),
   ciclo_cliente: z.string().optional(),

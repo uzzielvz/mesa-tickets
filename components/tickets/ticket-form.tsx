@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { createClient } from '@/lib/supabase/client'
 import { newTicketSchema, type NewTicketInput } from '@/lib/schemas/ticket'
 
+
 interface Area { id: string; nombre: string }
 interface CatalogItem {
   id: string
@@ -33,7 +34,10 @@ export default function TicketForm({ areas, catalog, userId }: Props) {
   const [loading, setLoading] = useState(false)
   const [files, setFiles] = useState<FileList | null>(null)
 
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm<NewTicketInput>({
+  const [areaError, setAreaError] = useState('')
+  const [problemError, setProblemError] = useState('')
+
+  const { register, handleSubmit, formState: { errors } } = useForm<NewTicketInput>({
     resolver: zodResolver(newTicketSchema),
   })
 
@@ -42,18 +46,20 @@ export default function TicketForm({ areas, catalog, userId }: Props) {
   function handleAreaChange(areaId: string) {
     setSelectedArea(areaId)
     setSelectedProblem(null)
-    setValue('area_id', areaId)
-    setValue('problem_catalog_id', '')
+    setAreaError('')
+    setProblemError('')
   }
 
   function handleProblemChange(problemId: string) {
     const problem = catalog.find(c => c.id === problemId) ?? null
     setSelectedProblem(problem)
-    setValue('problem_catalog_id', problemId)
+    setProblemError('')
   }
 
   async function onSubmit(data: NewTicketInput) {
-    if (!selectedProblem) return
+    // Validar selects manualmente
+    if (!selectedArea) { setAreaError('Selecciona un área'); return }
+    if (!selectedProblem) { setProblemError('Selecciona un tipo de problema'); return }
     setLoading(true)
 
     const supabase = createClient()
@@ -62,7 +68,7 @@ export default function TicketForm({ areas, catalog, userId }: Props) {
     const { data: ticket, error: ticketError } = await supabase
       .from('tickets')
       .insert({
-        problem_catalog_id: data.problem_catalog_id,
+        problem_catalog_id: selectedProblem.id,
         levantado_por_id: userId,
         responsable_id: selectedProblem.responsable_default_id ?? userId,
         grupo: data.grupo || null,
@@ -135,7 +141,7 @@ export default function TicketForm({ areas, catalog, userId }: Props) {
             <option key={a.id} value={a.id}>{a.nombre}</option>
           ))}
         </select>
-        {errors.area_id && <p className="text-[12px] text-red-600">{errors.area_id.message}</p>}
+        {areaError && <p className="text-[12px] text-red-600">{areaError}</p>}
       </div>
 
       {/* Tipo de problema */}
@@ -152,7 +158,7 @@ export default function TicketForm({ areas, catalog, userId }: Props) {
               <option key={c.id} value={c.id}>{c.nombre}</option>
             ))}
           </select>
-          {errors.problem_catalog_id && <p className="text-[12px] text-red-600">{errors.problem_catalog_id.message}</p>}
+          {problemError && <p className="text-[12px] text-red-600">{problemError}</p>}
         </div>
       )}
 
