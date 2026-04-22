@@ -13,11 +13,11 @@ export default async function AdminLayout({
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('rol')
+    .select('id, rol')
     .eq('id', user.id)
     .single()
 
-  if (!profile || profile.rol !== 'admin') redirect('/dashboard')
+  if (!profile || (profile as { rol: string }).rol !== 'admin') redirect('/dashboard')
 
   return <>{children}</>
 }

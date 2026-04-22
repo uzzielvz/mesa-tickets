@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import type { TicketWithStatus } from '@/lib/supabase/types'
 import Header from '@/components/layout/header'
 import TicketList from '@/components/tickets/ticket-list'
 
@@ -9,11 +10,12 @@ export default async function MisTicketsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: tickets } = await supabase
+  const { data: rawTickets } = await supabase
     .from('tickets_with_status')
     .select('*')
     .eq('levantado_por_id', user.id)
     .order('created_at', { ascending: false })
+  const tickets = (rawTickets ?? []) as unknown as TicketWithStatus[]
 
   return (
     <div>
@@ -30,7 +32,7 @@ export default async function MisTicketsPage() {
         }
       />
       <TicketList
-        tickets={tickets ?? []}
+        tickets={tickets}
         emptyMessage="No has levantado ningún ticket todavía."
         showResponsable={true}
       />

@@ -6,7 +6,6 @@ import { createClient } from '@/lib/supabase/client'
 
 interface Props {
   ticketId: string
-  ticketNumero: number
   userId: string
   esResponsable: boolean
   esLevantador: boolean
@@ -15,7 +14,6 @@ interface Props {
 
 export default function ResponseComposer({
   ticketId,
-  ticketNumero,
   userId,
   esResponsable,
   esLevantador,
@@ -35,7 +33,8 @@ export default function ResponseComposer({
       .order('orden', { ascending: false })
       .limit(1)
       .single()
-    return (data?.orden ?? 0) + 1
+    const row = data as { orden: number } | null
+    return (row?.orden ?? 0) + 1
   }
 
   async function submitResponse(tipo: 'mensaje' | 'terminado_responsable' | 'terminado_usuario') {

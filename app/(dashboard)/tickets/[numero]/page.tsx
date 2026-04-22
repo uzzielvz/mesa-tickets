@@ -1,5 +1,6 @@
 import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import type { TicketWithStatus } from '@/lib/supabase/types'
 import Header from '@/components/layout/header'
 import StatusBadge from '@/components/tickets/status-badge'
 import TicketThread from '@/components/tickets/ticket-thread'
@@ -13,13 +14,14 @@ export default async function TicketDetailPage({ params }: { params: { numero: s
   const numero = parseInt(params.numero)
   if (isNaN(numero)) notFound()
 
-  const { data: ticket } = await supabase
+  const { data: rawTicket } = await supabase
     .from('tickets_with_status')
     .select('*')
     .eq('numero', numero)
     .single()
 
-  if (!ticket) notFound()
+  if (!rawTicket) notFound()
+  const ticket = rawTicket as unknown as TicketWithStatus
 
   const { data: responses } = await supabase
     .from('ticket_responses')
@@ -87,7 +89,6 @@ export default async function TicketDetailPage({ params }: { params: { numero: s
         <div className="mx-5 md:mx-9 mt-6 pb-12">
           <ResponseComposer
             ticketId={ticket.id}
-            ticketNumero={ticket.numero}
             userId={user.id}
             esResponsable={esResponsable}
             esLevantador={esLevantador}

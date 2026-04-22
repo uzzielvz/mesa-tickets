@@ -6,7 +6,7 @@ interface HeaderProps {
 
 export default function Header({ title, subtitle, action }: HeaderProps) {
   return (
-    <div className="px-5 pt-16 pb-5 md:px-9 md:pt-9 md:pb-6 flex items-start justify-between">
+    <div className="px-5 pt-16 pb-5 md:px-9 md:pt-9 md:pb-6 pr-6 md:pr-9 flex items-start justify-between gap-4">
       <div>
         <h1 className="text-[22px] font-semibold text-navy tracking-[-0.4px] leading-tight">
           {title}

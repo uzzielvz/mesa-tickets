@@ -4,6 +4,26 @@ export type UserRole = 'admin' | 'responsable' | 'usuario'
 export type ResponseType = 'mensaje' | 'terminado_responsable' | 'terminado_usuario'
 export type TicketStatus = 'abierto' | 'contestado' | 'terminado' | 'cerrado'
 
+// Tipo para la vista tickets_with_status
+export interface TicketWithStatus {
+  id: string
+  numero: number
+  problem_catalog_id: string
+  levantado_por_id: string
+  responsable_id: string
+  grupo: string | null
+  cliente: string | null
+  ciclo_cliente: string | null
+  created_at: string
+  closed_at: string | null
+  status: TicketStatus
+  area_nombre: string
+  problema_nombre: string
+  levantado_por_nombre: string
+  responsable_nombre: string
+  ultima_respuesta_at: string | null
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -108,6 +128,6 @@ export interface Database {
         Returns: boolean
       }
     }
-    Enums: {}
+    Enums: Record<string, never>
   }
 }
