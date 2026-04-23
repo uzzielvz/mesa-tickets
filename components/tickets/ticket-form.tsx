@@ -64,7 +64,7 @@ export default function TicketForm({ areas, catalog, userId }: Props) {
 
     const supabase = createClient()
 
-    // Crear el ticket
+    // Crear el ticket — select('id, numero') evita una segunda query
     const { data: ticket, error: ticketError } = await supabase
       .from('tickets')
       .insert({
@@ -75,7 +75,7 @@ export default function TicketForm({ areas, catalog, userId }: Props) {
         cliente: data.cliente || null,
         ciclo_cliente: data.ciclo_cliente || null,
       })
-      .select('numero')
+      .select('id, numero')
       .single()
 
     if (ticketError || !ticket) {
@@ -83,35 +83,26 @@ export default function TicketForm({ areas, catalog, userId }: Props) {
       return
     }
 
-    // Obtener el id del ticket recién creado
-    const { data: ticketFull } = await supabase
-      .from('tickets')
-      .select('id')
-      .eq('numero', ticket.numero)
-      .single()
-
-    if (!ticketFull) { setLoading(false); return }
-
     // Insertar primera respuesta (orden 1, del usuario que levanta)
     await supabase.from('ticket_responses').insert({
-      ticket_id: ticketFull.id,
+      ticket_id: ticket.id,
       orden: 1,
       autor_id: userId,
       contenido: data.comentario,
       tipo: 'mensaje',
     })
 
-    // Subir adjuntos si hay
+    // Subir adjuntos en paralelo si hay
     if (files && files.length > 0) {
-      for (const file of Array.from(files)) {
-        const path = `${ticketFull.id}/${Date.now()}-${file.name}`
+      await Promise.all(Array.from(files).map(async (file) => {
+        const path = `${ticket.id}/${Date.now()}-${file.name}`
         const { data: upload } = await supabase.storage
           .from('ticket-attachments')
           .upload(path, file)
 
         if (upload) {
           await supabase.from('ticket_attachments').insert({
-            ticket_id: ticketFull.id,
+            ticket_id: ticket.id,
             storage_path: upload.path,
             nombre_original: file.name,
             mime_type: file.type,
@@ -119,7 +110,7 @@ export default function TicketForm({ areas, catalog, userId }: Props) {
             uploaded_by_id: userId,
           })
         }
-      }
+      }))
     }
 
     router.push(`/tickets/${ticket.numero}`)

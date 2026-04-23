@@ -57,7 +57,7 @@ export default function ResponseComposer({
       .single()
 
     if (!error && resp && files && files.length > 0) {
-      for (const file of Array.from(files)) {
+      await Promise.all(Array.from(files).map(async (file) => {
         const path = `${ticketId}/${Date.now()}-${file.name}`
         const { data: upload } = await supabase.storage.from('ticket-attachments').upload(path, file)
         if (upload) {
@@ -71,7 +71,7 @@ export default function ResponseComposer({
             uploaded_by_id: userId,
           })
         }
-      }
+      }))
     }
 
     setContenido('')

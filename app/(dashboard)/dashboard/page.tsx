@@ -2,7 +2,6 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import Header from '@/components/layout/header'
-import type { TicketWithStatus } from '@/lib/supabase/types'
 
 interface StatCardProps {
   label: string
@@ -26,19 +25,14 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('rol, nombre_completo')
-    .eq('id', user.id)
-    .single()
+  const [{ data: profile }, { data: rawMios }, { data: rawAsignados }] = await Promise.all([
+    supabase.from('profiles').select('rol, nombre_completo').eq('id', user.id).single(),
+    supabase.from('tickets_with_status').select('status').eq('levantado_por_id', user.id),
+    supabase.from('tickets_with_status').select('status').eq('responsable_id', user.id),
+  ])
 
-  const { data: rawTickets } = await supabase
-    .from('tickets_with_status')
-    .select('*')
-  const tickets = (rawTickets ?? []) as unknown as TicketWithStatus[]
-
-  const misTickets = tickets.filter(t => t.levantado_por_id === user.id)
-  const asignados = tickets.filter(t => t.responsable_id === user.id)
+  const misTickets = (rawMios ?? []) as { status: string }[]
+  const asignados = (rawAsignados ?? []) as { status: string }[]
 
   const misAbiertos = misTickets.filter(t => t.status === 'abierto').length
   const misContestados = misTickets.filter(t => t.status === 'contestado').length

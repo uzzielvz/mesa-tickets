@@ -23,16 +23,17 @@ export default async function TicketDetailPage({ params }: { params: { numero: s
   if (!rawTicket) notFound()
   const ticket = rawTicket as unknown as TicketWithStatus
 
-  const { data: responses } = await supabase
-    .from('ticket_responses')
-    .select('*, profiles(nombre_completo, rol)')
-    .eq('ticket_id', ticket.id)
-    .order('orden', { ascending: true })
-
-  const { data: attachments } = await supabase
-    .from('ticket_attachments')
-    .select('*')
-    .eq('ticket_id', ticket.id)
+  const [{ data: responses }, { data: attachments }] = await Promise.all([
+    supabase
+      .from('ticket_responses')
+      .select('*, profiles(nombre_completo, rol)')
+      .eq('ticket_id', ticket.id)
+      .order('orden', { ascending: true }),
+    supabase
+      .from('ticket_attachments')
+      .select('*')
+      .eq('ticket_id', ticket.id),
+  ])
 
   const canRespond =
     user.id === ticket.levantado_por_id || user.id === ticket.responsable_id
