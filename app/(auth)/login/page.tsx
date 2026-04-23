@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 const DOMAIN = '@financieracrediflexi.com'
 
-export default function LoginPage() {
+function LoginForm() {
   const searchParams = useSearchParams()
   const domainError = searchParams.get('error') === 'domain'
 
@@ -162,5 +162,13 @@ export default function LoginPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   )
 }
