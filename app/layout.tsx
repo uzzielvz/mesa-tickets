@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
+import { Toaster } from 'sonner'
 import './globals.css'
 
 const inter = Inter({
@@ -19,7 +20,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className={inter.variable}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <Toaster position="bottom-right" richColors />
+      </body>
     </html>
   )
 }

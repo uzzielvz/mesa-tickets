@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 
 interface Props {
@@ -73,6 +74,19 @@ export default function ResponseComposer({
         }
       }))
     }
+
+    if (error) {
+      toast.error('Error al enviar. Intenta de nuevo.')
+      setLoading(false)
+      return
+    }
+
+    const toastMsg: Record<string, string> = {
+      mensaje: 'Respuesta enviada',
+      terminado_responsable: 'Ticket marcado como terminado',
+      terminado_usuario: 'Ticket cerrado',
+    }
+    toast.success(toastMsg[tipo])
 
     setContenido('')
     setFiles(null)

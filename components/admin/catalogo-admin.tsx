@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 interface CatalogItem {
   id: string; area_id: string; nombre: string; leyenda: string
@@ -51,11 +52,16 @@ export default function CatalogoAdmin({ catalog, areas, profiles }: { catalog: C
       ...form,
       responsable_default_id: form.responsable_default_id || null,
     }
-    if (editing) {
-      await supabase.from('problem_catalog').update(payload).eq('id', editing)
-    } else {
-      await supabase.from('problem_catalog').insert(payload)
+    const { error } = editing
+      ? await supabase.from('problem_catalog').update(payload).eq('id', editing)
+      : await supabase.from('problem_catalog').insert(payload)
+
+    if (error) {
+      toast.error('Error al guardar. Intenta de nuevo.')
+      setLoading(false)
+      return
     }
+    toast.success(editing ? 'Tipo actualizado' : 'Tipo de problema creado')
     resetForm()
     router.refresh()
     setLoading(false)
@@ -63,7 +69,9 @@ export default function CatalogoAdmin({ catalog, areas, profiles }: { catalog: C
 
   async function toggleActivo(item: CatalogItem) {
     const supabase = createClient()
-    await supabase.from('problem_catalog').update({ activo: !item.activo }).eq('id', item.id)
+    const { error } = await supabase.from('problem_catalog').update({ activo: !item.activo }).eq('id', item.id)
+    if (error) { toast.error('Error al actualizar.'); return }
+    toast.success(item.activo ? 'Tipo desactivado' : 'Tipo activado')
     router.refresh()
   }
 

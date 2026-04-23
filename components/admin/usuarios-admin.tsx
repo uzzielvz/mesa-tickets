@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 interface Profile { id: string; nombre_completo: string; email: string; rol: string; area_id: string | null; activo: boolean }
 interface Area { id: string; nombre: string }
@@ -19,10 +20,15 @@ export default function UsuariosAdmin({ profiles, areas }: { profiles: Profile[]
   const router = useRouter()
   const [saving, setSaving] = useState<string | null>(null)
 
-  async function updateRol(id: string, rol: string) {
+  async function updateRol(id: string, nuevoRol: string, rolActual: string) {
+    if (rolActual === 'admin' && nuevoRol !== 'admin') {
+      if (!confirm('¿Seguro que quieres quitar el rol de Administrador a este usuario?')) return
+    }
     setSaving(id)
     const supabase = createClient()
-    await supabase.from('profiles').update({ rol }).eq('id', id)
+    const { error } = await supabase.from('profiles').update({ rol: nuevoRol }).eq('id', id)
+    if (error) { toast.error('Error al actualizar el rol.'); setSaving(null); return }
+    toast.success('Rol actualizado')
     router.refresh()
     setSaving(null)
   }
@@ -30,7 +36,9 @@ export default function UsuariosAdmin({ profiles, areas }: { profiles: Profile[]
   async function updateArea(id: string, area_id: string) {
     setSaving(id)
     const supabase = createClient()
-    await supabase.from('profiles').update({ area_id: area_id || null }).eq('id', id)
+    const { error } = await supabase.from('profiles').update({ area_id: area_id || null }).eq('id', id)
+    if (error) { toast.error('Error al actualizar el área.'); setSaving(null); return }
+    toast.success('Área actualizada')
     router.refresh()
     setSaving(null)
   }
@@ -56,7 +64,7 @@ export default function UsuariosAdmin({ profiles, areas }: { profiles: Profile[]
 
           <select
             value={profile.rol}
-            onChange={e => updateRol(profile.id, e.target.value)}
+            onChange={e => updateRol(profile.id, e.target.value, profile.rol)}
             className={selectClass}
           >
             <option value="usuario">Usuario</option>

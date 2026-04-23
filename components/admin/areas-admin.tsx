@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 interface Area { id: string; nombre: string; activo: boolean }
 
@@ -18,14 +19,21 @@ export default function AreasAdmin({ areas }: { areas: Area[] }) {
     setError('')
     const supabase = createClient()
     const { error: err } = await supabase.from('areas').insert({ nombre: nueva.trim() })
-    if (err) setError('Error al crear el área.')
-    else { setNueva(''); router.refresh() }
+    if (err) {
+      toast.error('No se pudo crear el área.')
+    } else {
+      toast.success('Área creada')
+      setNueva('')
+      router.refresh()
+    }
     setLoading(false)
   }
 
   async function toggleActivo(area: Area) {
     const supabase = createClient()
-    await supabase.from('areas').update({ activo: !area.activo }).eq('id', area.id)
+    const { error } = await supabase.from('areas').update({ activo: !area.activo }).eq('id', area.id)
+    if (error) { toast.error('Error al actualizar el área.'); return }
+    toast.success(area.activo ? 'Área desactivada' : 'Área activada')
     router.refresh()
   }
 
