@@ -1,0 +1,81 @@
+'use client'
+
+import { useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
+
+interface Profile { id: string; nombre_completo: string; email: string; rol: string; area_id: string | null; activo: boolean }
+interface Area { id: string; nombre: string }
+
+const ROL_LABEL: Record<string, string> = {
+  admin: 'Administrador',
+  responsable: 'Responsable',
+  usuario: 'Usuario',
+}
+
+const selectClass = 'bg-white border border-[#ECECEC] rounded px-2 py-1 text-[12.5px] text-ink-900 outline-none focus:border-orange transition-all'
+
+export default function UsuariosAdmin({ profiles, areas }: { profiles: Profile[]; areas: Area[] }) {
+  const router = useRouter()
+  const [saving, setSaving] = useState<string | null>(null)
+
+  async function updateRol(id: string, rol: string) {
+    setSaving(id)
+    const supabase = createClient()
+    await supabase.from('profiles').update({ rol }).eq('id', id)
+    router.refresh()
+    setSaving(null)
+  }
+
+  async function updateArea(id: string, area_id: string) {
+    setSaving(id)
+    const supabase = createClient()
+    await supabase.from('profiles').update({ area_id: area_id || null }).eq('id', id)
+    router.refresh()
+    setSaving(null)
+  }
+
+  return (
+    <div className="border border-[#ECECEC] rounded-md overflow-hidden max-w-3xl">
+      {/* Headers */}
+      <div className="hidden md:grid grid-cols-[1fr_140px_160px] px-5 py-2 border-b border-[#ECECEC] bg-surface-sidebar">
+        {['Usuario', 'Rol', 'Área'].map(h => (
+          <span key={h} className="text-[11px] uppercase tracking-[0.3px] text-ink-400 font-medium">{h}</span>
+        ))}
+      </div>
+
+      {profiles.map((profile, i) => (
+        <div
+          key={profile.id}
+          className={`grid grid-cols-1 md:grid-cols-[1fr_140px_160px] items-center px-5 py-3 gap-2 ${i < profiles.length - 1 ? 'border-b border-[#F5F5F5]' : ''} ${saving === profile.id ? 'opacity-50' : ''}`}
+        >
+          <div>
+            <p className="text-[13px] font-medium text-ink-900">{profile.nombre_completo}</p>
+            <p className="text-[11.5px] text-ink-400">{profile.email}</p>
+          </div>
+
+          <select
+            value={profile.rol}
+            onChange={e => updateRol(profile.id, e.target.value)}
+            className={selectClass}
+          >
+            <option value="usuario">Usuario</option>
+            <option value="responsable">Responsable</option>
+            <option value="admin">Administrador</option>
+          </select>
+
+          <select
+            value={profile.area_id ?? ''}
+            onChange={e => updateArea(profile.id, e.target.value)}
+            className={selectClass}
+          >
+            <option value="">Sin área</option>
+            {areas.map(a => (
+              <option key={a.id} value={a.id}>{a.nombre}</option>
+            ))}
+          </select>
+        </div>
+      ))}
+    </div>
+  )
+}
