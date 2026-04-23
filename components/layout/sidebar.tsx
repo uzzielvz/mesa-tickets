@@ -102,21 +102,23 @@ export default function Sidebar({ profile, counts }: SidebarProps) {
       </div>
 
       {/* Mobile drawer */}
-      {open && (
-        <div className="md:hidden fixed inset-0 z-30 bg-black/20" onClick={() => setOpen(false)}>
-          <div
-            className="absolute top-12 left-0 bottom-0 w-[220px] bg-surface-sidebar border-r border-[#ECECEC] flex flex-col"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex-1 px-[14px] py-5 overflow-y-auto">
-              <NavContent pathname={pathname} profile={profile} counts={counts} onNav={() => setOpen(false)} />
-            </div>
-            <div className="border-t border-[#ECECEC] px-[14px] py-4">
-              <UserMenu profile={profile} />
-            </div>
+      <div
+        className={`md:hidden fixed inset-0 z-30 transition-opacity duration-200 ${open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        style={{ background: 'rgba(0,0,0,0.2)' }}
+        onClick={() => setOpen(false)}
+      >
+        <div
+          className={`absolute top-12 left-0 bottom-0 w-[220px] bg-surface-sidebar border-r border-[#ECECEC] flex flex-col transition-transform duration-200 ${open ? 'translate-x-0' : '-translate-x-full'}`}
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="flex-1 px-[14px] py-5 overflow-y-auto">
+            <NavContent pathname={pathname} profile={profile} counts={counts} onNav={() => setOpen(false)} />
+          </div>
+          <div className="border-t border-[#ECECEC] px-[14px] py-4">
+            <UserMenu profile={profile} />
           </div>
         </div>
-      )}
+      </div>
 
       {/* ── Desktop sidebar ── */}
       <aside className="hidden md:flex w-[220px] flex-shrink-0 bg-surface-sidebar border-r border-[#ECECEC] border-r-[0.5px] flex-col min-h-screen">
