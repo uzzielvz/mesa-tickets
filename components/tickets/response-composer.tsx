@@ -87,6 +87,14 @@ export default function ResponseComposer({
         <p className="text-[13px] text-ink-700">
           El responsable marcó este ticket como terminado. ¿El problema fue resuelto?
         </p>
+        {/* Textarea primero — el usuario escribe antes de decidir si reabrir */}
+        <textarea
+          value={contenido}
+          onChange={e => setContenido(e.target.value)}
+          placeholder="Si el problema no fue resuelto, explica aquí por qué..."
+          rows={3}
+          className="bg-white border border-[#ECECEC] rounded px-3 py-[7px] text-[13px] text-ink-900 placeholder:text-ink-400 outline-none focus:border-orange focus:ring-[3px] focus:ring-orange/15 transition-all resize-none"
+        />
         <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => submitResponse('terminado_usuario')}
@@ -103,14 +111,6 @@ export default function ResponseComposer({
             Reabrir con comentario
           </button>
         </div>
-        {/* Textarea para reabrir */}
-        <textarea
-          value={contenido}
-          onChange={e => setContenido(e.target.value)}
-          placeholder="Explica por qué el problema no está resuelto..."
-          rows={3}
-          className="bg-white border border-[#ECECEC] rounded px-3 py-[7px] text-[13px] text-ink-900 placeholder:text-ink-400 outline-none focus:border-orange focus:ring-[3px] focus:ring-orange/15 transition-all resize-none"
-        />
       </div>
     )
   }

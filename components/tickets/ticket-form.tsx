@@ -36,6 +36,7 @@ export default function TicketForm({ areas, catalog, userId }: Props) {
 
   const [areaError, setAreaError] = useState('')
   const [problemError, setProblemError] = useState('')
+  const [evidenciaError, setEvidenciaError] = useState('')
 
   const { register, handleSubmit, formState: { errors } } = useForm<NewTicketInput>({
     resolver: zodResolver(newTicketSchema),
@@ -48,18 +49,24 @@ export default function TicketForm({ areas, catalog, userId }: Props) {
     setSelectedProblem(null)
     setAreaError('')
     setProblemError('')
+    setEvidenciaError('')
   }
 
   function handleProblemChange(problemId: string) {
     const problem = catalog.find(c => c.id === problemId) ?? null
     setSelectedProblem(problem)
     setProblemError('')
+    setEvidenciaError('')
   }
 
   async function onSubmit(data: NewTicketInput) {
     // Validar selects manualmente
     if (!selectedArea) { setAreaError('Selecciona un área'); return }
     if (!selectedProblem) { setProblemError('Selecciona un tipo de problema'); return }
+    if (selectedProblem.requiere_evidencia && (!files || files.length === 0)) {
+      setEvidenciaError('Debes adjuntar al menos un archivo de evidencia')
+      return
+    }
     setLoading(true)
 
     const supabase = createClient()
@@ -219,9 +226,10 @@ export default function TicketForm({ areas, catalog, userId }: Props) {
             type="file"
             multiple
             accept="image/*,.pdf"
-            onChange={e => setFiles(e.target.files)}
+            onChange={e => { setFiles(e.target.files); setEvidenciaError('') }}
             className="text-[12.5px] text-ink-700 file:mr-3 file:py-[5px] file:px-3 file:rounded file:border file:border-[#ECECEC] file:text-[12px] file:font-medium file:text-ink-700 file:bg-white hover:file:bg-surface-hover file:cursor-pointer"
           />
+          {evidenciaError && <p className="text-[12px] text-red-600">{evidenciaError}</p>}
         </div>
       )}
 

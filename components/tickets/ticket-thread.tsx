@@ -1,4 +1,4 @@
-import { formatDate } from '@/lib/utils/format'
+import { formatDate, formatName } from '@/lib/utils/format'
 
 interface Response {
   id: string
@@ -50,7 +50,7 @@ export default function TicketThread({ responses, attachments, levantadoPorId }:
             <div key={resp.id} className="flex items-center gap-3 py-4">
               <div className="flex-1 h-px bg-[#ECECEC]" />
               <span className="text-[11.5px] text-ink-400">
-                {resp.profiles?.nombre_completo} — {TIPO_LABEL[resp.tipo]}
+                {resp.profiles ? formatName(resp.profiles.nombre_completo, '') : '—'} — {TIPO_LABEL[resp.tipo]}
               </span>
               <div className="flex-1 h-px bg-[#ECECEC]" />
             </div>
@@ -68,11 +68,13 @@ export default function TicketThread({ responses, attachments, levantadoPorId }:
                 {/* Avatar */}
                 <div className="w-6 h-6 rounded-full bg-navy flex items-center justify-center flex-shrink-0">
                   <span className="text-[9px] font-medium text-white">
-                    {resp.profiles?.nombre_completo.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()}
+                    {resp.profiles
+                      ? formatName(resp.profiles.nombre_completo, '').split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()
+                      : '?'}
                   </span>
                 </div>
                 <span className="text-[12.5px] font-medium text-ink-900">
-                  {resp.profiles?.nombre_completo}
+                  {resp.profiles ? formatName(resp.profiles.nombre_completo, '') : '—'}
                 </span>
                 {!isUser && (
                   <span className="text-[11px] text-ink-400 bg-surface-sidebar border border-[#ECECEC] rounded px-1.5 py-px">

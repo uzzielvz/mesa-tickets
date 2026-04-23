@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import Header from '@/components/layout/header'
+import { formatName } from '@/lib/utils/format'
 
 interface StatCardProps {
   label: string
@@ -39,7 +40,9 @@ export default async function DashboardPage() {
   const asignadosPendientes = asignados.filter(t => t.status === 'abierto').length
   const asignadosTerminados = asignados.filter(t => t.status === 'terminado').length
 
-  const nombre = profile?.nombre_completo?.split(' ')[0] ?? 'Bienvenido'
+  const nombre = profile
+    ? formatName(profile.nombre_completo, user.email ?? '').split(' ')[0]
+    : 'Bienvenido'
 
   return (
     <div>

@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { formatName } from '@/lib/utils/format'
 import type { Database } from '@/lib/supabase/types'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
@@ -21,8 +22,10 @@ export default function UserMenu({ profile }: { profile: Profile }) {
     router.push('/login')
   }
 
+  const displayName = formatName(profile.nombre_completo, profile.email)
+
   // Iniciales para el avatar
-  const initials = profile.nombre_completo
+  const initials = displayName
     .split(' ')
     .slice(0, 2)
     .map(n => n[0])
@@ -39,7 +42,7 @@ export default function UserMenu({ profile }: { profile: Profile }) {
       {/* Info */}
       <div className="flex-1 min-w-0">
         <p className="text-[12.5px] font-medium text-ink-900 truncate leading-tight">
-          {profile.nombre_completo}
+          {displayName}
         </p>
         <p className="text-[11px] text-ink-400 leading-tight">
           {ROL_LABEL[profile.rol]}

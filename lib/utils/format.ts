@@ -1,3 +1,16 @@
+// Convierte "uzziel.valdez" o email completo en "Uzziel Valdez"
+export function formatName(nombreCompleto: string, email: string): string {
+  const name = nombreCompleto?.trim() ?? ''
+  // Nombre real: tiene espacio y no contiene @
+  if (name && !name.includes('@') && name.includes(' ')) return name
+  // Derivar del nombre si parece username, o del email
+  const username = (name && !name.includes('@')) ? name : email.split('@')[0]
+  return username
+    .split('.')
+    .map(p => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(' ')
+}
+
 // Formatea timestamps relativos
 export function timeAgo(date: string): string {
   const now = new Date()
