@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
-import { Menu, X } from 'lucide-react'
+import { Menu, X, ChevronDown } from 'lucide-react'
 import Wordmark from '@/components/brand/wordmark'
 import UserMenu from '@/components/layout/user-menu'
 import type { Database } from '@/lib/supabase/types'
@@ -21,9 +21,10 @@ interface NavItemProps {
   count?: number
   active: boolean
   onClick?: () => void
+  muted?: boolean
 }
 
-function NavItem({ href, label, count, active, onClick }: NavItemProps) {
+function NavItem({ href, label, count, active, onClick, muted }: NavItemProps) {
   return (
     <Link
       href={href}
@@ -32,7 +33,9 @@ function NavItem({ href, label, count, active, onClick }: NavItemProps) {
         flex items-center justify-between px-[10px] py-[6px] rounded-[5px] transition-colors
         ${active
           ? 'bg-white border border-[#ECECEC] text-navy font-medium'
-          : 'text-ink-500 hover:bg-surface-hover'
+          : muted
+            ? 'text-ink-400 hover:bg-surface-hover hover:text-ink-700'
+            : 'text-ink-500 hover:bg-surface-hover'
         }
       `}
     >
@@ -43,6 +46,42 @@ function NavItem({ href, label, count, active, onClick }: NavItemProps) {
         </span>
       )}
     </Link>
+  )
+}
+
+function SectionDivider() {
+  return <div className="my-1.5 border-t border-[#F0F0F0]" />
+}
+
+function NavSection({
+  title,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string
+  open: boolean
+  onToggle: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <div>
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between px-[10px] py-[5px] text-[10.5px] uppercase tracking-[0.4px] text-ink-400 font-medium hover:text-ink-700 transition-colors"
+      >
+        {title}
+        <ChevronDown
+          size={11}
+          className={`transition-transform duration-150 ${open ? '' : '-rotate-90'}`}
+        />
+      </button>
+      {open && (
+        <nav className="flex flex-col gap-0.5 mt-0.5">
+          {children}
+        </nav>
+      )}
+    </div>
   )
 }
 
@@ -59,31 +98,121 @@ function NavContent({
 }) {
   const isAdmin = profile.rol === 'admin'
   const isResponsable = profile.rol === 'responsable' || isAdmin
+  const hasScoreAccess = (profile as Profile & { acceso_score?: boolean }).acceso_score === true || isAdmin
+
+  const [ticketsOpen, setTicketsOpen] = useState(true)
+  const [scoreOpen, setScoreOpen] = useState(true)
 
   return (
-    <>
-      <nav className="flex flex-col gap-0.5">
-        <NavItem href="/dashboard" label="Dashboard" active={pathname === '/dashboard'} onClick={onNav} />
-        <NavItem href="/tickets/mios" label="Mis tickets" count={counts?.mios} active={pathname === '/tickets/mios'} onClick={onNav} />
-        {isResponsable && (
-          <NavItem href="/tickets/asignados" label="Asignados a mí" count={counts?.asignados} active={pathname === '/tickets/asignados'} onClick={onNav} />
-        )}
-      </nav>
+    <div className="flex flex-col gap-3">
+      {/* Dashboard — siempre visible */}
+      <NavItem
+        href="/dashboard"
+        label="Dashboard"
+        active={pathname === '/dashboard'}
+        onClick={onNav}
+      />
 
+      {/* ── Mesa de tickets ── */}
+      <NavSection
+        title="Mesa de tickets"
+        open={ticketsOpen}
+        onToggle={() => setTicketsOpen(v => !v)}
+      >
+        <NavItem
+          href="/tickets/mios"
+          label="Mis tickets"
+          count={counts?.mios}
+          active={pathname === '/tickets/mios'}
+          onClick={onNav}
+        />
+        {isResponsable && (
+          <NavItem
+            href="/tickets/asignados"
+            label="Asignados a mí"
+            count={counts?.asignados}
+            active={pathname === '/tickets/asignados'}
+            onClick={onNav}
+          />
+        )}
+        {isAdmin && (
+          <>
+            <SectionDivider />
+            <NavItem
+              href="/admin/catalogo"
+              label="Catálogo"
+              active={pathname.startsWith('/admin/catalogo')}
+              onClick={onNav}
+              muted
+            />
+            <NavItem
+              href="/admin/areas"
+              label="Áreas"
+              active={pathname.startsWith('/admin/areas')}
+              onClick={onNav}
+              muted
+            />
+          </>
+        )}
+      </NavSection>
+
+      {/* ── Score Crediticio ── */}
+      {hasScoreAccess && (
+        <NavSection
+          title="Score Crediticio"
+          open={scoreOpen}
+          onToggle={() => setScoreOpen(v => !v)}
+        >
+          <NavItem
+            href="/score/acreditados"
+            label="Acreditados"
+            active={pathname === '/score/acreditados'}
+            onClick={onNav}
+          />
+          <NavItem
+            href="/score/acreditados/nuevo"
+            label="Nuevo registro"
+            active={pathname === '/score/acreditados/nuevo'}
+            onClick={onNav}
+          />
+          {isAdmin && (
+            <>
+              <SectionDivider />
+              <NavItem
+                href="/admin/score/metricas"
+                label="Métricas de score"
+                active={pathname.startsWith('/admin/score/metricas')}
+                onClick={onNav}
+                muted
+              />
+            </>
+          )}
+        </NavSection>
+      )}
+
+      {/* ── Administración global ── */}
       {isAdmin && (
-        <div className="mt-5">
+        <div className="mt-1">
           <p className="text-[10.5px] uppercase tracking-[0.4px] text-ink-400 font-medium px-[10px] mb-1">
             Administración
           </p>
           <nav className="flex flex-col gap-0.5">
-            <NavItem href="/admin/catalogo" label="Catálogo" active={pathname.startsWith('/admin/catalogo')} onClick={onNav} />
-            <NavItem href="/admin/areas" label="Áreas" active={pathname.startsWith('/admin/areas')} onClick={onNav} />
-            <NavItem href="/admin/usuarios" label="Usuarios" active={pathname.startsWith('/admin/usuarios')} onClick={onNav} />
-            <NavItem href="/admin/metricas" label="Métricas" active={pathname.startsWith('/admin/metricas')} onClick={onNav} />
+            <NavItem
+              href="/admin/usuarios"
+              label="Usuarios"
+              active={pathname.startsWith('/admin/usuarios')}
+              onClick={onNav}
+            />
+            <NavItem
+              href="/admin/metricas"
+              label="Métricas"
+              active={pathname.startsWith('/admin/metricas')}
+              onClick={onNav}
+            />
           </nav>
         </div>
       )}
-    </>
+    </div>
   )
 }
 
