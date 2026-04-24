@@ -35,6 +35,7 @@ export interface Database {
           rol: UserRole
           area_id: string | null
           activo: boolean
+          acceso_score: boolean
           created_at: string
         }
         Insert: Omit<Database['public']['Tables']['profiles']['Row'], 'created_at'>
@@ -110,6 +111,65 @@ export interface Database {
         Update: never
       }
     }
+      acreditados: {
+        Row: {
+          id: string
+          numero: number
+          clave: string
+          nombre_completo: string
+          ciclo: string
+          fecha_nacimiento: string
+          tiempo_residencia: number
+          antiguedad_negocio: number
+          dependientes: number
+          antiguedad_telefono: number
+          cuenta_banco: number
+          casa_habitacion: string
+          estado_civil: string
+          negocio_domicilio: boolean
+          destino_credito: string
+          automovil_propio: boolean
+          buro_credito: string
+          tipo_garantia: string
+          tipo_negocio: string
+          genero: string
+          puntaje_total: number | null
+          clasificacion_modelo: string | null
+          calificacion_promotor: string | null
+          justificacion_promotor: string | null
+          promotor_id: string | null
+          capturado_por_id: string
+          created_at: string
+          updated_at: string
+          contador_ediciones: number
+        }
+        Insert: Omit<Database['public']['Tables']['acreditados']['Row'], 'id' | 'numero' | 'created_at' | 'updated_at' | 'contador_ediciones'>
+        Update: Partial<Database['public']['Tables']['acreditados']['Insert']>
+      }
+      acreditado_referencias: {
+        Row: {
+          id: string
+          acreditado_id: string
+          nombre_referencia: string | null
+          calidad: string
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['acreditado_referencias']['Row'], 'id' | 'created_at'>
+        Update: never
+      }
+      acreditado_historial: {
+        Row: {
+          id: string
+          acreditado_id: string
+          editado_por_id: string
+          campo: string
+          valor_antes: string | null
+          valor_despues: string | null
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['acreditado_historial']['Row'], 'id' | 'created_at'>
+        Update: never
+      }
     Views: {
       tickets_with_status: {
         Row: Database['public']['Tables']['tickets']['Row'] & {
