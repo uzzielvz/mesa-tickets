@@ -26,7 +26,7 @@ export default function UsuariosAdmin({ profiles, areas }: { profiles: Profile[]
     }
     setSaving(id)
     const supabase = createClient()
-    const { error } = await supabase.from('profiles').update({ rol: nuevoRol }).eq('id', id)
+    const { error } = await supabase.from('profiles').update({ rol: nuevoRol as 'admin' | 'responsable' | 'usuario' }).eq('id', id)
     if (error) { toast.error('Error al actualizar el rol.'); setSaving(null); return }
     toast.success('Rol actualizado')
     router.refresh()

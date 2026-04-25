@@ -11,7 +11,7 @@ import type { Referencia } from '@/lib/scoring/types'
 export async function crearAcreditado(raw: unknown): Promise<{ ok: boolean; numero?: number; error?: string }> {
   const parsed = acreditadoSchema.safeParse(raw)
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.errors[0].message }
+    return { ok: false, error: parsed.error.issues[0].message }
   }
 
   const supabase = createClient()
@@ -22,7 +22,7 @@ export async function crearAcreditado(raw: unknown): Promise<{ ok: boolean; nume
 
   // Calcular score en servidor
   const refs = referencias as Referencia[]
-  const { puntaje, desglose: _ } = calcularScore(campos, refs)
+  const { puntaje } = calcularScore(campos, refs)
   const clasif = clasificar(puntaje)
 
   // Insertar acreditado
@@ -47,7 +47,7 @@ export async function crearAcreditado(raw: unknown): Promise<{ ok: boolean; nume
   if (refs.length > 0) {
     await supabase.from('acreditado_referencias').insert(
       refs.map(r => ({
-        acreditado_id: acreditado.id,
+        acreditado_id: (acreditado as { id: string; numero: number }).id,
         calidad: r.calidad,
         nombre_referencia: r.nombre_referencia ?? null,
       }))
@@ -55,7 +55,7 @@ export async function crearAcreditado(raw: unknown): Promise<{ ok: boolean; nume
   }
 
   revalidatePath('/score/acreditados')
-  return { ok: true, numero: acreditado.numero }
+  return { ok: true, numero: (acreditado as { id: string; numero: number }).numero }
 }
 
 // ─── Actualizar acreditado con historial ───────────────────────────────────────
@@ -66,7 +66,7 @@ export async function actualizarAcreditado(
 ): Promise<{ ok: boolean; numero?: number; error?: string }> {
   const parsed = acreditadoSchema.safeParse(raw)
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.errors[0].message }
+    return { ok: false, error: parsed.error.issues[0].message }
   }
 
   const supabase = createClient()
@@ -74,13 +74,15 @@ export async function actualizarAcreditado(
   if (!user) return { ok: false, error: 'No autenticado' }
 
   // Leer registro actual para comparar
-  const { data: actual } = await supabase
+  const { data: actualRaw } = await supabase
     .from('acreditados')
     .select('*')
     .eq('id', acreditadoId)
     .single()
 
-  if (!actual) return { ok: false, error: 'Registro no encontrado.' }
+  if (!actualRaw) return { ok: false, error: 'Registro no encontrado.' }
+
+  const actual = actualRaw as Record<string, unknown>
 
   const { referencias, ...campos } = parsed.data
 
@@ -92,12 +94,12 @@ export async function actualizarAcreditado(
   // Detectar cambios campo por campo
   const camposComparables = Object.keys(campos) as (keyof typeof campos)[]
   const cambios = camposComparables
-    .filter(k => String((actual as Record<string, unknown>)[k]) !== String(campos[k]))
+    .filter(k => String(actual[k]) !== String(campos[k]))
     .map(k => ({
       acreditado_id: acreditadoId,
       editado_por_id: user.id,
       campo: k,
-      valor_antes: String((actual as Record<string, unknown>)[k] ?? ''),
+      valor_antes: String(actual[k] ?? ''),
       valor_despues: String(campos[k]),
     }))
 
@@ -113,13 +115,13 @@ export async function actualizarAcreditado(
       ...campos,
       puntaje_total: puntaje,
       clasificacion_modelo: clasif.letra,
-      contador_ediciones: (actual.contador_ediciones ?? 0) + 1,
+      contador_ediciones: ((actual.contador_ediciones as number) ?? 0) + 1,
     })
     .eq('id', acreditadoId)
 
   if (error) return { ok: false, error: 'Error al actualizar el registro.' }
 
-  // Reemplazar referencias: eliminar las anteriores e insertar las nuevas
+  // Reemplazar referencias
   await supabase.from('acreditado_referencias').delete().eq('acreditado_id', acreditadoId)
   if (refs.length > 0) {
     await supabase.from('acreditado_referencias').insert(
@@ -133,7 +135,7 @@ export async function actualizarAcreditado(
 
   revalidatePath('/score/acreditados')
   revalidatePath(`/score/acreditados/${actual.numero}`)
-  return { ok: true, numero: actual.numero }
+  return { ok: true, numero: actual.numero as number }
 }
 
 // ─── Guardar evaluación del promotor ──────────────────────────────────────────
@@ -144,7 +146,7 @@ export async function guardarEvaluacion(
 ): Promise<{ ok: boolean; error?: string }> {
   const parsed = evaluacionSchema.safeParse(raw)
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.errors[0].message }
+    return { ok: false, error: parsed.error.issues[0].message }
   }
 
   const supabase = createClient()

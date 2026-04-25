@@ -23,7 +23,7 @@ export default async function TicketDetailPage({ params }: { params: { numero: s
   if (!rawTicket) notFound()
   const ticket = rawTicket as unknown as TicketWithStatus
 
-  const [{ data: responses }, { data: attachments }] = await Promise.all([
+  const [{ data: rawResponses }, { data: attachments }] = await Promise.all([
     supabase
       .from('ticket_responses')
       .select('*, profiles(nombre_completo, rol)')
@@ -34,6 +34,11 @@ export default async function TicketDetailPage({ params }: { params: { numero: s
       .select('*')
       .eq('ticket_id', ticket.id),
   ])
+  const responses = rawResponses as unknown as Array<{
+    id: string; ticket_id: string; orden: number; autor_id: string
+    contenido: string; tipo: string; created_at: string
+    profiles: { nombre_completo: string; rol: string } | null
+  }>
 
   const canRespond =
     user.id === ticket.levantado_por_id || user.id === ticket.responsable_id

@@ -38,8 +38,25 @@ export interface Database {
           acceso_score: boolean
           created_at: string
         }
-        Insert: Omit<Database['public']['Tables']['profiles']['Row'], 'created_at'>
-        Update: Partial<Database['public']['Tables']['profiles']['Insert']>
+        Insert: {
+          id: string
+          email: string
+          nombre_completo: string
+          rol: UserRole
+          area_id?: string | null
+          activo?: boolean
+          acceso_score?: boolean
+        }
+        Update: {
+          id?: string
+          email?: string
+          nombre_completo?: string
+          rol?: UserRole
+          area_id?: string | null
+          activo?: boolean
+          acceso_score?: boolean
+        }
+        Relationships: []
       }
       areas: {
         Row: {
@@ -47,8 +64,15 @@ export interface Database {
           nombre: string
           activo: boolean
         }
-        Insert: Omit<Database['public']['Tables']['areas']['Row'], 'id'>
-        Update: Partial<Database['public']['Tables']['areas']['Insert']>
+        Insert: {
+          nombre: string
+          activo?: boolean
+        }
+        Update: {
+          nombre?: string
+          activo?: boolean
+        }
+        Relationships: []
       }
       problem_catalog: {
         Row: {
@@ -63,8 +87,29 @@ export interface Database {
           requiere_evidencia: boolean
           activo: boolean
         }
-        Insert: Omit<Database['public']['Tables']['problem_catalog']['Row'], 'id'>
-        Update: Partial<Database['public']['Tables']['problem_catalog']['Insert']>
+        Insert: {
+          area_id: string
+          nombre: string
+          leyenda: string
+          responsable_default_id?: string | null
+          requiere_grupo?: boolean
+          requiere_cliente?: boolean
+          requiere_ciclo?: boolean
+          requiere_evidencia?: boolean
+          activo?: boolean
+        }
+        Update: {
+          area_id?: string
+          nombre?: string
+          leyenda?: string
+          responsable_default_id?: string | null
+          requiere_grupo?: boolean
+          requiere_cliente?: boolean
+          requiere_ciclo?: boolean
+          requiere_evidencia?: boolean
+          activo?: boolean
+        }
+        Relationships: []
       }
       tickets: {
         Row: {
@@ -79,8 +124,25 @@ export interface Database {
           created_at: string
           closed_at: string | null
         }
-        Insert: Omit<Database['public']['Tables']['tickets']['Row'], 'id' | 'numero' | 'created_at'>
-        Update: Partial<Database['public']['Tables']['tickets']['Insert']>
+        Insert: {
+          problem_catalog_id: string
+          levantado_por_id: string
+          responsable_id: string
+          grupo?: string | null
+          cliente?: string | null
+          ciclo_cliente?: string | null
+          closed_at?: string | null
+        }
+        Update: {
+          problem_catalog_id?: string
+          levantado_por_id?: string
+          responsable_id?: string
+          grupo?: string | null
+          cliente?: string | null
+          ciclo_cliente?: string | null
+          closed_at?: string | null
+        }
+        Relationships: []
       }
       ticket_responses: {
         Row: {
@@ -92,8 +154,15 @@ export interface Database {
           tipo: ResponseType
           created_at: string
         }
-        Insert: Omit<Database['public']['Tables']['ticket_responses']['Row'], 'id' | 'created_at'>
+        Insert: {
+          ticket_id: string
+          orden: number
+          autor_id: string
+          contenido: string
+          tipo: ResponseType
+        }
         Update: never
+        Relationships: []
       }
       ticket_attachments: {
         Row: {
@@ -107,10 +176,18 @@ export interface Database {
           uploaded_by_id: string
           created_at: string
         }
-        Insert: Omit<Database['public']['Tables']['ticket_attachments']['Row'], 'id' | 'created_at'>
+        Insert: {
+          ticket_id: string
+          response_id?: string | null
+          storage_path: string
+          nombre_original: string
+          mime_type: string
+          size_bytes: number
+          uploaded_by_id: string
+        }
         Update: never
+        Relationships: []
       }
-    }
       acreditados: {
         Row: {
           id: string
@@ -143,8 +220,59 @@ export interface Database {
           updated_at: string
           contador_ediciones: number
         }
-        Insert: Omit<Database['public']['Tables']['acreditados']['Row'], 'id' | 'numero' | 'created_at' | 'updated_at' | 'contador_ediciones'>
-        Update: Partial<Database['public']['Tables']['acreditados']['Insert']>
+        Insert: {
+          clave: string
+          nombre_completo: string
+          ciclo: string
+          fecha_nacimiento: string
+          tiempo_residencia: number
+          antiguedad_negocio: number
+          dependientes: number
+          antiguedad_telefono: number
+          cuenta_banco: number
+          casa_habitacion: string
+          estado_civil: string
+          negocio_domicilio: boolean
+          destino_credito: string
+          automovil_propio: boolean
+          buro_credito: string
+          tipo_garantia: string
+          tipo_negocio: string
+          genero: string
+          puntaje_total?: number | null
+          clasificacion_modelo?: string | null
+          calificacion_promotor?: string | null
+          justificacion_promotor?: string | null
+          promotor_id?: string | null
+          capturado_por_id: string
+        }
+        Update: {
+          clave?: string
+          nombre_completo?: string
+          ciclo?: string
+          fecha_nacimiento?: string
+          tiempo_residencia?: number
+          antiguedad_negocio?: number
+          dependientes?: number
+          antiguedad_telefono?: number
+          cuenta_banco?: number
+          casa_habitacion?: string
+          estado_civil?: string
+          negocio_domicilio?: boolean
+          destino_credito?: string
+          automovil_propio?: boolean
+          buro_credito?: string
+          tipo_garantia?: string
+          tipo_negocio?: string
+          genero?: string
+          puntaje_total?: number | null
+          clasificacion_modelo?: string | null
+          calificacion_promotor?: string | null
+          justificacion_promotor?: string | null
+          promotor_id?: string | null
+          contador_ediciones?: number
+        }
+        Relationships: []
       }
       acreditado_referencias: {
         Row: {
@@ -154,8 +282,13 @@ export interface Database {
           calidad: string
           created_at: string
         }
-        Insert: Omit<Database['public']['Tables']['acreditado_referencias']['Row'], 'id' | 'created_at'>
+        Insert: {
+          acreditado_id: string
+          nombre_referencia?: string | null
+          calidad: string
+        }
         Update: never
+        Relationships: []
       }
       acreditado_historial: {
         Row: {
@@ -167,12 +300,30 @@ export interface Database {
           valor_despues: string | null
           created_at: string
         }
-        Insert: Omit<Database['public']['Tables']['acreditado_historial']['Row'], 'id' | 'created_at'>
+        Insert: {
+          acreditado_id: string
+          editado_por_id: string
+          campo: string
+          valor_antes?: string | null
+          valor_despues?: string | null
+        }
         Update: never
+        Relationships: []
       }
+    }
     Views: {
       tickets_with_status: {
-        Row: Database['public']['Tables']['tickets']['Row'] & {
+        Row: {
+          id: string
+          numero: number
+          problem_catalog_id: string
+          levantado_por_id: string
+          responsable_id: string
+          grupo: string | null
+          cliente: string | null
+          ciclo_cliente: string | null
+          created_at: string
+          closed_at: string | null
           status: TicketStatus
           area_nombre: string
           problema_nombre: string
@@ -180,6 +331,7 @@ export interface Database {
           responsable_nombre: string
           ultima_respuesta_at: string | null
         }
+        Relationships: []
       }
     }
     Functions: {
@@ -189,5 +341,6 @@ export interface Database {
       }
     }
     Enums: Record<string, never>
+    CompositeTypes: { [_ in never]: never }
   }
 }
