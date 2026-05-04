@@ -16,5 +16,9 @@ export default async function ScoreLayout({ children }: { children: React.ReactN
 
   if (!tieneAcceso) redirect('/dashboard')
 
-  return <>{children}</>
+  return (
+    <div className="px-5 pt-16 pb-10 md:px-9 md:pt-9 md:pb-10">
+      {children}
+    </div>
+  )
 }
