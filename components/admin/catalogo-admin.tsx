@@ -193,13 +193,13 @@ export default function CatalogoAdmin({ catalog, areas, profiles }: { catalog: C
       )}
 
       <div className="border border-[#ECECEC] rounded-md overflow-hidden">
-        <div className="hidden md:grid grid-cols-[1fr_120px_80px] px-5 py-2 border-b border-[#ECECEC] bg-surface-sidebar">
+        <div className="hidden md:grid grid-cols-[1fr_180px_140px] px-5 py-2 border-b border-[#ECECEC] bg-surface-sidebar gap-4">
           {['Tipo de problema', 'Área', ''].map(h => (
             <span key={h} className="text-[11px] uppercase tracking-[0.3px] text-ink-400 font-medium">{h}</span>
           ))}
         </div>
         {catalog.map((item, i) => (
-          <div key={item.id} className={`grid grid-cols-1 md:grid-cols-[1fr_120px_80px] items-center px-5 py-3 gap-1 ${i < catalog.length - 1 ? 'border-b border-[#F5F5F5]' : ''}`}>
+          <div key={item.id} className={`grid grid-cols-1 md:grid-cols-[1fr_180px_140px] items-center px-5 py-3 gap-4 ${i < catalog.length - 1 ? 'border-b border-[#F5F5F5]' : ''}`}>
             <div>
               <p className={`text-[13px] font-medium ${item.activo ? 'text-ink-900' : 'text-ink-400 line-through'}`}>{item.nombre}</p>
               <p className="text-[11.5px] text-ink-400 truncate">{item.leyenda}</p>
@@ -210,7 +210,7 @@ export default function CatalogoAdmin({ catalog, areas, profiles }: { catalog: C
                 </p>
               )}
             </div>
-            <span className="text-[12.5px] text-ink-700">{areaName(item.area_id)}</span>
+            <span className="text-[12.5px] text-ink-700 truncate">{areaName(item.area_id)}</span>
             <div className="flex gap-3">
               <button onClick={() => startEdit(item)} className="text-[12px] text-ink-400 hover:text-ink-700 transition-colors">Editar</button>
               <button onClick={() => toggleActivo(item)} className="text-[12px] text-ink-400 hover:text-ink-700 transition-colors">
