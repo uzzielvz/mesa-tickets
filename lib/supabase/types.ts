@@ -1,8 +1,21 @@
 // Tipos generados manualmente — reemplazar con `supabase gen types` cuando el schema esté en producción
 
 export type UserRole = 'admin' | 'responsable' | 'usuario'
-export type ResponseType = 'mensaje' | 'terminado_responsable' | 'terminado_usuario'
-export type TicketStatus = 'abierto' | 'contestado' | 'terminado' | 'cerrado'
+export type ResponseType = 'mensaje' | 'terminado_responsable' | 'terminado_usuario' | 'rechazo_responsable'
+export type TicketStatus = 'abierto' | 'contestado' | 'terminado' | 'cerrado' | 'rechazado'
+
+export type ProblemFieldType = 'text' | 'textarea' | 'number' | 'select' | 'date'
+
+export interface ProblemField {
+  key: string
+  label: string
+  type: ProblemFieldType
+  required: boolean
+  placeholder?: string
+  options?: string[]
+}
+
+export type TicketDatos = Record<string, string>
 
 // Tipo para la vista tickets_with_status
 export interface TicketWithStatus {
@@ -14,6 +27,7 @@ export interface TicketWithStatus {
   grupo: string | null
   cliente: string | null
   ciclo_cliente: string | null
+  datos: TicketDatos
   created_at: string
   closed_at: string | null
   status: TicketStatus
@@ -86,6 +100,7 @@ export interface Database {
           requiere_ciclo: boolean
           requiere_evidencia: boolean
           activo: boolean
+          campos: ProblemField[]
         }
         Insert: {
           area_id: string
@@ -97,6 +112,7 @@ export interface Database {
           requiere_ciclo?: boolean
           requiere_evidencia?: boolean
           activo?: boolean
+          campos?: ProblemField[]
         }
         Update: {
           area_id?: string
@@ -108,6 +124,7 @@ export interface Database {
           requiere_ciclo?: boolean
           requiere_evidencia?: boolean
           activo?: boolean
+          campos?: ProblemField[]
         }
         Relationships: []
       }
@@ -123,6 +140,7 @@ export interface Database {
           ciclo_cliente: string | null
           created_at: string
           closed_at: string | null
+          datos: TicketDatos
         }
         Insert: {
           problem_catalog_id: string
@@ -132,6 +150,7 @@ export interface Database {
           cliente?: string | null
           ciclo_cliente?: string | null
           closed_at?: string | null
+          datos?: TicketDatos
         }
         Update: {
           problem_catalog_id?: string
@@ -141,6 +160,7 @@ export interface Database {
           cliente?: string | null
           ciclo_cliente?: string | null
           closed_at?: string | null
+          datos?: TicketDatos
         }
         Relationships: []
       }
@@ -322,6 +342,7 @@ export interface Database {
           grupo: string | null
           cliente: string | null
           ciclo_cliente: string | null
+          datos: TicketDatos
           created_at: string
           closed_at: string | null
           status: TicketStatus

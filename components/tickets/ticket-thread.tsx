@@ -27,6 +27,7 @@ interface Props {
 const TIPO_LABEL: Record<string, string> = {
   terminado_responsable: 'Marcó como terminado',
   terminado_usuario: 'Confirmó el cierre',
+  rechazo_responsable: 'Rechazó la solicitud',
 }
 
 export default function TicketThread({ responses, attachments, levantadoPorId }: Props) {
@@ -46,6 +47,22 @@ export default function TicketThread({ responses, attachments, levantadoPorId }:
         const respAttachments = attachments.filter(a => a.response_id === resp.id)
 
         if (isSystem) {
+          const isRechazo = resp.tipo === 'rechazo_responsable'
+          if (isRechazo) {
+            return (
+              <div key={resp.id} className="my-3 border border-red-200 bg-red-50/50 rounded-md px-4 py-3 flex flex-col gap-1">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[12px] font-medium text-red-700">
+                    {resp.profiles ? formatName(resp.profiles.nombre_completo, '') : '—'} — {TIPO_LABEL[resp.tipo]}
+                  </span>
+                  <span className="text-[11.5px] text-ink-400">{formatDate(resp.created_at)}</span>
+                </div>
+                <p className="text-[13px] text-ink-700 whitespace-pre-wrap leading-relaxed">
+                  {resp.contenido}
+                </p>
+              </div>
+            )
+          }
           return (
             <div key={resp.id} className="flex items-center gap-3 py-4">
               <div className="flex-1 h-px bg-[#ECECEC]" />

@@ -4,12 +4,15 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import FieldsBuilder from './fields-builder'
+import type { ProblemField } from '@/lib/supabase/types'
 
 interface CatalogItem {
   id: string; area_id: string; nombre: string; leyenda: string
   responsable_default_id: string | null
   requiere_grupo: boolean; requiere_cliente: boolean
   requiere_ciclo: boolean; requiere_evidencia: boolean; activo: boolean
+  campos: ProblemField[] | null
 }
 interface Area { id: string; nombre: string }
 interface Profile { id: string; nombre_completo: string }
@@ -17,40 +20,80 @@ interface Profile { id: string; nombre_completo: string }
 const inputClass = 'bg-white border border-[#ECECEC] rounded px-3 py-[7px] text-[13px] text-ink-900 placeholder:text-ink-400 outline-none focus:border-orange focus:ring-[3px] focus:ring-orange/15 transition-all'
 const selectClass = 'bg-white border border-[#ECECEC] rounded px-3 py-[7px] text-[13px] text-ink-900 outline-none focus:border-orange transition-all'
 
-const BLANK = {
-  area_id: '', nombre: '', leyenda: '', responsable_default_id: '',
-  requiere_grupo: false, requiere_cliente: false, requiere_ciclo: false, requiere_evidencia: false,
+interface FormState {
+  area_id: string
+  nombre: string
+  leyenda: string
+  responsable_default_id: string
+  requiere_evidencia: boolean
+  campos: ProblemField[]
+}
+
+const BLANK: FormState = {
+  area_id: '',
+  nombre: '',
+  leyenda: '',
+  responsable_default_id: '',
+  requiere_evidencia: false,
+  campos: [],
 }
 
 export default function CatalogoAdmin({ catalog, areas, profiles }: { catalog: CatalogItem[]; areas: Area[]; profiles: Profile[] }) {
   const router = useRouter()
-  const [form, setForm] = useState(BLANK)
+  const [form, setForm] = useState<FormState>(BLANK)
   const [editing, setEditing] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
 
   function startEdit(item: CatalogItem) {
     setForm({
-      area_id: item.area_id, nombre: item.nombre, leyenda: item.leyenda,
+      area_id: item.area_id,
+      nombre: item.nombre,
+      leyenda: item.leyenda,
       responsable_default_id: item.responsable_default_id ?? '',
-      requiere_grupo: item.requiere_grupo, requiere_cliente: item.requiere_cliente,
-      requiere_ciclo: item.requiere_ciclo, requiere_evidencia: item.requiere_evidencia,
+      requiere_evidencia: item.requiere_evidencia,
+      campos: item.campos ?? [],
     })
     setEditing(item.id)
     setShowForm(true)
   }
 
   function resetForm() {
-    setForm(BLANK); setEditing(null); setShowForm(false)
+    setForm(BLANK)
+    setEditing(null)
+    setShowForm(false)
   }
 
   async function handleSave() {
     if (!form.area_id || !form.nombre || !form.leyenda) return
+
+    // Validaciones del builder
+    const keys = new Set<string>()
+    for (const c of form.campos) {
+      if (!c.label.trim() || !c.key.trim()) {
+        toast.error('Hay un campo sin etiqueta. Revísalo.')
+        return
+      }
+      if (keys.has(c.key)) {
+        toast.error(`Hay dos campos con el mismo identificador (${c.key}).`)
+        return
+      }
+      keys.add(c.key)
+      if (c.type === 'select' && (!c.options || c.options.length === 0)) {
+        toast.error(`El campo "${c.label}" es de selección y no tiene opciones.`)
+        return
+      }
+    }
+
     setLoading(true)
     const supabase = createClient()
     const payload = {
-      ...form,
+      area_id: form.area_id,
+      nombre: form.nombre,
+      leyenda: form.leyenda,
       responsable_default_id: form.responsable_default_id || null,
+      requiere_evidencia: form.requiere_evidencia,
+      campos: form.campos,
     }
     const { error } = editing
       ? await supabase.from('problem_catalog').update(payload).eq('id', editing)
@@ -79,7 +122,6 @@ export default function CatalogoAdmin({ catalog, areas, profiles }: { catalog: C
 
   return (
     <div className="flex flex-col gap-6 max-w-3xl">
-      {/* Botón nuevo */}
       {!showForm && (
         <button
           onClick={() => setShowForm(true)}
@@ -89,7 +131,6 @@ export default function CatalogoAdmin({ catalog, areas, profiles }: { catalog: C
         </button>
       )}
 
-      {/* Formulario */}
       {showForm && (
         <div className="border border-[#ECECEC] rounded-md p-5 flex flex-col gap-4">
           <p className="text-[13px] font-medium text-navy">{editing ? 'Editar tipo' : 'Nuevo tipo de problema'}</p>
@@ -121,23 +162,27 @@ export default function CatalogoAdmin({ catalog, areas, profiles }: { catalog: C
             <textarea value={form.leyenda} onChange={e => setForm(f => ({ ...f, leyenda: e.target.value }))} rows={3} placeholder="Explica qué debe hacer el usuario antes de levantar este ticket..." className={`${inputClass} resize-none`} />
           </div>
 
-          <div className="flex flex-wrap gap-4">
-            {([['requiere_grupo', 'Requiere grupo'], ['requiere_cliente', 'Requiere cliente'], ['requiere_ciclo', 'Requiere ciclo'], ['requiere_evidencia', 'Requiere evidencia']] as const).map(([key, label]) => (
-              <label key={key} className="flex items-center gap-2 text-[12.5px] text-ink-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form[key]}
-                  onChange={e => setForm(f => ({ ...f, [key]: e.target.checked }))}
-                  className="accent-orange"
-                />
-                {label}
-              </label>
-            ))}
-          </div>
+          <FieldsBuilder
+            value={form.campos}
+            onChange={campos => setForm(f => ({ ...f, campos }))}
+          />
+
+          <label className="flex items-center gap-2 text-[12.5px] text-ink-700 cursor-pointer mt-1">
+            <input
+              type="checkbox"
+              checked={form.requiere_evidencia}
+              onChange={e => setForm(f => ({ ...f, requiere_evidencia: e.target.checked }))}
+              className="accent-orange"
+            />
+            Requiere evidencia (adjuntos obligatorios)
+          </label>
 
           <div className="flex gap-2">
-            <button onClick={handleSave} disabled={loading || !form.area_id || !form.nombre || !form.leyenda}
-              className="bg-orange hover:bg-orange-dark text-white text-[12.5px] font-medium rounded px-[14px] py-[7px] transition-colors disabled:opacity-50">
+            <button
+              onClick={handleSave}
+              disabled={loading || !form.area_id || !form.nombre || !form.leyenda}
+              className="bg-orange hover:bg-orange-dark text-white text-[12.5px] font-medium rounded px-[14px] py-[7px] transition-colors disabled:opacity-50"
+            >
               {loading ? 'Guardando...' : editing ? 'Guardar cambios' : 'Crear'}
             </button>
             <button onClick={resetForm} className="border border-[#ECECEC] text-ink-900 text-[12.5px] font-medium rounded px-[14px] py-[7px] hover:bg-surface-hover transition-colors">
@@ -147,7 +192,6 @@ export default function CatalogoAdmin({ catalog, areas, profiles }: { catalog: C
         </div>
       )}
 
-      {/* Lista */}
       <div className="border border-[#ECECEC] rounded-md overflow-hidden">
         <div className="hidden md:grid grid-cols-[1fr_120px_80px] px-5 py-2 border-b border-[#ECECEC] bg-surface-sidebar">
           {['Tipo de problema', 'Área', ''].map(h => (
@@ -159,6 +203,12 @@ export default function CatalogoAdmin({ catalog, areas, profiles }: { catalog: C
             <div>
               <p className={`text-[13px] font-medium ${item.activo ? 'text-ink-900' : 'text-ink-400 line-through'}`}>{item.nombre}</p>
               <p className="text-[11.5px] text-ink-400 truncate">{item.leyenda}</p>
+              {item.campos && item.campos.length > 0 && (
+                <p className="text-[11px] text-ink-400 mt-0.5">
+                  {item.campos.length} campo{item.campos.length !== 1 ? 's' : ''}
+                  {item.requiere_evidencia ? ' · evidencia' : ''}
+                </p>
+              )}
             </div>
             <span className="text-[12.5px] text-ink-700">{areaName(item.area_id)}</span>
             <div className="flex gap-3">

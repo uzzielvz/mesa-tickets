@@ -20,6 +20,8 @@ export default async function DashboardLayout({
 
   if (!profile) redirect('/login')
 
+  if (!profile.area_id) redirect('/onboarding')
+
   // Contadores para el sidebar
   const [{ count: miosCount }, { count: asignadosCount }] = await Promise.all([
     supabase

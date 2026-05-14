@@ -2,11 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { createClient } from '@/lib/supabase/client'
-import { newTicketSchema, type NewTicketInput } from '@/lib/schemas/ticket'
-
+import type { ProblemField, TicketDatos } from '@/lib/supabase/types'
 
 interface Area { id: string; nombre: string }
 interface CatalogItem {
@@ -15,10 +12,8 @@ interface CatalogItem {
   nombre: string
   leyenda: string
   responsable_default_id: string | null
-  requiere_grupo: boolean
-  requiere_cliente: boolean
-  requiere_ciclo: boolean
   requiere_evidencia: boolean
+  campos: ProblemField[] | null
 }
 
 interface Props {
@@ -27,60 +22,109 @@ interface Props {
   userId: string
 }
 
+const inputClass = 'bg-white border border-[#ECECEC] rounded px-3 py-[7px] text-[13px] text-ink-900 placeholder:text-ink-400 outline-none focus:border-orange focus:ring-[3px] focus:ring-orange/15 transition-all'
+
 export default function TicketForm({ areas, catalog, userId }: Props) {
   const router = useRouter()
   const [selectedArea, setSelectedArea] = useState('')
   const [selectedProblem, setSelectedProblem] = useState<CatalogItem | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [datos, setDatos] = useState<TicketDatos>({})
+  const [comentario, setComentario] = useState('')
   const [files, setFiles] = useState<FileList | null>(null)
+  const [loading, setLoading] = useState(false)
 
   const [areaError, setAreaError] = useState('')
   const [problemError, setProblemError] = useState('')
+  const [comentarioError, setComentarioError] = useState('')
   const [evidenciaError, setEvidenciaError] = useState('')
-
-  const { register, handleSubmit, formState: { errors } } = useForm<NewTicketInput>({
-    resolver: zodResolver(newTicketSchema),
-  })
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const filteredCatalog = catalog.filter(c => c.area_id === selectedArea)
+  const campos: ProblemField[] = selectedProblem?.campos ?? []
 
   function handleAreaChange(areaId: string) {
     setSelectedArea(areaId)
     setSelectedProblem(null)
+    setDatos({})
     setAreaError('')
     setProblemError('')
     setEvidenciaError('')
+    setFieldErrors({})
   }
 
   function handleProblemChange(problemId: string) {
     const problem = catalog.find(c => c.id === problemId) ?? null
     setSelectedProblem(problem)
+    setDatos({})
     setProblemError('')
     setEvidenciaError('')
+    setFieldErrors({})
   }
 
-  async function onSubmit(data: NewTicketInput) {
-    // Validar selects manualmente
+  function setCampo(key: string, value: string) {
+    setDatos(d => ({ ...d, [key]: value }))
+    if (fieldErrors[key]) setFieldErrors(e => ({ ...e, [key]: '' }))
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
     if (!selectedArea) { setAreaError('Selecciona un área'); return }
     if (!selectedProblem) { setProblemError('Selecciona un tipo de problema'); return }
+
+    // Validar campos dinámicos
+    const errs: Record<string, string> = {}
+    for (const c of campos) {
+      const v = (datos[c.key] ?? '').trim()
+      if (c.required && !v) {
+        errs[c.key] = `${c.label} es obligatorio`
+      } else if (v && c.type === 'number' && Number.isNaN(Number(v))) {
+        errs[c.key] = `${c.label} debe ser numérico`
+      }
+    }
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs)
+      return
+    }
+
+    if (comentario.trim().length < 10) {
+      setComentarioError('El comentario debe tener al menos 10 caracteres')
+      return
+    }
+    setComentarioError('')
+
     if (selectedProblem.requiere_evidencia && (!files || files.length === 0)) {
       setEvidenciaError('Debes adjuntar al menos un archivo de evidencia')
       return
     }
-    setLoading(true)
 
+    setLoading(true)
     const supabase = createClient()
 
-    // Crear el ticket — select('id, numero') evita una segunda query
+    // Mapeo de compatibilidad: si los campos dinámicos usan keys
+    // reservadas (grupo / cliente / ciclo_cliente), también las
+    // escribimos en las columnas legacy para que las vistas y los
+    // tickets viejos se sigan viendo igual.
+    const grupo = (datos.grupo ?? '').trim() || null
+    const cliente = (datos.cliente ?? '').trim() || null
+    const ciclo_cliente = (datos.ciclo_cliente ?? '').trim() || null
+
+    // Limpiar datos: solo campos definidos, con trim
+    const datosLimpios: TicketDatos = {}
+    for (const c of campos) {
+      const v = (datos[c.key] ?? '').trim()
+      if (v) datosLimpios[c.key] = v
+    }
+
     const { data: ticket, error: ticketError } = await supabase
       .from('tickets')
       .insert({
         problem_catalog_id: selectedProblem.id,
         levantado_por_id: userId,
         responsable_id: selectedProblem.responsable_default_id ?? userId,
-        grupo: data.grupo || null,
-        cliente: data.cliente || null,
-        ciclo_cliente: data.ciclo_cliente || null,
+        grupo,
+        cliente,
+        ciclo_cliente,
+        datos: datosLimpios,
       })
       .select('id, numero')
       .single()
@@ -90,16 +134,14 @@ export default function TicketForm({ areas, catalog, userId }: Props) {
       return
     }
 
-    // Insertar primera respuesta (orden 1, del usuario que levanta)
     await supabase.from('ticket_responses').insert({
       ticket_id: ticket.id,
       orden: 1,
       autor_id: userId,
-      contenido: data.comentario,
+      contenido: comentario.trim(),
       tipo: 'mensaje',
     })
 
-    // Subir adjuntos en paralelo si hay
     if (files && files.length > 0) {
       await Promise.all(Array.from(files).map(async (file) => {
         const path = `${ticket.id}/${Date.now()}-${file.name}`
@@ -123,16 +165,62 @@ export default function TicketForm({ areas, catalog, userId }: Props) {
     router.push(`/tickets/${ticket.numero}`)
   }
 
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5 pt-2">
+  function renderField(c: ProblemField) {
+    const value = datos[c.key] ?? ''
+    const err = fieldErrors[c.key]
+    const common = {
+      id: `f-${c.key}`,
+      placeholder: c.placeholder ?? '',
+    }
 
-      {/* Área */}
+    return (
+      <div key={c.key} className="flex flex-col gap-1.5">
+        <label htmlFor={common.id} className="text-[12.5px] font-medium text-ink-700">
+          {c.label}
+          {c.required && <span className="text-red-500"> *</span>}
+        </label>
+        {c.type === 'textarea' ? (
+          <textarea
+            {...common}
+            value={value}
+            rows={3}
+            onChange={e => setCampo(c.key, e.target.value)}
+            className={`${inputClass} resize-none`}
+          />
+        ) : c.type === 'select' ? (
+          <select
+            {...common}
+            value={value}
+            onChange={e => setCampo(c.key, e.target.value)}
+            className={inputClass}
+          >
+            <option value="">Selecciona...</option>
+            {(c.options ?? []).map(o => (
+              <option key={o} value={o}>{o}</option>
+            ))}
+          </select>
+        ) : (
+          <input
+            {...common}
+            type={c.type === 'date' ? 'date' : c.type === 'number' ? 'number' : 'text'}
+            value={value}
+            onChange={e => setCampo(c.key, e.target.value)}
+            className={inputClass}
+          />
+        )}
+        {err && <p className="text-[12px] text-red-600">{err}</p>}
+      </div>
+    )
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5 pt-2">
       <div className="flex flex-col gap-1.5">
         <label className="text-[12.5px] font-medium text-ink-700">Área</label>
         <select
           value={selectedArea}
           onChange={e => handleAreaChange(e.target.value)}
-          className="bg-white border border-[#ECECEC] rounded px-3 py-[7px] text-[13px] text-ink-900 outline-none focus:border-orange focus:ring-[3px] focus:ring-orange/15 transition-all"
+          className={inputClass}
         >
           <option value="">Selecciona un área</option>
           {areas.map(a => (
@@ -142,14 +230,13 @@ export default function TicketForm({ areas, catalog, userId }: Props) {
         {areaError && <p className="text-[12px] text-red-600">{areaError}</p>}
       </div>
 
-      {/* Tipo de problema */}
       {selectedArea && (
         <div className="flex flex-col gap-1.5">
           <label className="text-[12.5px] font-medium text-ink-700">Tipo de problema</label>
           <select
             value={selectedProblem?.id ?? ''}
             onChange={e => handleProblemChange(e.target.value)}
-            className="bg-white border border-[#ECECEC] rounded px-3 py-[7px] text-[13px] text-ink-900 outline-none focus:border-orange focus:ring-[3px] focus:ring-orange/15 transition-all"
+            className={inputClass}
           >
             <option value="">Selecciona el tipo de problema</option>
             {filteredCatalog.map(c => (
@@ -160,63 +247,29 @@ export default function TicketForm({ areas, catalog, userId }: Props) {
         </div>
       )}
 
-      {/* Leyenda del problema */}
       {selectedProblem && (
         <div className="bg-surface-sidebar border border-[#ECECEC] rounded-md px-4 py-3">
           <p className="text-[11px] uppercase tracking-[0.3px] text-ink-400 font-medium mb-1">Instrucciones</p>
-          <p className="text-[13px] text-ink-700 leading-relaxed">{selectedProblem.leyenda}</p>
+          <p className="text-[13px] text-ink-700 leading-relaxed whitespace-pre-wrap">{selectedProblem.leyenda}</p>
         </div>
       )}
 
-      {/* Campos condicionales */}
-      {selectedProblem?.requiere_grupo && (
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[12.5px] font-medium text-ink-700">Grupo</label>
-          <input
-            {...register('grupo')}
-            placeholder="Nombre del grupo"
-            className="bg-white border border-[#ECECEC] rounded px-3 py-[7px] text-[13px] text-ink-900 placeholder:text-ink-400 outline-none focus:border-orange focus:ring-[3px] focus:ring-orange/15 transition-all"
-          />
-        </div>
-      )}
+      {selectedProblem && campos.map(renderField)}
 
-      {selectedProblem?.requiere_cliente && (
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[12.5px] font-medium text-ink-700">Cliente</label>
-          <input
-            {...register('cliente')}
-            placeholder="Nombre del cliente"
-            className="bg-white border border-[#ECECEC] rounded px-3 py-[7px] text-[13px] text-ink-900 placeholder:text-ink-400 outline-none focus:border-orange focus:ring-[3px] focus:ring-orange/15 transition-all"
-          />
-        </div>
-      )}
-
-      {selectedProblem?.requiere_ciclo && (
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[12.5px] font-medium text-ink-700">Ciclo del cliente</label>
-          <input
-            {...register('ciclo_cliente')}
-            placeholder="Ej: Ciclo 12"
-            className="bg-white border border-[#ECECEC] rounded px-3 py-[7px] text-[13px] text-ink-900 placeholder:text-ink-400 outline-none focus:border-orange focus:ring-[3px] focus:ring-orange/15 transition-all"
-          />
-        </div>
-      )}
-
-      {/* Comentario inicial */}
       {selectedProblem && (
         <div className="flex flex-col gap-1.5">
           <label className="text-[12.5px] font-medium text-ink-700">Comentario</label>
           <textarea
-            {...register('comentario')}
+            value={comentario}
+            onChange={e => { setComentario(e.target.value); if (comentarioError) setComentarioError('') }}
             rows={4}
             placeholder="Describe el problema con detalle..."
-            className="bg-white border border-[#ECECEC] rounded px-3 py-[7px] text-[13px] text-ink-900 placeholder:text-ink-400 outline-none focus:border-orange focus:ring-[3px] focus:ring-orange/15 transition-all resize-none"
+            className={`${inputClass} resize-none`}
           />
-          {errors.comentario && <p className="text-[12px] text-red-600">{errors.comentario.message}</p>}
+          {comentarioError && <p className="text-[12px] text-red-600">{comentarioError}</p>}
         </div>
       )}
 
-      {/* Adjuntos */}
       {selectedProblem && (
         <div className="flex flex-col gap-1.5">
           <label className="text-[12.5px] font-medium text-ink-700">
@@ -233,7 +286,6 @@ export default function TicketForm({ areas, catalog, userId }: Props) {
         </div>
       )}
 
-      {/* Submit */}
       {selectedProblem && (
         <div className="pt-2">
           <button
