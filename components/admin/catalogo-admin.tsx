@@ -193,25 +193,25 @@ export default function CatalogoAdmin({ catalog, areas, profiles }: { catalog: C
       )}
 
       <div className="border border-[#ECECEC] rounded-md overflow-hidden">
-        <div className="hidden md:grid grid-cols-[1fr_180px_140px] px-5 py-2 border-b border-[#ECECEC] bg-surface-sidebar gap-4">
+        <div className="hidden md:grid grid-cols-[minmax(0,1fr)_180px_140px] px-5 py-2 border-b border-[#ECECEC] bg-surface-sidebar gap-4">
           {['Tipo de problema', 'Área', ''].map(h => (
             <span key={h} className="text-[11px] uppercase tracking-[0.3px] text-ink-400 font-medium">{h}</span>
           ))}
         </div>
         {catalog.map((item, i) => (
-          <div key={item.id} className={`grid grid-cols-1 md:grid-cols-[1fr_180px_140px] items-center px-5 py-3 gap-4 ${i < catalog.length - 1 ? 'border-b border-[#F5F5F5]' : ''}`}>
-            <div>
-              <p className={`text-[13px] font-medium ${item.activo ? 'text-ink-900' : 'text-ink-400 line-through'}`}>{item.nombre}</p>
+          <div key={item.id} className={`grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_180px_140px] items-center px-5 py-3 gap-4 ${i < catalog.length - 1 ? 'border-b border-[#F5F5F5]' : ''}`}>
+            <div className="min-w-0">
+              <p className={`text-[13px] font-medium truncate ${item.activo ? 'text-ink-900' : 'text-ink-400 line-through'}`}>{item.nombre}</p>
               <p className="text-[11.5px] text-ink-400 truncate">{item.leyenda}</p>
               {item.campos && item.campos.length > 0 && (
-                <p className="text-[11px] text-ink-400 mt-0.5">
+                <p className="text-[11px] text-ink-400 mt-0.5 truncate">
                   {item.campos.length} campo{item.campos.length !== 1 ? 's' : ''}
                   {item.requiere_evidencia ? ' · evidencia' : ''}
                 </p>
               )}
             </div>
-            <span className="text-[12.5px] text-ink-700 truncate">{areaName(item.area_id)}</span>
-            <div className="flex gap-3">
+            <span className="text-[12.5px] text-ink-700 truncate min-w-0">{areaName(item.area_id)}</span>
+            <div className="flex gap-3 justify-end">
               <button onClick={() => startEdit(item)} className="text-[12px] text-ink-400 hover:text-ink-700 transition-colors">Editar</button>
               <button onClick={() => toggleActivo(item)} className="text-[12px] text-ink-400 hover:text-ink-700 transition-colors">
                 {item.activo ? 'Desactivar' : 'Activar'}
