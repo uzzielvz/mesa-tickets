@@ -19,7 +19,7 @@ export default function UserMenu({ profile }: { profile: Profile }) {
   async function handleLogout() {
     const supabase = createClient()
     await supabase.auth.signOut()
-    router.push('/login')
+    router.push('/login?logout=1')
   }
 
   const displayName = formatName(profile.nombre_completo, profile.email)

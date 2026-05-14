@@ -9,6 +9,7 @@ const DOMAIN = '@financieracrediflexi.com'
 function LoginForm() {
   const searchParams = useSearchParams()
   const domainError = searchParams.get('error') === 'domain'
+  const justLoggedOut = searchParams.get('logout') === '1'
 
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
@@ -28,6 +29,9 @@ function LoginForm() {
         redirectTo: `${location.origin}/auth/callback`,
         queryParams: {
           hd: 'financieracrediflexi.com', // Google muestra solo cuentas del dominio
+          // Si el usuario acaba de cerrar sesión, forzar el selector de
+          // cuentas de Google para que no entre automático.
+          ...(justLoggedOut ? { prompt: 'select_account' } : {}),
         },
       },
     })
