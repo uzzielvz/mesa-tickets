@@ -13,7 +13,7 @@ export default async function CatalogoPage() {
   return (
     <div>
       <Header title="Catálogo de problemas" subtitle="Define los tipos de problema por área." />
-      <div className="px-5 md:px-9 pb-12">
+      <div className="px-5 md:px-9 pb-12 min-w-0">
         <CatalogoAdmin catalog={catalog ?? []} areas={areas ?? []} profiles={profiles ?? []} />
       </div>
     </div>

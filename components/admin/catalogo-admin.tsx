@@ -121,7 +121,7 @@ export default function CatalogoAdmin({ catalog, areas, profiles }: { catalog: C
   const areaName = (id: string) => areas.find(a => a.id === id)?.nombre ?? '—'
 
   return (
-    <div className="flex flex-col gap-6 max-w-3xl">
+    <div className="flex flex-col gap-6 w-full min-w-0 max-w-5xl">
       {!showForm && (
         <button
           onClick={() => setShowForm(true)}
@@ -192,14 +192,14 @@ export default function CatalogoAdmin({ catalog, areas, profiles }: { catalog: C
         </div>
       )}
 
-      <div className="border border-[#ECECEC] rounded-md overflow-hidden">
-        <div className="hidden md:grid grid-cols-[minmax(0,1fr)_180px_140px] px-5 py-2 border-b border-[#ECECEC] bg-surface-sidebar gap-4">
+      <div className="border border-[#ECECEC] rounded-md overflow-hidden w-full">
+        <div className="hidden md:grid grid-cols-[minmax(0,1fr)_160px_120px] px-5 py-2 border-b border-[#ECECEC] bg-surface-sidebar gap-4">
           {['Tipo de problema', 'Área', ''].map(h => (
             <span key={h} className="text-[11px] uppercase tracking-[0.3px] text-ink-400 font-medium">{h}</span>
           ))}
         </div>
         {catalog.map((item, i) => (
-          <div key={item.id} className={`grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_180px_140px] items-center px-5 py-3 gap-4 ${i < catalog.length - 1 ? 'border-b border-[#F5F5F5]' : ''}`}>
+          <div key={item.id} className={`grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_160px_120px] items-center px-5 py-3 gap-4 ${i < catalog.length - 1 ? 'border-b border-[#F5F5F5]' : ''}`}>
             <div className="min-w-0">
               <p className={`text-[13px] font-medium truncate ${item.activo ? 'text-ink-900' : 'text-ink-400 line-through'}`}>{item.nombre}</p>
               <p className="text-[11.5px] text-ink-400 truncate">{item.leyenda}</p>

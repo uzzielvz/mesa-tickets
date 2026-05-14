@@ -1,0 +1,472 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[spanish,es-tabla]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{setspace}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{array}
+\usepackage{tabularx}
+
+\setstretch{1.15}
+\setlength{\parskip}{0.6em}
+\setlength{\parindent}{0pt}
+
+\definecolor{graytitle}{gray}{0.20}
+\definecolor{graysoft}{gray}{0.45}
+
+\titleformat{\section}
+  {\normalfont\large\bfseries\color{graytitle}}
+  {\thesection.}{0.6em}{}
+\titlespacing*{\section}{0pt}{1.6em}{0.8em}
+
+\titleformat{\subsection}
+  {\normalfont\normalsize\bfseries\color{graytitle}}
+  {\thesubsection}{0.5em}{}
+\titlespacing*{\subsection}{0pt}{1.2em}{0.4em}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  urlcolor=graytitle,
+  citecolor=black,
+  pdftitle={Herramientas internas y plataforma de infraestructura en CrediFlexi},
+  pdfauthor={Uzziel Valdez Ordonez}
+}
+
+\setlist[itemize]{leftmargin=1.4em, itemsep=0.2em, topsep=0.3em}
+\setlist[enumerate]{leftmargin=1.6em, itemsep=0.2em, topsep=0.3em}
+
+\renewcommand{\arraystretch}{1.25}
+
+\begin{document}
+
+% ============================================================
+% PORTADA
+% ============================================================
+\begin{titlepage}
+\centering
+\vspace*{3.5cm}
+
+{\Large\bfseries Herramientas internas y plataforma\par}
+\vspace{0.3em}
+{\Large\bfseries de infraestructura en CrediFlexi\par}
+
+\vspace{1.4cm}
+
+{\large\color{graysoft} Propuesta técnica y plan de adopción\par}
+
+\vspace{2.8cm}
+
+\rule{6cm}{0.3pt}
+
+\vspace{1em}
+
+{\normalsize Mesa de Tickets\par}
+\vspace{0.3em}
+{\normalsize Calculadora de Score Crediticio\par}
+
+\vspace{1em}
+
+\rule{6cm}{0.3pt}
+
+\vspace{2.8cm}
+
+{\normalsize Uzziel Valdez Ordoñez\par}
+\vspace{0.3em}
+{\small\color{graysoft} Becario de Data Science e Ingeniería de Software\par}
+
+\vfill
+
+{\small 4 de mayo de 2026 \quad $\cdot$ \quad Versión 1.0\par}
+
+\end{titlepage}
+
+% ============================================================
+% TOC
+% ============================================================
+\thispagestyle{empty}
+\tableofcontents
+\newpage
+
+% ============================================================
+% 1. RESUMEN EJECUTIVO
+% ============================================================
+\section{Resumen ejecutivo}
+
+Este documento presenta dos herramientas internas ya construidas y operativas en versión prototipo:
+una \textbf{Mesa de Tickets} para la gestión de incidencias y solicitudes internas,
+y una \textbf{Calculadora de Score Crediticio} para la evaluación de clientes.
+
+Más allá del valor individual de cada herramienta,
+el objetivo central de esta propuesta es \textbf{formalizar el stack tecnológico que las soporta}
+como plataforma común de desarrollo interno de CrediFlexi.
+Una vez definida y bajo gobernanza del Área de Sistemas,
+esta plataforma permite construir herramientas adicionales,
+internas o comerciales,
+con bajo costo marginal y sin reabrir cada vez la conversación de infraestructura.
+
+El stack propuesto es estándar de la industria, sin tecnologías propietarias,
+y portable a otras plataformas si en el futuro fuese necesario.
+El costo de operación es \textbf{cero durante el piloto}
+y se ubica entre \textbf{\$360 y \$810 MXN mensuales} en producción,
+para todas las herramientas que se construyan sobre esta base.
+
+La decisión solicitada es la \textbf{aprobación para iniciar la migración
+de las cuentas técnicas, hoy a título personal, hacia infraestructura corporativa}
+bajo administración del Área de Sistemas.
+
+% ============================================================
+% 2. PROBLEMA ACTUAL
+% ============================================================
+\section{Problema actual}
+
+Las herramientas internas operativas viven hoy en \textbf{Google Apps Script}
+sobre hojas de cálculo de Google.
+Esta arquitectura cumplió su propósito inicial
+pero presenta limitaciones crecientes conforme aumenta el volumen y la complejidad operativa:
+
+\begin{itemize}
+  \item Control de acceso básico, sin segmentación clara por área o rol.
+  \item Trazabilidad limitada: no es posible reconstruir con certeza quién hizo qué y cuándo.
+  \item Degradación de rendimiento con volumen creciente de registros.
+  \item Mantenimiento frágil: cambios sencillos requieren intervención manual sobre las hojas.
+  \item Conocimiento concentrado en personas: la rotación implica pérdida operativa.
+  \item No existe una vía sencilla para exponer estas herramientas a clientes
+        ni integrarlas con sistemas corporativos.
+\end{itemize}
+
+Casos sentidos hoy:
+
+\begin{itemize}
+  \item \textbf{Mesa de tickets}: las incidencias internas se gestionan entre WhatsApp,
+        correos y una hoja compartida. No existen métricas, SLA, ni auditoría formal.
+  \item \textbf{Cálculo de score crediticio}: el flujo depende de un libro de Excel y scripts
+        en Apps Script con parámetros dispersos, sin historial estructurado de evaluaciones.
+\end{itemize}
+
+% ============================================================
+% 3. SOLUCIÓN PROPUESTA
+% ============================================================
+\section{Solución propuesta}
+
+\subsection*{Las dos herramientas}
+
+\textbf{Mesa de Tickets.}
+Aplicación web para la gestión interna de incidencias, solicitudes
+y soporte operativo entre áreas.
+Centraliza en un único lugar lo que hoy vive disperso entre WhatsApp,
+correos y hojas de cálculo.
+Cualquier colaborador puede levantar un ticket,
+asignarlo al área correspondiente,
+darle seguimiento por hilos de respuesta, adjuntar evidencias
+y cerrar el caso con confirmación dual:
+del responsable técnico y del solicitante.
+Cada acción queda registrada con autor, fecha y contexto,
+lo que permite construir métricas operativas reales
+---tiempo de respuesta, carga por área, casos vencidos---
+y conservar el conocimiento institucional incluso ante rotación de personal.
+
+Disponible como prototipo funcional en
+\href{https://mesa-tickets.vercel.app}{\texttt{mesa-tickets.vercel.app}}.
+
+\textbf{Calculadora de Score Crediticio.}
+Aplicación web para la evaluación del puntaje crediticio de clientes.
+Reemplaza el flujo actual basado en Excel y Apps Script
+por un sistema con reglas y parámetros centralizados,
+versionados y modificables sin tocar el código de la aplicación.
+Cada evaluación queda guardada con su contexto completo:
+qué evaluador la ejecutó, qué parámetros estaban vigentes en ese momento,
+qué resultado se obtuvo y sobre qué cliente.
+Esto entrega criterio uniforme entre evaluadores,
+historial estructurado para análisis posteriores
+y trazabilidad ante auditorías.
+
+Ambas herramientas comparten la misma base técnica,
+descrita en la sección de arquitectura.
+
+\subsection*{El valor estructural: una plataforma reutilizable}
+
+El diferenciador real de esta propuesta no son las dos herramientas en sí mismas,
+sino el hecho de que ambas validan en producción un mismo stack técnico.
+Una vez que ese stack esté formalmente bajo gobernanza corporativa,
+construir nuevas herramientas implica solo desarrollo,
+no decisiones de infraestructura.
+
+Esto habilita a CrediFlexi a desplegar
+\textbf{herramientas sin un límite definido},
+tanto para uso \textbf{interno} ---socios, colaboradores y áreas operativas---
+como para uso \textbf{comercial} ---productos, portales y servicios
+de cara a clientes finales---.
+El costo y el tiempo de cada nueva herramienta se reducen sustancialmente
+porque la infraestructura, la autenticación, la gobernanza
+y las prácticas de operación ya están resueltas.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.92\textwidth]{plataforma.png}
+\caption*{\small\color{graysoft} Figura 1. La plataforma común como base
+de las herramientas actuales y futuras.}
+\end{figure}
+
+Ejemplos de iniciativas que podrían construirse sobre esta base:
+
+\textbf{Para uso interno (socios y colaboradores):}
+dashboards operativos por área, automatizaciones de procesos hoy manuales,
+formularios estructurados con auditoría, integraciones con sistemas existentes vía API.
+
+\textbf{Para uso comercial (cara a clientes):}
+portales de autoservicio, calculadoras y simuladores públicos de productos crediticios,
+formularios de solicitud o precalificación en línea, micrositios para campañas.
+
+% ============================================================
+% 4. ALCANCE DEL MVP
+% ============================================================
+\section{Alcance del MVP}
+
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Incluido en esta entrega} & \textbf{Fuera de alcance (fases posteriores)} \\
+\midrule
+Mesa de tickets funcional & Aplicación móvil nativa \\
+Calculadora de score funcional & Integración con CRM corporativo \\
+Inicio de sesión con Google Workspace & Portal externo orientado a clientes \\
+Roles y permisos por área & Reportería avanzada (BI) \\
+Auditoría y métricas operativas & Automatizaciones de procesos complejos \\
+Hosting y subdominio corporativo & Operación multi-empresa \\
+Documentación técnica y de operación & Migración de herramientas existentes \\
+\bottomrule
+\end{tabularx}
+
+% ============================================================
+% 5. ARQUITECTURA TÉCNICA
+% ============================================================
+\section{Arquitectura técnica}
+
+El sistema opera con cuatro componentes independientes,
+cada uno cumple un rol claro y puede ser sustituido sin afectar a los demás.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.9\textwidth]{arquitectura.png}
+\caption*{\small\color{graysoft} Figura 2. Arquitectura del stack común a las dos herramientas.}
+\end{figure}
+
+\subsection*{Componentes}
+
+\begin{itemize}
+  \item \textbf{GitHub} --- repositorio del código fuente.
+        Único origen de verdad. Cada cambio queda versionado, atribuido y revisable.
+        Permite revisión por pares antes de cualquier despliegue.
+  \item \textbf{Vercel} --- plataforma de hosting.
+        Despliega automáticamente cualquier cambio aprobado en GitHub.
+        Provee HTTPS, escalado automático, red de distribución global,
+        métricas, registros de actividad y reversión inmediata ante incidentes.
+  \item \textbf{Supabase} --- base de datos y servicios de aplicación.
+        Por debajo opera \emph{PostgreSQL} estándar, una de las bases de datos relacionales
+        más adoptadas del mundo.
+        Provee almacenamiento de archivos, autenticación
+        y reglas de seguridad a nivel de fila (Row Level Security).
+  \item \textbf{Google Workspace} --- proveedor de identidad corporativa.
+        El inicio de sesión se delega vía OAuth 2.0.
+        El control de quién puede acceder se mantiene en el panel de Workspace de la empresa.
+        Al desactivar la cuenta de un colaborador, el acceso a las herramientas se revoca
+        de forma automática.
+\end{itemize}
+
+\subsection*{Portabilidad y ausencia de \emph{vendor lock-in}}
+
+Las decisiones técnicas se tomaron priorizando portabilidad.
+PostgreSQL es un estándar abierto y exportable.
+La aplicación corre en cualquier infraestructura compatible con Node.js.
+El código vive en un repositorio independiente del proveedor de hosting.
+Una eventual migración hacia infraestructura propia,
+o hacia otro proveedor (AWS, Azure, servidores en oficinas),
+es viable sin reescritura, en plazos de semanas y no de meses.
+
+\subsection*{Seguridad}
+
+\begin{itemize}
+  \item Tráfico encriptado de extremo a extremo (HTTPS) en todas las comunicaciones.
+  \item Autenticación delegada a Google Workspace; la aplicación no almacena contraseñas.
+  \item Reglas de control de acceso aplicadas \emph{a nivel base de datos} (RLS),
+        independientes del frontend.
+  \item Vercel y Supabase cuentan con certificación SOC 2 Type II.
+\end{itemize}
+
+% ============================================================
+% 6. COSTOS Y ESCENARIOS
+% ============================================================
+\section{Costos y escenarios}
+
+Los costos siguientes consideran un tipo de cambio referencial de \$18 MXN por dólar
+y aplican al stack completo, no por herramienta.
+
+\begin{tabularx}{\textwidth}{@{}l l l r >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Escenario} & \textbf{Vercel} & \textbf{Supabase} & \textbf{Mensual aprox.} & \textbf{Cuándo aplica} \\
+\midrule
+Piloto                  & Hobby (gratis) & Free  & \$0 MXN          & Validación inicial, 1 a 3 meses \\
+Producción mínima       & Pro            & Free  & \textasciitilde\$360 MXN & Uso corporativo formal \\
+Producción recomendada  & Pro            & Pro   & \textasciitilde\$810 MXN & Respaldos automáticos, soporte, SLA \\
+\bottomrule
+\end{tabularx}
+
+\subsection*{Notas relevantes}
+
+\begin{itemize}
+  \item La operación es \textbf{técnicamente viable con ambos planes gratuitos}
+        durante el piloto inicial.
+        Las limitaciones principales son la ausencia de respaldos automáticos en Supabase Free
+        y la cláusula de uso no comercial de Vercel Hobby.
+  \item Si solo es posible adquirir un plan pago,
+        \textbf{Vercel Pro tiene prioridad} sobre Supabase Pro:
+        formaliza el uso comercial del hosting
+        y habilita garantías sobre la capa pública de la aplicación.
+        Supabase Pro puede sumarse después,
+        cuando los respaldos automáticos o la capacidad lo justifiquen.
+  \item Los costos cubren el stack completo,
+        independientemente de cuántas herramientas se construyan sobre él.
+\end{itemize}
+
+A modo de contraste, una licencia de \emph{Zendesk Suite}
+ronda los \$1{,}500 MXN mensuales por agente
+y una licencia de \emph{Jira Standard} ronda los \$170 MXN mensuales por usuario.
+La propuesta cubre a la organización completa
+en el rango de \$0 a \$810 MXN mensuales totales.
+
+% ============================================================
+% 7. BENEFICIOS
+% ============================================================
+\section{Beneficios}
+
+\begin{itemize}
+  \item \textbf{Gobernanza centralizada.}
+        Toda la infraestructura bajo cuentas corporativas
+        administradas por el Área de Sistemas.
+  \item \textbf{Trazabilidad operativa completa.}
+        Cada acción queda auditada con autor, fecha y contexto;
+        métricas operativas reales sobre las que hoy no se tiene visibilidad.
+  \item \textbf{Reducción de fricción administrativa.}
+        Alta y baja de usuarios sincronizadas automáticamente
+        con Google Workspace; sin gestión manual de contraseñas ni accesos.
+  \item \textbf{Aprovechamiento de capacidades internas.}
+        Las herramientas se construyen, evolucionan y mantienen con personal interno,
+        reduciendo la dependencia de proveedores externos para soluciones a la medida.
+\end{itemize}
+
+% ============================================================
+% 8. RIESGOS Y MITIGACIONES
+% ============================================================
+\section{Riesgos y mitigaciones}
+
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{5.5cm} >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Riesgo} & \textbf{Mitigación} \\
+\midrule
+Dependencia de un solo desarrollador
+  & Documentación técnica y operativa completa.
+    Repositorio en organización corporativa.
+    Stack popular, lo que facilita la sustitución o ampliación del equipo. \\
+\addlinespace[0.3em]
+Caída de Vercel o Supabase
+  & Stack portable. Migración a infraestructura propia o a otro proveedor
+    factible en plazos de semanas. \\
+\addlinespace[0.3em]
+\emph{Vendor lock-in}
+  & Tecnologías estándar (PostgreSQL, Node.js).
+    Sin componentes propietarios. Datos y código siempre exportables. \\
+\addlinespace[0.3em]
+Filtración o acceso indebido a datos
+  & Reglas de acceso a nivel base de datos (RLS), HTTPS,
+    sin contraseñas almacenadas, auditoría completa. \\
+\addlinespace[0.3em]
+Cuentas técnicas hoy a título personal
+  & Plan de migración a cuentas corporativas previo
+    a cualquier despliegue formal. Tema central de esta propuesta. \\
+\addlinespace[0.3em]
+Crecimiento de costos no anticipado
+  & Escenarios de costos definidos. Escalado por etapas.
+    Alertas configurables en planes pagos. \\
+\bottomrule
+\end{tabularx}
+
+% ============================================================
+% 9. PRÓXIMOS PASOS Y DECISIONES REQUERIDAS
+% ============================================================
+\section{Próximos pasos y decisiones requeridas}
+
+Para avanzar, se requieren las siguientes definiciones por parte de la Gerencia de Sistemas:
+
+\begin{enumerate}
+  \item \textbf{Confirmación de dirección.}
+        Aprobación para mover ambas herramientas
+        a infraestructura corporativa bajo gobernanza de Sistemas.
+  \item \textbf{Acceso al panel DNS (cPanel de HostGator).}
+        Para configurar el subdominio
+        \texttt{tickets.financieracrediflexi.com}
+        mediante un registro CNAME, sin afectar el sitio web actual.
+  \item \textbf{Coordinación con Google Workspace.}
+        Creación de un proyecto en Google Cloud bajo el Workspace corporativo,
+        para administrar el inicio de sesión único.
+  \item \textbf{Correo corporativo administrativo.}
+        Para registrar las cuentas de GitHub, Vercel y Supabase
+        a nombre de la empresa.
+  \item \textbf{Decisión sobre planes de pago.}
+        Momento de transición de los planes gratuitos a planes Pro,
+        con base en los escenarios de costos descritos.
+  \item \textbf{Definición de gobernanza interna.}
+        Personas del Área de Sistemas con acceso administrativo
+        a las plataformas.
+\end{enumerate}
+
+\subsection*{Compromiso del solicitante}
+
+\begin{itemize}
+  \item Creación de todas las cuentas corporativas bajo los correos que se indiquen.
+  \item Migración del repositorio y la base de datos a la infraestructura corporativa.
+  \item Configuración del inicio de sesión con Google Workspace.
+  \item Documentación técnica y operativa completa antes de la entrega formal.
+  \item Soporte directo durante el periodo de validación inicial,
+        con iteraciones basadas en el uso real de las herramientas.
+\end{itemize}
+
+% ============================================================
+% GLOSARIO
+% ============================================================
+\section*{Glosario}
+\addcontentsline{toc}{section}{Glosario}
+
+\begin{description}[leftmargin=2.6cm, style=nextline, itemsep=0.3em]
+  \item[CI/CD] Integración y despliegue continuos.
+        Proceso automático que toma los cambios aprobados en el repositorio
+        y los publica en producción.
+  \item[CNAME] Tipo de registro DNS que apunta un subdominio
+        (por ejemplo \texttt{tickets.financieracrediflexi.com}) hacia otro destino.
+  \item[HTTPS] Protocolo de comunicación encriptada entre navegador y servidor.
+  \item[JWT] Token criptográfico que prueba la identidad de un usuario autenticado
+        en cada petición.
+  \item[Next.js] Marco de desarrollo web sobre el que se construyen ambas aplicaciones.
+        Mantenido por Vercel.
+  \item[OAuth 2.0] Protocolo estándar de delegación de identidad.
+        Es la base del inicio de sesión con Google.
+  \item[PostgreSQL] Sistema gestor de base de datos relacional, abierto y estándar
+        en la industria. Tecnología subyacente de Supabase.
+  \item[RLS] \emph{Row Level Security}.
+        Reglas de seguridad aplicadas a nivel base de datos,
+        independientes del código de la aplicación.
+  \item[SSO] \emph{Single Sign-On}, inicio de sesión único.
+        Una sola credencial corporativa para acceder a todas las herramientas.
+  \item[Vendor lock-in] Dependencia técnica de un proveedor específico
+        que dificulta o encarece la migración hacia otro.
+\end{description}
+
+\end{document}
