@@ -24,6 +24,7 @@ export function promedioReferencias(refs: Referencia[]): number {
     Excelente: 1.0,
     Buena: 0.6,
     Regular: 0.4,
+    'No contestó': 0,
   }
   const suma = refs.reduce((acc, r) => acc + (factores[r.calidad] ?? 0), 0)
   return suma / refs.length

@@ -73,7 +73,7 @@ function Label({ children, required }: { children: React.ReactNode; required?: b
 
 // ─── Opciones ─────────────────────────────────────────────────────────────────
 
-const CALIDAD_OPTS = ['Excelente', 'Buena', 'Regular'] as const
+const CALIDAD_OPTS = ['Excelente', 'Buena', 'Regular', 'No contestó'] as const
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 

@@ -1,5 +1,7 @@
+export type CalidadReferencia = 'Excelente' | 'Buena' | 'Regular' | 'No contestó'
+
 export interface Referencia {
-  calidad: 'Excelente' | 'Buena' | 'Regular'
+  calidad: CalidadReferencia
   nombre_referencia?: string
 }
 

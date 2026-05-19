@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const referenciaSchema = z.object({
-  calidad: z.enum(['Excelente', 'Buena', 'Regular']),
+  calidad: z.enum(['Excelente', 'Buena', 'Regular', 'No contestó']),
   nombre_referencia: z.string().optional(),
 })
 
