@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import Header from '@/components/layout/header'
 import { formatName } from '@/lib/utils/format'
+import { esSoloOperadorScore } from '@/lib/utils/score-permissions'
 
 interface StatCardProps {
   label: string
@@ -32,8 +33,10 @@ export default async function DashboardPage() {
     supabase.from('tickets_with_status').select('status').eq('responsable_id', user.id),
   ])
 
-  const hasScoreAccess =
-    profile?.rol === 'admin' || (profile as { acceso_score?: boolean } | null)?.acceso_score === true
+  const accesoScore = (profile as { acceso_score?: boolean } | null)?.acceso_score === true
+  const rol = profile?.rol ?? 'usuario'
+  const hasScoreAccess = rol === 'admin' || accesoScore
+  const soloScore = esSoloOperadorScore(rol, accesoScore)
 
   let scoreStats = { total: 0, sinEvaluar: 0 }
   if (hasScoreAccess) {
@@ -63,23 +66,27 @@ export default async function DashboardPage() {
     <div>
       <Header
         title={`Hola, ${nombre}`}
-        subtitle="Esto es lo que está pasando hoy."
+        subtitle={
+          soloScore
+            ? 'Resumen del módulo Score crediticio.'
+            : 'Esto es lo que está pasando hoy.'
+        }
       />
 
       <div className="px-5 md:px-9 pb-12 flex flex-col gap-8">
-        {/* Mis tickets */}
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.4px] text-ink-400 font-medium mb-3">Mis tickets</p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <StatCard label="Abiertos" value={misAbiertos} href="/tickets/mios" description="Esperando respuesta" />
-            <StatCard label="Contestados" value={misContestados} href="/tickets/mios" description="Requieren tu respuesta" />
-            <StatCard label="Total" value={misTickets.length} href="/tickets/mios" description="Tickets levantados" />
-            <StatCard label="Cerrados" value={misTickets.filter(t => t.status === 'cerrado').length} href="/tickets/mios" description="Resueltos" />
+        {!soloScore && (
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.4px] text-ink-400 font-medium mb-3">Mis tickets</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <StatCard label="Abiertos" value={misAbiertos} href="/tickets/mios" description="Esperando respuesta" />
+              <StatCard label="Contestados" value={misContestados} href="/tickets/mios" description="Requieren tu respuesta" />
+              <StatCard label="Total" value={misTickets.length} href="/tickets/mios" description="Tickets levantados" />
+              <StatCard label="Cerrados" value={misTickets.filter(t => t.status === 'cerrado').length} href="/tickets/mios" description="Resueltos" />
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Asignados — solo responsable/admin */}
-        {(profile?.rol === 'responsable' || profile?.rol === 'admin') && (
+        {!soloScore && (rol === 'responsable' || rol === 'admin') && (
           <div>
             <p className="text-[11px] uppercase tracking-[0.4px] text-ink-400 font-medium mb-3">Asignados a mí</p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -111,20 +118,25 @@ export default async function DashboardPage() {
           </div>
         )}
 
-        {/* Acceso rápido */}
         <div>
           <p className="text-[11px] uppercase tracking-[0.4px] text-ink-400 font-medium mb-3">Acceso rápido</p>
           <div className="flex flex-wrap gap-2">
-            <Link
-              href="/tickets/nuevo"
-              className="inline-block bg-orange hover:bg-orange-dark text-white text-[12.5px] font-medium rounded px-[14px] py-[7px] transition-colors"
-            >
-              Levantar nuevo ticket
-            </Link>
+            {!soloScore && (
+              <Link
+                href="/tickets/nuevo"
+                className="inline-block bg-orange hover:bg-orange-dark text-white text-[12.5px] font-medium rounded px-[14px] py-[7px] transition-colors"
+              >
+                Levantar nuevo ticket
+              </Link>
+            )}
             {hasScoreAccess && (
               <Link
                 href="/score/acreditados/nuevo"
-                className="inline-block border border-[#ECECEC] text-ink-900 text-[12.5px] font-medium rounded px-[14px] py-[7px] hover:bg-surface-hover transition-colors"
+                className={`inline-block text-[12.5px] font-medium rounded px-[14px] py-[7px] transition-colors ${
+                  soloScore
+                    ? 'bg-orange hover:bg-orange-dark text-white'
+                    : 'border border-[#ECECEC] text-ink-900 hover:bg-surface-hover'
+                }`}
               >
                 Nuevo acreditado
               </Link>

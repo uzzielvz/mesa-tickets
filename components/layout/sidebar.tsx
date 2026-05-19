@@ -7,6 +7,7 @@ import { Menu, X, ChevronDown } from 'lucide-react'
 import Wordmark from '@/components/brand/wordmark'
 import UserMenu from '@/components/layout/user-menu'
 import type { Database } from '@/lib/supabase/types'
+import { esSoloOperadorScore } from '@/lib/utils/score-permissions'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 
@@ -98,7 +99,9 @@ function NavContent({
 }) {
   const isAdmin = profile.rol === 'admin'
   const isResponsable = profile.rol === 'responsable' || isAdmin
-  const hasScoreAccess = (profile as Profile & { acceso_score?: boolean }).acceso_score === true || isAdmin
+  const accesoScore = (profile as Profile & { acceso_score?: boolean }).acceso_score === true
+  const hasScoreAccess = accesoScore || isAdmin
+  const soloScore = esSoloOperadorScore(profile.rol, accesoScore)
 
   const [ticketsOpen, setTicketsOpen] = useState(true)
   const [scoreOpen, setScoreOpen] = useState(true)
@@ -114,6 +117,7 @@ function NavContent({
       />
 
       {/* ── Mesa de tickets ── */}
+      {!soloScore && (
       <NavSection
         title="Mesa de tickets"
         open={ticketsOpen}
@@ -155,6 +159,7 @@ function NavContent({
           </>
         )}
       </NavSection>
+      )}
 
       {/* ── Score Crediticio ── */}
       {hasScoreAccess && (
