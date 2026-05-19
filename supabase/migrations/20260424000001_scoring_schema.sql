@@ -83,14 +83,17 @@ as $$
 $$;
 
 -- Políticas acreditados: solo quienes tienen acceso_score o son admin
+drop policy if exists "acreditados_select" on acreditados;
 create policy "acreditados_select"
   on acreditados for select
   using (has_score_access());
 
+drop policy if exists "acreditados_insert" on acreditados;
 create policy "acreditados_insert"
   on acreditados for insert
   with check (has_score_access() and auth.uid() = capturado_por_id);
 
+drop policy if exists "acreditados_update" on acreditados;
 create policy "acreditados_update"
   on acreditados for update
   using (
@@ -100,19 +103,23 @@ create policy "acreditados_update"
   );
 
 -- Políticas referencias
+drop policy if exists "referencias_select" on acreditado_referencias;
 create policy "referencias_select"
   on acreditado_referencias for select
   using (has_score_access());
 
+drop policy if exists "referencias_insert" on acreditado_referencias;
 create policy "referencias_insert"
   on acreditado_referencias for insert
   with check (has_score_access());
 
 -- Políticas historial
+drop policy if exists "historial_select" on acreditado_historial;
 create policy "historial_select"
   on acreditado_historial for select
   using (has_score_access());
 
+drop policy if exists "historial_insert" on acreditado_historial;
 create policy "historial_insert"
   on acreditado_historial for insert
   with check (has_score_access());
@@ -128,6 +135,7 @@ begin
 end;
 $$;
 
+drop trigger if exists trg_acreditados_updated_at on acreditados;
 create trigger trg_acreditados_updated_at
   before update on acreditados
   for each row execute function set_updated_at();
