@@ -63,10 +63,11 @@ begin
 end;
 $$;
 
--- Vista con el nuevo estado 'rechazado'. Se evalúa antes que 'cerrado'
--- para que muestre 'rechazado' aunque closed_at ya esté seteado por el
--- trigger.
-create or replace view tickets_with_status
+-- Vista con el nuevo estado 'rechazado'. DROP necesario si tickets.* ganó
+-- columnas (ej. datos) — CREATE OR REPLACE falla con error 42P16.
+drop view if exists tickets_with_status;
+
+create view tickets_with_status
 with (security_invoker = true)
 as
 select
