@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronLeft, Pencil } from 'lucide-react'
+import { ChevronLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { calcularScore, clasificar } from '@/lib/scoring/modelo'
 import { puedeEditarAcreditado } from '@/lib/utils/score-permissions'
@@ -8,6 +8,7 @@ import ScoreCard from '@/components/score/score-card'
 import ScoreDesglose from '@/components/score/score-desglose'
 import EvaluacionPromotor from '@/components/score/evaluacion-promotor'
 import AcreditadoHistorial from '@/components/score/acreditado-historial'
+import AcreditadoAcciones from '@/components/score/acreditado-acciones'
 import type { Referencia } from '@/lib/scoring/types'
 import { formatDate, formatName } from '@/lib/utils/format'
 
@@ -169,15 +170,12 @@ export default async function AcreditadoDetailPage({
             )}
           </p>
         </div>
-        {puedeEditar && (
-          <Link
-            href={`/score/acreditados/${acreditado.numero}/editar`}
-            className="flex items-center gap-1.5 border border-[#ECECEC] text-ink-700 text-[12.5px] font-medium rounded px-4 py-[7px] hover:bg-surface-hover transition-colors"
-          >
-            <Pencil size={12} />
-            Editar
-          </Link>
-        )}
+        <AcreditadoAcciones
+          acreditadoId={acreditado.id}
+          numero={acreditado.numero}
+          nombre={acreditado.nombre_completo}
+          puedeEditar={puedeEditar}
+        />
       </div>
 
       <div className="flex flex-col lg:flex-row gap-5 items-start">

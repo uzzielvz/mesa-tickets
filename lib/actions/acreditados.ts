@@ -199,3 +199,44 @@ export async function guardarEvaluacion(
 
   return { ok: true }
 }
+
+// ─── Eliminar acreditado ───────────────────────────────────────────────────────
+
+export async function eliminarAcreditado(
+  acreditadoId: string
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: 'No autenticado' }
+
+  const { data: row } = await supabase
+    .from('acreditados')
+    .select('capturado_por_id')
+    .eq('id', acreditadoId)
+    .single()
+
+  if (!row) return { ok: false, error: 'Registro no encontrado.' }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('rol')
+    .eq('id', user.id)
+    .single()
+
+  const rol = (profile as { rol: string } | null)?.rol ?? 'usuario'
+  const capturadoPorId = (row as { capturado_por_id: string }).capturado_por_id
+
+  if (rol !== 'admin' && user.id !== capturadoPorId) {
+    return { ok: false, error: 'No tienes permiso para eliminar este registro.' }
+  }
+
+  const { error } = await supabase.from('acreditados').delete().eq('id', acreditadoId)
+
+  if (error) {
+    return { ok: false, error: 'Error al eliminar el registro.' }
+  }
+
+  revalidatePath('/score/acreditados')
+  revalidatePath('/dashboard')
+  return { ok: true }
+}
