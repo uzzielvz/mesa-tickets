@@ -69,11 +69,12 @@ export default async function AcreditadoDetailPage({
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('rol')
+    .select('rol, acceso_score')
     .eq('id', user.id)
     .single()
 
-  const rol = (profile as { rol: string } | null)?.rol ?? 'usuario'
+  const rol = (profile as { rol: string; acceso_score?: boolean } | null)?.rol ?? 'usuario'
+  const accesoScore = (profile as { acceso_score?: boolean } | null)?.acceso_score === true
 
   const { data: base } = await supabase
     .from('acreditados')
@@ -108,7 +109,7 @@ export default async function AcreditadoDetailPage({
   const acreditado = rawAcreditado as unknown as AcreditadoRow
   const historial = (rawHistorial ?? []) as unknown as HistorialRow[]
   const refs = (acreditado.acreditado_referencias ?? []) as Referencia[]
-  const puedeEditar = puedeEditarAcreditado(user.id, acreditado.capturado_por_id, rol)
+  const puedeEditar = puedeEditarAcreditado(user.id, acreditado.capturado_por_id, rol, accesoScore)
 
   const scoreResult = calcularScore(
     {

@@ -57,13 +57,14 @@ export default async function EditarAcreditadoPage({
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('rol')
+    .select('rol, acceso_score')
     .eq('id', user.id)
     .single()
 
-  const rol = (profile as { rol: string } | null)?.rol ?? 'usuario'
+  const rol = (profile as { rol: string; acceso_score?: boolean } | null)?.rol ?? 'usuario'
+  const accesoScore = (profile as { acceso_score?: boolean } | null)?.acceso_score === true
 
-  if (!puedeEditarAcreditado(user.id, acreditado.capturado_por_id, rol)) {
+  if (!puedeEditarAcreditado(user.id, acreditado.capturado_por_id, rol, accesoScore)) {
     redirect(`/score/acreditados/${acreditado.numero}`)
   }
 

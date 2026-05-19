@@ -1,8 +1,19 @@
-/** Puede editar datos del acreditado (captura + referencias). */
+/** Usuario con módulo Score (no admin global de la app). */
+export function esSoloOperadorScore(rol: string, accesoScore: boolean): boolean {
+  return accesoScore && rol !== 'admin' && rol !== 'responsable'
+}
+
+/** Crear, editar, eliminar y evaluar acreditados (cualquier registro). */
+export function puedeGestionarAcreditados(rol: string, accesoScore: boolean): boolean {
+  return rol === 'admin' || accesoScore
+}
+
+/** @deprecated Usar puedeGestionarAcreditados */
 export function puedeEditarAcreditado(
-  userId: string,
-  capturadoPorId: string,
-  rol: string
+  _userId: string,
+  _capturadoPorId: string,
+  rol: string,
+  accesoScore = false
 ): boolean {
-  return rol === 'admin' || userId === capturadoPorId
+  return puedeGestionarAcreditados(rol, accesoScore)
 }

@@ -211,7 +211,7 @@ export async function eliminarAcreditado(
 
   const { data: row } = await supabase
     .from('acreditados')
-    .select('capturado_por_id')
+    .select('id')
     .eq('id', acreditadoId)
     .single()
 
@@ -219,14 +219,14 @@ export async function eliminarAcreditado(
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('rol')
+    .select('rol, acceso_score')
     .eq('id', user.id)
     .single()
 
-  const rol = (profile as { rol: string } | null)?.rol ?? 'usuario'
-  const capturadoPorId = (row as { capturado_por_id: string }).capturado_por_id
+  const rol = (profile as { rol: string; acceso_score?: boolean } | null)?.rol ?? 'usuario'
+  const accesoScore = (profile as { acceso_score?: boolean } | null)?.acceso_score === true
 
-  if (rol !== 'admin' && user.id !== capturadoPorId) {
+  if (rol !== 'admin' && !accesoScore) {
     return { ok: false, error: 'No tienes permiso para eliminar este registro.' }
   }
 
