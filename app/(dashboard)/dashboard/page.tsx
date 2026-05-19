@@ -27,10 +27,25 @@ export default async function DashboardPage() {
   if (!user) redirect('/login')
 
   const [{ data: profile }, { data: rawMios }, { data: rawAsignados }] = await Promise.all([
-    supabase.from('profiles').select('rol, nombre_completo').eq('id', user.id).single(),
+    supabase.from('profiles').select('rol, nombre_completo, acceso_score').eq('id', user.id).single(),
     supabase.from('tickets_with_status').select('status').eq('levantado_por_id', user.id),
     supabase.from('tickets_with_status').select('status').eq('responsable_id', user.id),
   ])
+
+  const hasScoreAccess =
+    profile?.rol === 'admin' || (profile as { acceso_score?: boolean } | null)?.acceso_score === true
+
+  let scoreStats = { total: 0, sinEvaluar: 0 }
+  if (hasScoreAccess) {
+    const { data: acreditados } = await supabase
+      .from('acreditados')
+      .select('calificacion_promotor')
+    const list = acreditados ?? []
+    scoreStats = {
+      total: list.length,
+      sinEvaluar: list.filter(a => !a.calificacion_promotor).length,
+    }
+  }
 
   const misTickets = (rawMios ?? []) as { status: string }[]
   const asignados = (rawAsignados ?? []) as { status: string }[]
@@ -76,15 +91,45 @@ export default async function DashboardPage() {
           </div>
         )}
 
+        {hasScoreAccess && (
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.4px] text-ink-400 font-medium mb-3">Score crediticio</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <StatCard
+                label="Acreditados"
+                value={scoreStats.total}
+                href="/score/acreditados"
+                description="Registros capturados"
+              />
+              <StatCard
+                label="Sin evaluar"
+                value={scoreStats.sinEvaluar}
+                href="/score/acreditados"
+                description="Pendientes de promotor"
+              />
+            </div>
+          </div>
+        )}
+
         {/* Acceso rápido */}
         <div>
           <p className="text-[11px] uppercase tracking-[0.4px] text-ink-400 font-medium mb-3">Acceso rápido</p>
-          <Link
-            href="/tickets/nuevo"
-            className="inline-block bg-orange hover:bg-orange-dark text-white text-[12.5px] font-medium rounded px-[14px] py-[7px] transition-colors"
-          >
-            Levantar nuevo ticket
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/tickets/nuevo"
+              className="inline-block bg-orange hover:bg-orange-dark text-white text-[12.5px] font-medium rounded px-[14px] py-[7px] transition-colors"
+            >
+              Levantar nuevo ticket
+            </Link>
+            {hasScoreAccess && (
+              <Link
+                href="/score/acreditados/nuevo"
+                className="inline-block border border-[#ECECEC] text-ink-900 text-[12.5px] font-medium rounded px-[14px] py-[7px] hover:bg-surface-hover transition-colors"
+              >
+                Nuevo acreditado
+              </Link>
+            )}
+          </div>
         </div>
       </div>
     </div>

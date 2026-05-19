@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { guardarEvaluacion } from '@/lib/actions/acreditados'
 
@@ -22,6 +23,7 @@ interface Props {
 }
 
 export default function EvaluacionPromotor({ acreditadoId, calificacion_actual, justificacion_actual }: Props) {
+  const router = useRouter()
   const [editando, setEditando] = useState(!calificacion_actual)
   const [calificacion, setCalificacion] = useState(calificacion_actual ?? '')
   const [justificacion, setJustificacion] = useState(justificacion_actual ?? '')
@@ -40,6 +42,7 @@ export default function EvaluacionPromotor({ acreditadoId, calificacion_actual, 
     if (result.ok) {
       toast.success('Evaluación guardada')
       setEditando(false)
+      router.refresh()
     } else {
       toast.error(result.error ?? 'Error al guardar')
     }

@@ -20,12 +20,10 @@ export async function crearAcreditado(raw: unknown): Promise<{ ok: boolean; nume
 
   const { referencias, ...campos } = parsed.data
 
-  // Calcular score en servidor
   const refs = referencias as Referencia[]
   const { puntaje } = calcularScore(campos, refs)
   const clasif = clasificar(puntaje)
 
-  // Insertar acreditado
   const { data: acreditado, error } = await supabase
     .from('acreditados')
     .insert({
@@ -39,19 +37,28 @@ export async function crearAcreditado(raw: unknown): Promise<{ ok: boolean; nume
     .select('id, numero')
     .single()
 
-  if (error || !acreditado) {
+  if (error) {
+    if (error.code === '23505') {
+      return { ok: false, error: 'Ya existe un acreditado con esa clave.' }
+    }
     return { ok: false, error: 'Error al guardar el registro.' }
   }
 
-  // Insertar referencias
+  if (!acreditado) {
+    return { ok: false, error: 'Error al guardar el registro.' }
+  }
+
   if (refs.length > 0) {
-    await supabase.from('acreditado_referencias').insert(
+    const { error: refError } = await supabase.from('acreditado_referencias').insert(
       refs.map(r => ({
         acreditado_id: (acreditado as { id: string; numero: number }).id,
         calidad: r.calidad,
         nombre_referencia: r.nombre_referencia ?? null,
       }))
     )
+    if (refError) {
+      return { ok: false, error: 'Error al guardar las referencias.' }
+    }
   }
 
   revalidatePath('/score/acreditados')
@@ -73,7 +80,6 @@ export async function actualizarAcreditado(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'No autenticado' }
 
-  // Leer registro actual para comparar
   const { data: actualRaw } = await supabase
     .from('acreditados')
     .select('*')
@@ -85,13 +91,10 @@ export async function actualizarAcreditado(
   const actual = actualRaw as Record<string, unknown>
 
   const { referencias, ...campos } = parsed.data
-
-  // Calcular nuevo score
   const refs = referencias as Referencia[]
   const { puntaje } = calcularScore(campos, refs)
   const clasif = clasificar(puntaje)
 
-  // Detectar cambios campo por campo
   const camposComparables = Object.keys(campos) as (keyof typeof campos)[]
   const cambios = camposComparables
     .filter(k => String(actual[k]) !== String(campos[k]))
@@ -103,12 +106,10 @@ export async function actualizarAcreditado(
       valor_despues: String(campos[k]),
     }))
 
-  // Insertar historial si hay cambios
   if (cambios.length > 0) {
     await supabase.from('acreditado_historial').insert(cambios)
   }
 
-  // Actualizar registro
   const { error } = await supabase
     .from('acreditados')
     .update({
@@ -119,23 +120,40 @@ export async function actualizarAcreditado(
     })
     .eq('id', acreditadoId)
 
-  if (error) return { ok: false, error: 'Error al actualizar el registro.' }
+  if (error) {
+    if (error.code === '23505') {
+      return { ok: false, error: 'Ya existe otro acreditado con esa clave.' }
+    }
+    return { ok: false, error: 'Error al actualizar el registro.' }
+  }
 
-  // Reemplazar referencias
-  await supabase.from('acreditado_referencias').delete().eq('acreditado_id', acreditadoId)
+  const { error: delRefError } = await supabase
+    .from('acreditado_referencias')
+    .delete()
+    .eq('acreditado_id', acreditadoId)
+
+  if (delRefError) {
+    return { ok: false, error: 'Error al actualizar las referencias. Verifica permisos o contacta al administrador.' }
+  }
+
   if (refs.length > 0) {
-    await supabase.from('acreditado_referencias').insert(
+    const { error: insRefError } = await supabase.from('acreditado_referencias').insert(
       refs.map(r => ({
         acreditado_id: acreditadoId,
         calidad: r.calidad,
         nombre_referencia: r.nombre_referencia ?? null,
       }))
     )
+    if (insRefError) {
+      return { ok: false, error: 'Error al guardar las referencias.' }
+    }
   }
 
+  const numero = actual.numero as number
   revalidatePath('/score/acreditados')
-  revalidatePath(`/score/acreditados/${actual.numero}`)
-  return { ok: true, numero: actual.numero as number }
+  revalidatePath(`/score/acreditados/${numero}`)
+  revalidatePath(`/score/acreditados/${numero}/editar`)
+  return { ok: true, numero }
 }
 
 // ─── Guardar evaluación del promotor ──────────────────────────────────────────
@@ -153,17 +171,31 @@ export async function guardarEvaluacion(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'No autenticado' }
 
-  const { error } = await supabase
+  const { error } = await supabase.rpc('guardar_evaluacion_promotor', {
+    p_acreditado_id: acreditadoId,
+    p_calificacion: parsed.data.calificacion_promotor,
+    p_justificacion: parsed.data.justificacion_promotor,
+  })
+
+  if (error) {
+    const msg = error.message
+    if (msg.includes('sin_acceso')) return { ok: false, error: 'No tienes acceso al módulo de score.' }
+    if (msg.includes('justificacion_invalida')) return { ok: false, error: 'La justificación debe tener al menos 10 caracteres.' }
+    if (msg.includes('no_existe')) return { ok: false, error: 'Registro no encontrado.' }
+    return { ok: false, error: 'Error al guardar la evaluación.' }
+  }
+
+  const { data: row } = await supabase
     .from('acreditados')
-    .update({
-      calificacion_promotor: parsed.data.calificacion_promotor,
-      justificacion_promotor: parsed.data.justificacion_promotor,
-      promotor_id: user.id,
-    })
+    .select('numero')
     .eq('id', acreditadoId)
+    .single()
 
-  if (error) return { ok: false, error: 'Error al guardar la evaluación.' }
+  revalidatePath('/score/acreditados')
+  if (row) {
+    const numero = (row as { numero: number }).numero
+    revalidatePath(`/score/acreditados/${numero}`)
+  }
 
-  revalidatePath(`/score/acreditados`)
   return { ok: true }
 }

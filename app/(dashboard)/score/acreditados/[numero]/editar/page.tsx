@@ -1,14 +1,35 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
+import { puedeEditarAcreditado } from '@/lib/utils/score-permissions'
 import AcreditadoForm from '@/components/score/acreditado-form'
-import type { Database } from '@/lib/supabase/types'
 import type { Referencia } from '@/lib/scoring/types'
 
 export const metadata = { title: 'Editar acreditado — Score Crediticio' }
 
-type AcreditadoRow = Database['public']['Tables']['acreditados']['Row'] & {
+type AcreditadoRow = {
+  id: string
+  numero: number
+  clave: string
+  nombre_completo: string
+  ciclo: string
+  fecha_nacimiento: string
+  tiempo_residencia: number
+  antiguedad_negocio: number
+  dependientes: number
+  antiguedad_telefono: number
+  cuenta_banco: number
+  casa_habitacion: string
+  estado_civil: string
+  negocio_domicilio: boolean
+  destino_credito: string
+  automovil_propio: boolean
+  buro_credito: string
+  tipo_garantia: string
+  tipo_negocio: string
+  genero: string
+  capturado_por_id: string
   acreditado_referencias: Array<{ calidad: string; nombre_referencia: string | null }>
 }
 
@@ -21,6 +42,9 @@ export default async function EditarAcreditadoPage({
   const numeroInt = parseInt(params.numero)
   if (isNaN(numeroInt)) notFound()
 
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) notFound()
+
   const { data: raw } = await supabase
     .from('acreditados')
     .select('*, acreditado_referencias(calidad, nombre_referencia)')
@@ -30,34 +54,23 @@ export default async function EditarAcreditadoPage({
   if (!raw) notFound()
 
   const acreditado = raw as unknown as AcreditadoRow
-  const refs = (acreditado.acreditado_referencias ?? []) as Referencia[]
 
-  const initialData = {
-    id: acreditado.id,
-    clave: acreditado.clave,
-    nombre_completo: acreditado.nombre_completo,
-    ciclo: acreditado.ciclo,
-    fecha_nacimiento: acreditado.fecha_nacimiento,
-    tiempo_residencia: acreditado.tiempo_residencia,
-    antiguedad_negocio: acreditado.antiguedad_negocio,
-    dependientes: acreditado.dependientes,
-    antiguedad_telefono: acreditado.antiguedad_telefono,
-    cuenta_banco: acreditado.cuenta_banco,
-    casa_habitacion: acreditado.casa_habitacion,
-    estado_civil: acreditado.estado_civil,
-    negocio_domicilio: acreditado.negocio_domicilio,
-    destino_credito: acreditado.destino_credito,
-    automovil_propio: acreditado.automovil_propio,
-    buro_credito: acreditado.buro_credito,
-    tipo_garantia: acreditado.tipo_garantia,
-    tipo_negocio: acreditado.tipo_negocio,
-    genero: acreditado.genero,
-    referencias: refs,
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('rol')
+    .eq('id', user.id)
+    .single()
+
+  const rol = (profile as { rol: string } | null)?.rol ?? 'usuario'
+
+  if (!puedeEditarAcreditado(user.id, acreditado.capturado_por_id, rol)) {
+    redirect(`/score/acreditados/${acreditado.numero}`)
   }
+
+  const refs = (acreditado.acreditado_referencias ?? []) as Referencia[]
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Breadcrumb */}
       <div className="flex items-center gap-2">
         <Link
           href={`/score/acreditados/${acreditado.numero}`}
@@ -72,7 +85,30 @@ export default async function EditarAcreditadoPage({
 
       <h1 className="text-[18px] font-semibold text-ink-900">Editar acreditado</h1>
 
-      <AcreditadoForm initialData={initialData} />
+      <AcreditadoForm
+        initialData={{
+          id: acreditado.id,
+          clave: acreditado.clave,
+          nombre_completo: acreditado.nombre_completo,
+          ciclo: acreditado.ciclo,
+          fecha_nacimiento: acreditado.fecha_nacimiento,
+          tiempo_residencia: acreditado.tiempo_residencia,
+          antiguedad_negocio: acreditado.antiguedad_negocio,
+          dependientes: acreditado.dependientes,
+          antiguedad_telefono: acreditado.antiguedad_telefono,
+          cuenta_banco: acreditado.cuenta_banco,
+          casa_habitacion: acreditado.casa_habitacion,
+          estado_civil: acreditado.estado_civil,
+          negocio_domicilio: acreditado.negocio_domicilio,
+          destino_credito: acreditado.destino_credito,
+          automovil_propio: acreditado.automovil_propio,
+          buro_credito: acreditado.buro_credito,
+          tipo_garantia: acreditado.tipo_garantia,
+          tipo_negocio: acreditado.tipo_negocio,
+          genero: acreditado.genero,
+          referencias: refs,
+        }}
+      />
     </div>
   )
 }

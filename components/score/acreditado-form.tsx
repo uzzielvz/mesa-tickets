@@ -224,11 +224,12 @@ export default function AcreditadoForm({ initialData }: Props) {
 
     if (result.ok) {
       toast.success(isEdit ? 'Registro actualizado' : 'Acreditado registrado')
-      if (!isEdit && result.numero) {
+      if (result.numero) {
         router.push(`/score/acreditados/${result.numero}`)
       } else {
-        router.back()
+        router.push('/score/acreditados')
       }
+      router.refresh()
     } else {
       toast.error(result.error ?? 'Error al guardar')
       setLoading(false)

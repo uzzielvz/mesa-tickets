@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
@@ -26,7 +27,6 @@ export default async function AcreditadosPage({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-[18px] font-semibold text-ink-900">Acreditados</h1>
@@ -44,10 +44,12 @@ export default async function AcreditadosPage({
         </Link>
       </div>
 
-      <AcreditadoList
-        acreditados={acreditados ?? []}
-        emptyMessage={q ? `Sin resultados para "${q}".` : 'No hay acreditados registrados.'}
-      />
+      <Suspense fallback={<p className="text-[13px] text-ink-400">Cargando...</p>}>
+        <AcreditadoList
+          acreditados={acreditados ?? []}
+          emptyMessage={q ? `Sin resultados para "${q}".` : 'No hay acreditados registrados.'}
+        />
+      </Suspense>
     </div>
   )
 }

@@ -3,16 +3,46 @@ import Link from 'next/link'
 import { ChevronLeft, Pencil } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { calcularScore, clasificar } from '@/lib/scoring/modelo'
+import { puedeEditarAcreditado } from '@/lib/utils/score-permissions'
 import ScoreCard from '@/components/score/score-card'
 import ScoreDesglose from '@/components/score/score-desglose'
 import EvaluacionPromotor from '@/components/score/evaluacion-promotor'
 import AcreditadoHistorial from '@/components/score/acreditado-historial'
 import type { Referencia } from '@/lib/scoring/types'
-import type { Database } from '@/lib/supabase/types'
-import { formatDate } from '@/lib/utils/format'
+import { formatDate, formatName } from '@/lib/utils/format'
 
-type AcreditadoRow = Database['public']['Tables']['acreditados']['Row'] & {
+type AcreditadoRow = {
+  id: string
+  numero: number
+  clave: string
+  nombre_completo: string
+  ciclo: string
+  fecha_nacimiento: string
+  tiempo_residencia: number
+  antiguedad_negocio: number
+  dependientes: number
+  antiguedad_telefono: number
+  cuenta_banco: number
+  casa_habitacion: string
+  estado_civil: string
+  negocio_domicilio: boolean
+  destino_credito: string
+  automovil_propio: boolean
+  buro_credito: string
+  tipo_garantia: string
+  tipo_negocio: string
+  genero: string
+  puntaje_total: number | null
+  clasificacion_modelo: string | null
+  calificacion_promotor: string | null
+  justificacion_promotor: string | null
+  capturado_por_id: string
+  contador_ediciones: number
+  created_at: string
+  updated_at: string
   acreditado_referencias: Array<{ calidad: string; nombre_referencia: string | null }>
+  capturado: { nombre_completo: string } | null
+  promotor: { nombre_completo: string } | null
 }
 
 type HistorialRow = {
@@ -33,7 +63,17 @@ export default async function AcreditadoDetailPage({
   const numeroInt = parseInt(params.numero)
   if (isNaN(numeroInt)) notFound()
 
-  // Fetch acreditado ID first, then parallel fetch details + historial
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) notFound()
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('rol')
+    .eq('id', user.id)
+    .single()
+
+  const rol = (profile as { rol: string } | null)?.rol ?? 'usuario'
+
   const { data: base } = await supabase
     .from('acreditados')
     .select('id')
@@ -47,7 +87,12 @@ export default async function AcreditadoDetailPage({
   const [{ data: rawAcreditado }, { data: rawHistorial }] = await Promise.all([
     supabase
       .from('acreditados')
-      .select('*, acreditado_referencias(calidad, nombre_referencia)')
+      .select(`
+        *,
+        acreditado_referencias(calidad, nombre_referencia),
+        capturado:profiles!capturado_por_id(nombre_completo),
+        promotor:profiles!promotor_id(nombre_completo)
+      `)
       .eq('id', acreditadoId)
       .single(),
     supabase
@@ -62,8 +107,8 @@ export default async function AcreditadoDetailPage({
   const acreditado = rawAcreditado as unknown as AcreditadoRow
   const historial = (rawHistorial ?? []) as unknown as HistorialRow[]
   const refs = (acreditado.acreditado_referencias ?? []) as Referencia[]
+  const puedeEditar = puedeEditarAcreditado(user.id, acreditado.capturado_por_id, rol)
 
-  // Recalcular desglose (puntaje_total en DB es la fuente de verdad)
   const scoreResult = calcularScore(
     {
       fecha_nacimiento: acreditado.fecha_nacimiento,
@@ -86,10 +131,15 @@ export default async function AcreditadoDetailPage({
   )
 
   const clasificacion = clasificar(acreditado.puntaje_total ?? scoreResult.puntaje)
+  const capturadoNombre = acreditado.capturado
+    ? formatName(acreditado.capturado.nombre_completo, '')
+    : '—'
+  const promotorNombre = acreditado.promotor
+    ? formatName(acreditado.promotor.nombre_completo, '')
+    : null
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Breadcrumb + acciones */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="flex flex-col gap-1">
           <Link
@@ -106,18 +156,31 @@ export default async function AcreditadoDetailPage({
           <p className="text-[12px] text-ink-400">
             Ciclo {acreditado.ciclo} · Registro #{acreditado.numero} · {formatDate(acreditado.created_at)}
           </p>
+          <p className="text-[12px] text-ink-500">
+            Capturado por: <span className="text-ink-700">{capturadoNombre}</span>
+            {promotorNombre && (
+              <>
+                {' · '}
+                Evaluado por: <span className="text-ink-700">{promotorNombre}</span>
+              </>
+            )}
+            {acreditado.contador_ediciones > 0 && (
+              <> · {acreditado.contador_ediciones} edición{acreditado.contador_ediciones !== 1 ? 'es' : ''}</>
+            )}
+          </p>
         </div>
-        <Link
-          href={`/score/acreditados/${acreditado.numero}/editar`}
-          className="flex items-center gap-1.5 border border-[#ECECEC] text-ink-700 text-[12.5px] font-medium rounded px-4 py-[7px] hover:bg-surface-hover transition-colors"
-        >
-          <Pencil size={12} />
-          Editar
-        </Link>
+        {puedeEditar && (
+          <Link
+            href={`/score/acreditados/${acreditado.numero}/editar`}
+            className="flex items-center gap-1.5 border border-[#ECECEC] text-ink-700 text-[12.5px] font-medium rounded px-4 py-[7px] hover:bg-surface-hover transition-colors"
+          >
+            <Pencil size={12} />
+            Editar
+          </Link>
+        )}
       </div>
 
       <div className="flex flex-col lg:flex-row gap-5 items-start">
-        {/* Columna izquierda */}
         <div className="flex-1 flex flex-col gap-4">
           <ScoreCard
             puntaje={acreditado.puntaje_total ?? scoreResult.puntaje}
@@ -131,7 +194,6 @@ export default async function AcreditadoDetailPage({
           />
         </div>
 
-        {/* Columna derecha — datos */}
         <div className="w-full lg:w-[280px] flex-shrink-0 flex flex-col gap-3">
           <p className="text-[11px] uppercase tracking-[0.4px] font-semibold text-ink-400">Datos del perfil</p>
           <div className="border border-[#ECECEC] rounded-md overflow-hidden">
@@ -181,7 +243,6 @@ export default async function AcreditadoDetailPage({
         </div>
       </div>
 
-      {/* Historial */}
       {historial.length > 0 && (
         <div className="flex flex-col gap-3">
           <p className="text-[11px] uppercase tracking-[0.4px] font-semibold text-ink-400">Historial de cambios</p>
