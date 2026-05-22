@@ -50,6 +50,7 @@ export interface Database {
           area_id: string | null
           activo: boolean
           acceso_score: boolean
+          acceso_cartera: boolean
           created_at: string
         }
         Insert: {
@@ -60,6 +61,7 @@ export interface Database {
           area_id?: string | null
           activo?: boolean
           acceso_score?: boolean
+          acceso_cartera?: boolean
         }
         Update: {
           id?: string
@@ -69,6 +71,7 @@ export interface Database {
           area_id?: string | null
           activo?: boolean
           acceso_score?: boolean
+          acceso_cartera?: boolean
         }
         Relationships: []
       }

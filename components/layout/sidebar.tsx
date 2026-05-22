@@ -99,12 +99,15 @@ function NavContent({
 }) {
   const isAdmin = profile.rol === 'admin'
   const isResponsable = profile.rol === 'responsable' || isAdmin
-  const accesoScore = (profile as Profile & { acceso_score?: boolean }).acceso_score === true
+  const accesoScore = profile.acceso_score === true
+  const accesoCartera = profile.acceso_cartera === true
   const hasScoreAccess = accesoScore || isAdmin
+  const hasCarteraAccess = accesoCartera || isAdmin
   const soloScore = esSoloOperadorScore(profile.rol, accesoScore)
 
   const [ticketsOpen, setTicketsOpen] = useState(true)
   const [scoreOpen, setScoreOpen] = useState(true)
+  const [carteraOpen, setCarteraOpen] = useState(true)
 
   return (
     <div className="flex flex-col gap-3">
@@ -187,6 +190,58 @@ function NavContent({
                 href="/admin/score/metricas"
                 label="Métricas de score"
                 active={pathname.startsWith('/admin/score/metricas')}
+                onClick={onNav}
+                muted
+              />
+            </>
+          )}
+        </NavSection>
+      )}
+
+      {/* ── Cartera Individual ── */}
+      {hasCarteraAccess && (
+        <NavSection
+          title="Cartera Individual"
+          open={carteraOpen}
+          onToggle={() => setCarteraOpen(v => !v)}
+        >
+          <NavItem
+            href="/cartera"
+            label="Dashboard"
+            active={pathname === '/cartera'}
+            onClick={onNav}
+          />
+          <NavItem
+            href="/cartera/cargar"
+            label="Cargar reporte"
+            active={pathname === '/cartera/cargar'}
+            onClick={onNav}
+          />
+          <NavItem
+            href="/cartera/cobranza"
+            label="Cobranza"
+            active={pathname === '/cartera/cobranza'}
+            onClick={onNav}
+          />
+          <NavItem
+            href="/cartera/riesgo"
+            label="Riesgo"
+            active={pathname === '/cartera/riesgo'}
+            onClick={onNav}
+          />
+          <NavItem
+            href="/cartera/chat"
+            label="Chat IA"
+            active={pathname === '/cartera/chat'}
+            onClick={onNav}
+          />
+          {isAdmin && (
+            <>
+              <SectionDivider />
+              <NavItem
+                href="/admin/cartera"
+                label="Accesos cartera"
+                active={pathname.startsWith('/admin/cartera')}
                 onClick={onNav}
                 muted
               />
