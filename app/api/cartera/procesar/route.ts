@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+const PYTHON_SERVICE_URL = process.env.PYTHON_SERVICE_URL ?? 'http://localhost:8001'
+
 export async function POST(request: Request) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -19,10 +21,9 @@ export async function POST(request: Request) {
   const uploadId = searchParams.get('uploadId')
   if (!uploadId) return NextResponse.json({ error: 'Falta uploadId' }, { status: 400 })
 
-  // Verificar que el upload existe
   const { data: upload } = await supabase
     .from('cartera_uploads')
-    .select('id, estado')
+    .select('id, estado, fecha_corte, storage_path')
     .eq('id', uploadId)
     .single()
 
@@ -30,27 +31,34 @@ export async function POST(request: Request) {
   if (upload.estado === 'procesando') {
     return NextResponse.json({ error: 'Ya está procesando' }, { status: 409 })
   }
-
-  // Marcar como procesando
-  await supabase
-    .from('cartera_uploads')
-    .update({ estado: 'procesando' })
-    .eq('id', uploadId)
-
-  // TODO Sesión 3: llamar al microservicio Python aquí
-  // Por ahora stub: marcar como procesado directamente
-  const { error } = await supabase
-    .from('cartera_uploads')
-    .update({ estado: 'procesado', rows_inserted: 0 })
-    .eq('id', uploadId)
-
-  if (error) {
-    await supabase
-      .from('cartera_uploads')
-      .update({ estado: 'error', error_detalle: error.message })
-      .eq('id', uploadId)
-    return NextResponse.json({ error: 'Error al procesar' }, { status: 500 })
+  if (!upload.storage_path) {
+    return NextResponse.json({ error: 'El upload no tiene archivo asociado' }, { status: 400 })
   }
 
-  return NextResponse.json({ ok: true })
+  // Llamar al microservicio Python (el servicio maneja el estado internamente)
+  try {
+    const resp = await fetch(`${PYTHON_SERVICE_URL}/cartera/procesar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        upload_id: uploadId,
+        fecha_corte: upload.fecha_corte,
+        storage_path: upload.storage_path,
+      }),
+    })
+
+    if (!resp.ok) {
+      const detail = await resp.text()
+      return NextResponse.json({ error: `Microservicio: ${detail}` }, { status: 502 })
+    }
+
+    const result = await resp.json()
+    return NextResponse.json({ ok: true, registros: result.registros_insertados })
+  } catch (err) {
+    await supabase
+      .from('cartera_uploads')
+      .update({ estado: 'error', error_detalle: String(err) })
+      .eq('id', uploadId)
+    return NextResponse.json({ error: 'No se pudo conectar al microservicio' }, { status: 502 })
+  }
 }

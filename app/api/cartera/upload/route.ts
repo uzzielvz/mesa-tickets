@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 
 const MAX_MB = 10
 const MAX_BYTES = MAX_MB * 1024 * 1024
+const BUCKET = 'cartera'
 
 export async function POST(request: Request) {
   const supabase = createClient()
@@ -38,11 +39,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `El archivo supera ${MAX_MB}MB` }, { status: 400 })
   }
 
+  // Subir a Supabase Storage
+  const storagePath = `${user.id}/${fechaCorte}_${Date.now()}_${archivo.name}`
+  const bytes = await archivo.arrayBuffer()
+  const { error: storageError } = await supabase.storage
+    .from(BUCKET)
+    .upload(storagePath, bytes, { contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+
+  if (storageError) {
+    return NextResponse.json({ error: 'Error al subir el archivo' }, { status: 500 })
+  }
+
   const { data, error } = await supabase
     .from('cartera_uploads')
     .insert({
       fecha_corte: fechaCorte,
       nombre_archivo: archivo.name,
+      storage_path: storagePath,
       drive_file_id: null,
       subido_por: user.id,
       estado: 'pendiente',
@@ -51,6 +64,8 @@ export async function POST(request: Request) {
     .single()
 
   if (error || !data) {
+    // Limpiar el archivo subido si falla el insert
+    await supabase.storage.from(BUCKET).remove([storagePath])
     return NextResponse.json({ error: 'Error al registrar la carga' }, { status: 500 })
   }
 
