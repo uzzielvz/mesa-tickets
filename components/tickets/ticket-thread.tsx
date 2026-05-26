@@ -39,12 +39,21 @@ export default function TicketThread({ responses, attachments, levantadoPorId }:
     )
   }
 
+  // Compat: adjuntos viejos sin response_id (tickets creados antes
+  // del fix) se muestran junto a la primera respuesta del levantador.
+  const firstUserResponseId = responses.find(
+    r => r.autor_id === levantadoPorId && r.tipo === 'mensaje'
+  )?.id
+
   return (
     <div className="mx-5 md:mx-9 flex flex-col gap-0">
       {responses.map((resp, i) => {
         const isUser = resp.autor_id === levantadoPorId
         const isSystem = resp.tipo !== 'mensaje'
-        const respAttachments = attachments.filter(a => a.response_id === resp.id)
+        const respAttachments = attachments.filter(a =>
+          a.response_id === resp.id ||
+          (a.response_id === null && resp.id === firstUserResponseId)
+        )
 
         if (isSystem) {
           const isRechazo = resp.tipo === 'rechazo_responsable'
