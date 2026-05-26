@@ -57,11 +57,25 @@
 
 | # | Ticket | Descripción | Bloqueado por |
 |---|--------|-------------|---------------|
-| C1 | UI-001 | Toast de error + revert loading en `ticket-form` | — |
-| C2 | UI-002 | Bloque "Evidencia inicial" en `ticket-thread` para adjuntos con `response_id IS NULL` | — |
+| C1 | UI-001 | ~~Toast de error + revert loading en `ticket-form`~~ ✅ 2026-05-25 | — |
+| C2 | UI-002 | ~~Adjuntos iniciales visibles en `ticket-thread`~~ ✅ 2026-05-25 | — |
 | C3 | UI-003 | Copy en `?error=auth` en login | — |
 | C4 | UI-004 | `app/error.tsx` global + `app/(dashboard)/cartera/error.tsx` | — |
 | C5 | DB-004 | Mapear todos los errores RPC en `guardarEvaluacion` | — |
+
+### Fase Demo — Mínimo viable para mostrar (esta semana)
+
+**Objetivo**: app navegable end-to-end para demo personal/ejecutiva.
+Cartera dashboards quedan FUERA del scope demo (se enseña como “en construcción”).
+
+| # | Ticket | Estado | Notas |
+|---|--------|--------|-------|
+| D-1 | UI-001 | ✅ | Toast de error en creación de ticket |
+| D-2 | UI-002 | ✅ | Adjuntos iniciales se ven en hilo |
+| D-3 | — | 🔲 | Smoke local: login → crear ticket con evidencia → responder → cerrar |
+| D-4 | — | 🔲 | Smoke local: cargar Excel cartera (microservicio local) → ver lista |
+| D-5 | UI-003 | 🔲 | Copy de error en login (`?error=auth`) — quick win |
+| D-6 | UI-004 | 🔲 | `app/error.tsx` global para no mostrar pantalla blanca
 
 ### Fase D — Estabilización (post-v1.0)
 
@@ -174,6 +188,7 @@ Prefijos consistentes en `RESEARCH-CONSOLIDADO.md` §6 y aquí:
 
 ## 7. Completados recientes
 
+- **2026-05-25** — UI-001 + UI-002: feedback de error en tickets y adjuntos iniciales visibles.
 - **2026-05-24** — Cartera end-to-end funcional (UI + Storage + microservicio + ETL).
 - **2026-05-24** — Auto-cleanup de uploads colgados (timeout 10 min).
 - **2026-05-20** — Schema cartera + RLS + acceso por perfil.
