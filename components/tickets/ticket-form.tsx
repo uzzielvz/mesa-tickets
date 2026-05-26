@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import type { ProblemField, TicketDatos } from '@/lib/supabase/types'
 
@@ -131,37 +132,58 @@ export default function TicketForm({ areas, catalog, userId }: Props) {
 
     if (ticketError || !ticket) {
       setLoading(false)
+      toast.error(ticketError?.message ?? 'No se pudo crear el ticket')
       return
     }
 
-    await supabase.from('ticket_responses').insert({
-      ticket_id: ticket.id,
-      orden: 1,
-      autor_id: userId,
-      contenido: comentario.trim(),
-      tipo: 'mensaje',
-    })
+    // Insertar la primera respuesta y capturar su id para asociar los
+    // adjuntos iniciales — así se muestran correctamente en el hilo.
+    const { data: firstResponse, error: respError } = await supabase
+      .from('ticket_responses')
+      .insert({
+        ticket_id: ticket.id,
+        orden: 1,
+        autor_id: userId,
+        contenido: comentario.trim(),
+        tipo: 'mensaje',
+      })
+      .select('id')
+      .single()
+
+    if (respError || !firstResponse) {
+      setLoading(false)
+      toast.error('Ticket creado pero falló la primera respuesta. Contacta soporte.')
+      return
+    }
 
     if (files && files.length > 0) {
-      await Promise.all(Array.from(files).map(async (file) => {
+      const results = await Promise.all(Array.from(files).map(async (file) => {
         const path = `${ticket.id}/${Date.now()}-${file.name}`
-        const { data: upload } = await supabase.storage
+        const { data: upload, error: upErr } = await supabase.storage
           .from('ticket-attachments')
           .upload(path, file)
 
-        if (upload) {
-          await supabase.from('ticket_attachments').insert({
-            ticket_id: ticket.id,
-            storage_path: upload.path,
-            nombre_original: file.name,
-            mime_type: file.type,
-            size_bytes: file.size,
-            uploaded_by_id: userId,
-          })
-        }
+        if (upErr || !upload) return { ok: false, name: file.name }
+
+        const { error: attErr } = await supabase.from('ticket_attachments').insert({
+          ticket_id: ticket.id,
+          response_id: firstResponse.id,
+          storage_path: upload.path,
+          nombre_original: file.name,
+          mime_type: file.type,
+          size_bytes: file.size,
+          uploaded_by_id: userId,
+        })
+        return { ok: !attErr, name: file.name }
       }))
+
+      const fallidos = results.filter(r => !r.ok).map(r => r.name)
+      if (fallidos.length > 0) {
+        toast.error(`No se subieron: ${fallidos.join(', ')}`)
+      }
     }
 
+    toast.success(`Ticket #${ticket.numero} creado`)
     router.push(`/tickets/${ticket.numero}`)
   }
 
