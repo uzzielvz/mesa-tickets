@@ -1,126 +1,212 @@
 # PLAN — mea-tickets (CrediFlexi Operaciones)
 
-> Documento vivo. Plan de trabajo activo. Se actualiza tras cada sesión.
+> Documento vivo. Plan de trabajo activo organizado por módulo.
+> Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-05-25.
+> Última actualización: 2026-05-27.
 
 ---
 
-## 1. Definición de Proyecto Cerrado
+## 1. Definición de v1.0
 
-**Cuándo damos por cerrada la versión actual (v1.0):**
+**Cuándo damos por cerrada la versión actual:**
 
-1. **Cartera Individual funcional end-to-end en producción**: carga, ETL y al menos 3 vistas (resumen, cobranza, riesgo) consumiendo `stg_yunius_cartera_individual`.
-2. **Microservicio `crediflexi-services` desplegado** (no localhost) con auth HMAC entre Next.js y el servicio.
-3. **RLS endurecida**: `ticket_attachments.insert` valida participación, bucket Storage `ticket-attachments` con políticas versionadas.
-4. **Feedback de errores visible** en creación de tickets y adjuntos iniciales mostrados en el hilo.
-5. **Tipos Supabase regenerados** (`supabase gen types`) incluyendo cartera y RPCs.
-6. **Smoke E2E** mínimo (login + crear ticket + crear acreditado + cargar cartera) corriendo en local.
+1. **Cartera Individual con paridad funcional vs el legacy**: ETL completo (todas las columnas), microservicio desplegado con auth, capa de consulta lista, y al menos 4 dashboards (resumen ejecutivo, coord × PAR, recuperador, mora operativa).
+2. **RLS endurecida** en tickets: `ticket_attachments.insert` valida participación, bucket Storage `ticket-attachments` con políticas versionadas.
+3. **Feedback de errores visible** en creación de tickets y adjuntos iniciales mostrados en el hilo. *(✅ hecho 2026-05-25.)*
+4. **Tipos Supabase regenerados** (`supabase gen types`) incluyendo cartera y RPCs.
+5. **Smoke E2E** mínimo (login + crear ticket + crear acreditado + cargar cartera) corriendo en local.
 
 **Lo que NO entra en v1.0** (queda para v1.1+):
 - Chat IA en cartera.
+- Drill-down de crédito + Liquidación anticipada real (requiere `loan_amortizacion_individual` poblada).
+- Hojas externas del legacy (`Cobranza`, `Asignación`, `Recuperación`).
 - Notificaciones email (Resend).
 - Dominio custom.
 - Tests E2E completos.
 - Migraciones automatizadas en CI.
-- Migración de mutaciones de tickets a Server Actions (se hace gradual post v1.0).
+- Migración total de mutaciones de tickets a Server Actions (se hace gradual post v1.0).
 
 ---
 
-## 2. Fases
+## 2. Fases por módulo
 
-### Fase A — Cierre de Cartera (crítica, 1-2 semanas)
+### 2.1 Módulo Cartera *(eje estratégico)*
 
-**Objetivo**: cartera consumible. Sin esto, el módulo es un cargador sin uso.
+**Objetivo**: reemplazar progresivamente la información que entrega el legacy (`automatizador-crediflexi`) con dashboards interactivos en la plataforma. El legacy NO se toca; queda como referente.
 
-| # | Ticket | Descripción | Bloqueado por |
-|---|--------|-------------|---------------|
-| A1 | OPS-001 | Dockerfile + deploy `crediflexi-services` (Railway/Fly/Render) | — |
-| A2 | SEC-002 | HMAC entre `/api/cartera/procesar` y microservicio | A1 |
-| A3 | PRO-001 | Página `/cartera` con resumen (total cartera, total mora, % PAR, top coordinaciones) | — |
-| A4 | PRO-002 | Página `/cartera/cobranza` (tickets por recuperador + filtros días mora) | — |
-| A5 | PRO-003 | Página `/cartera/riesgo` (distribución PAR, top deudores, concentración) | — |
-| A6 | TYP-001 | Regenerar `lib/supabase/types.ts` con cartera y RPCs | — |
+#### Fase Cartera-1 — Cerrar el pipeline ETL (1 semana)
 
-### Fase B — Endurecimiento de seguridad (1 semana)
+> Sin datos completos, los dashboards quedan cojos. Esto es prioridad.
 
 | # | Ticket | Descripción | Bloqueado por |
 |---|--------|-------------|---------------|
-| B1 | RLS-001 | Policy `attachments_insert` con EXISTS sobre participación en ticket | — |
-| B2 | RLS-005 | Migración versionada con políticas Storage para bucket `ticket-attachments` | — |
-| B3 | RLS-002 | Restringir `profiles_select` (vista pública o admin only) | — |
-| B4 | RLS-003 | Validar capturador en `acreditado_referencias/historial` INSERT | — |
-| B5 | RLS-004 | Trigger que rechace `INSERT` en `ticket_responses` si `closed_at IS NOT NULL` | — |
-| B6 | SEC-003 | Trigger DB recalcula `puntaje_total` (evita manipulación vía API) | — |
+| C1-1 | CART-001 | Extender `df_a_registros()` en `crediflexi-services` para mapear las ~55 columnas de `stg_yunius_cartera_individual` (hoy solo 20) | — |
+| C1-2 | CART-002 | Asegurar que `fecha_inicio_ciclo` se llena (habilita segmentación cohort por mes) | C1-1 |
+| C1-3 | CART-005 | Validar `fecha_corte` contra el contenido del Excel al procesar | C1-1 |
+| C1-4 | OPS-001 | Dockerfile + deploy de `crediflexi-services` (Railway/Fly/Render) | — |
+| C1-5 | SEC-002 | HMAC entre `/api/cartera/procesar` y microservicio | C1-4 |
+| C1-6 | TYP-001 | Regenerar `lib/supabase/types.ts` (desbloquea autocompletado para dashboards) | — |
 
-### Fase C — UX y feedback (3-5 días)
+#### Fase Cartera-2 — Capa de consulta (3-5 días)
+
+> RPCs y vistas que alimentan los dashboards. Empuja la agregación al servidor.
 
 | # | Ticket | Descripción | Bloqueado por |
 |---|--------|-------------|---------------|
-| C1 | UI-001 | ~~Toast de error + revert loading en `ticket-form`~~ ✅ 2026-05-25 | — |
-| C2 | UI-002 | ~~Adjuntos iniciales visibles en `ticket-thread`~~ ✅ 2026-05-25 | — |
-| C3 | UI-003 | Copy en `?error=auth` en login | — |
-| C4 | UI-004 | `app/error.tsx` global + `app/(dashboard)/cartera/error.tsx` | — |
-| C5 | DB-004 | Mapear todos los errores RPC en `guardarEvaluacion` | — |
+| C2-1 | CART-010 | Vista/RPC `cartera_resumen(fecha_corte)` — totales + distribución PAR consolidada | C1-1 |
+| C2-2 | CART-011 | RPC `cartera_por_coordinacion(fecha_corte)` — cartera × PAR por región | C1-1 |
+| C2-3 | CART-012 | RPC `cartera_por_recuperador(fecha_corte, recuperador?)` — `mi cartera` o todos | C1-1 |
+| C2-4 | CART-013 | Vista `cartera_mora_operativa` — registros con `dias_mora >= 1` + cols seguimiento (Call Center, Campo) | C1-1 |
+| C2-5 | CART-014 | RPC `cartera_cohort_mensual(fecha_corte)` — agrupa por mes de `fecha_inicio_ciclo` | C1-2 |
+| C2-6 | CART-015 | Endpoints GET `/api/cartera/{resumen,coordinacion,recuperador,mora,cohort}` que llamen los RPCs | C2-1..C2-5 |
 
-### Fase Demo — Mínimo viable para mostrar (esta semana)
+#### Fase Cartera-3 — Dashboards (paridad con legacy) (1-2 semanas)
 
-**Objetivo**: app navegable end-to-end para demo personal/ejecutiva.
-Cartera dashboards quedan FUERA del scope demo (se enseña como “en construcción”).
+> Orden por valor demo / esfuerzo. Cada dashboard consume un RPC de Fase 2.
+
+| # | Ticket | Descripción | Bloqueado por |
+|---|--------|-------------|---------------|
+| C3-1 | DASH-001 | `/cartera` — snapshot ejecutivo: cards (total cartera, total mora, % PAR>30, % PAR>90), tabla distribución PAR, selector de corte | C2-1 |
+| C3-2 | DASH-002 | `/cartera/coordinacion` — tabla por coord × PAR (equivalente a `X_Coordinación` del Excel) | C2-2 |
+| C3-3 | DASH-003 | `/cartera/recuperador` — tabla por recuperador × PAR + filtro "mi cartera" | C2-3 |
+| C3-4 | DASH-004 | `/cartera/mora` — tabla operativa con columnas de seguimiento Call Center / Campo, filtros por días, alertas, coord | C2-4 |
+| C3-5 | DASH-005 | Selector de cohort mensual en C3-1 (equivalente a hojas `Marzo2026`/`Abril2026`/`Mayo2026`) | C2-5 |
+
+#### Fase Cartera-4 — Superación del Excel (post-paridad)
+
+> Lo que el Excel NO ofrece y la plataforma sí debe ofrecer.
+
+| # | Ticket | Descripción | Bloqueado por |
+|---|--------|-------------|---------------|
+| C4-1 | CART-003 | Integrar fuente externa de amortizaciones → poblar `loan_amortizacion_individual` | — (TBD usuario) |
+| C4-2 | DASH-010 | Drill-down de crédito (clic → ver calendario de cuotas, mora, fechas) | C4-1 |
+| C4-3 | DASH-011 | Liquidación anticipada real (cálculo desde amortizaciones, no VLOOKUP) | C4-1 |
+| C4-4 | DASH-012 | Comparativa multi-corte (mismo recuperador entre dos fechas) | C2-1 |
+| C4-5 | DASH-013 | Exportación Excel/CSV bajo demanda (replica formato legacy si se requiere) | C3-* |
+| C4-6 | PRO-004 | Chat IA `/cartera/chat` con contexto de cartera (LLM TBD) | C3-* |
+
+### 2.2 Módulo Tickets
+
+#### Fase Tickets-Demo *(esta semana)*
 
 | # | Ticket | Estado | Notas |
 |---|--------|--------|-------|
-| D-1 | UI-001 | ✅ | Toast de error en creación de ticket |
-| D-2 | UI-002 | ✅ | Adjuntos iniciales se ven en hilo |
-| D-3 | — | 🔲 | Smoke local: login → crear ticket con evidencia → responder → cerrar |
-| D-4 | — | 🔲 | Smoke local: cargar Excel cartera (microservicio local) → ver lista |
-| D-5 | UI-003 | 🔲 | Copy de error en login (`?error=auth`) — quick win |
-| D-6 | UI-004 | 🔲 | `app/error.tsx` global para no mostrar pantalla blanca
+| T-D1 | UI-001 | ✅ 2026-05-25 | Toast de error en creación |
+| T-D2 | UI-002 | ✅ 2026-05-25 | Adjuntos iniciales visibles |
+| T-D3 | — | 🔲 | Smoke local: login → crear → responder → cerrar |
+| T-D4 | UI-003 | 🔲 | Copy de error en login (`?error=auth`) |
+| T-D5 | UI-004 | 🔲 | `app/error.tsx` global para no mostrar pantalla blanca |
 
-### Fase D — Estabilización (post-v1.0)
+#### Fase Tickets-Seguridad
 
 | # | Ticket | Descripción |
 |---|--------|-------------|
-| D1 | SEC-001 | Migrar `crearTicket` y `responderTicket` a Server Actions con Zod servidor |
-| D2 | DB-001 | RPC atómica `upsert_acreditado` (acreditado + referencias en una transacción) |
-| D3 | DEB-001 | Setup Vitest + Playwright + smoke E2E |
-| D4 | OPS-002 | Supabase CLI + `supabase db push` en GitHub Actions |
-| D5 | PRO-005 | Notificaciones Resend (nuevo ticket, nueva respuesta, cierre) |
-| D6 | PRO-004 | Chat IA en `/cartera/chat` (decidir LLM provider) |
-| D7 | PRO-006 | Dominio custom `tickets.financieracrediflexi.com` |
+| T-S1 | RLS-001 | Policy `attachments_insert` con EXISTS sobre participación |
+| T-S2 | RLS-005 | Migración versionada de políticas Storage `ticket-attachments` |
+| T-S3 | RLS-002 | Restringir `profiles_select` (vista pública o admin only) |
+| T-S4 | RLS-004 | Trigger rechaza INSERT en `ticket_responses` si `closed_at IS NOT NULL` |
+
+#### Fase Tickets-Arquitectura *(post-v1.0)*
+
+| # | Ticket | Descripción |
+|---|--------|-------------|
+| T-A1 | SEC-001 | Migrar `crearTicket` y `responderTicket` a Server Actions con Zod servidor |
+
+### 2.3 Módulo Score
+
+#### Fase Score-Robustez
+
+| # | Ticket | Descripción |
+|---|--------|-------------|
+| S-R1 | DB-001 | RPC atómica `upsert_acreditado` (acreditado + referencias) |
+| S-R2 | DB-002 | Misma RPC para `actualizarAcreditado` |
+| S-R3 | RLS-003 | Validar capturador en `acreditado_referencias/historial` INSERT |
+| S-R4 | SEC-003 | Trigger DB recalcula `puntaje_total` (evita manipulación API) |
+| S-R5 | DB-004 | Mapear errores RPC en `guardarEvaluacion` (no_auth, calificacion_invalida) |
+| S-R6 | DB-003 | Comparar refs antes de incrementar `contador_ediciones` |
+
+### 2.4 Transversal (plataforma)
+
+#### Fase Plataforma-Tipos
+
+| # | Ticket | Descripción |
+|---|--------|-------------|
+| P-T1 | TYP-001 | `supabase gen types typescript` automatizado (cartera + RPCs + enum rechazo) |
+
+#### Fase Plataforma-UX
+
+| # | Ticket | Descripción |
+|---|--------|-------------|
+| P-U1 | UI-004 | `app/error.tsx` global + por sección (tickets, score, cartera) |
+| P-U2 | UI-005 | Paginación en lista de acreditados |
+
+#### Fase Plataforma-Operación *(post-v1.0)*
+
+| # | Ticket | Descripción |
+|---|--------|-------------|
+| P-O1 | OPS-002 | Supabase CLI + `supabase db push` en GitHub Actions |
+| P-O2 | OPS-003 | `.env.example` en raíz |
+| P-O3 | API-001 | `/api/cartera/procesar` fire-and-forget (no espera al microservicio) |
+
+#### Fase Plataforma-Tests *(post-v1.0)*
+
+| # | Ticket | Descripción |
+|---|--------|-------------|
+| P-D1 | DEB-001 | Vitest + Playwright + smoke E2E (login, crear ticket, crear acreditado, cargar cartera) |
+
+#### Fase Plataforma-Producto *(post-v1.0)*
+
+| # | Ticket | Descripción |
+|---|--------|-------------|
+| P-P1 | PRO-005 | Notificaciones Resend (nuevo ticket / nueva respuesta / cierre) |
+| P-P2 | PRO-006 | Dominio custom `tickets.financieracrediflexi.com` |
 
 ---
 
-## 3. Backlog Priorizado
+## 3. Backlog Priorizado (orden de ejecución sugerido)
 
-**Orden de ejecución sugerido (próximos tickets):**
-
-1. **A1 — Deploy microservicio** (sin esto cartera no existe en prod).
-2. **A6 — Regenerar tipos** (rápido, desbloquea autocompletado en A3-A5).
-3. **A3 — Dashboard cartera resumen** (mayor visibilidad ejecutiva).
-4. **A2 — HMAC microservicio** (necesario antes de exponer URL pública).
-5. **B1 + B2** — RLS adjuntos (riesgo de seguridad real).
-6. **C1 + C2** — UX tickets (bugs reportables hoy).
-7. **A4 + A5** — Cobranza y riesgo cartera.
-8. **B3 + B4 + B5** — Resto de RLS.
-9. **C3 + C4 + C5** — Pulido UX.
-10. **B6** — Trigger recalcula score.
+1. **C1-4 OPS-001** — Deploy microservicio (sin esto Cartera no existe en prod).
+2. **C1-6 TYP-001** — Regenerar tipos (rápido, desbloquea autocompletado).
+3. **C1-1 CART-001** — Completar ETL (gating de toda Fase 2 y 3).
+4. **C1-2 CART-002** — `fecha_inicio_ciclo` (bloquea cohort mensual).
+5. **C1-5 SEC-002** — HMAC antes de exponer microservicio.
+6. **T-D4/T-D5 + P-U1** — Cierre pendientes Fase Demo (login copy + error.tsx global).
+7. **C2-1 CART-010** — RPC resumen (desbloquea primer dashboard).
+8. **C3-1 DASH-001** — Snapshot ejecutivo (mayor valor visible).
+9. **T-S1 + T-S2** — RLS adjuntos y Storage (riesgo de seguridad real).
+10. **C2-2 + C3-2** — Coordinación × PAR.
+11. **C2-3 + C3-3** — Recuperador.
+12. **C2-4 + C3-4** — Mora operativa.
+13. **C2-5 + C3-5** — Cohort mensual.
+14. **T-S3 + T-S4** — Resto RLS tickets.
+15. **S-R*** — Robustez Score.
+16. **C4-* + post-v1.0**.
 
 ---
 
 ## 4. Decisiones Tomadas
 
-### Arquitectura
+### Cartera (2026-05-27)
 
-- **2026-05-24** — Cartera se procesa en microservicio Python **separado** (`crediflexi-services`), no embebido en Next.js. Razón: pandas + openpyxl pesan demasiado para serverless; mejor separación de concerns.
-- **2026-05-24** — FastAPI sobre Flask para el microservicio. Razón: auto-docs, tipos, async nativo.
+- **El legacy (`automatizador-crediflexi`) NO se toca**. Sigue funcionando independiente mientras la plataforma desarrolla su reemplazo. Es referente, no objetivo de cambio.
+- **Paridad antes que superación**: dashboards primero replican la información del Excel; luego se agregan vistas que el Excel no ofrece (multi-corte, drill-down, etc.).
+- **Hojas mensuales del legacy = segmentación cohort por `Inicio ciclo`** (no por fecha de corte). Plataforma lo implementa con filtro dinámico, no con hojas fijas hardcodeadas.
+- **Amortizaciones** se llenarán vía script externo del usuario (formato y disparador TBD). No bloquean MVP de dashboards; habilitan Fase Cartera-4 (drill-down + liquidación real).
+- **Orden de dashboards**: snapshot ejecutivo → coord × PAR → recuperador → mora operativa → drill-down/liquidación. Justificación: mayor valor visible / menor esfuerzo / consumo más amplio primero.
+- **No reemplazar Excel con Excel**: la plataforma entrega dashboards interactivos. Si se necesita Excel descargable, es exportación derivable on-demand (DASH-013, post-v1.0).
+
+### Arquitectura microservicio
+
+- **2026-05-24** — Cartera se procesa en microservicio Python **separado** (`crediflexi-services`), no embebido en Next.js. Razón: pandas + openpyxl pesan demasiado para serverless.
+- **2026-05-24** — FastAPI sobre Flask. Razón: auto-docs, tipos, async nativo.
 - **2026-05-24** — Repos separados (no monorepo). Razón: deploys y ciclos de vida independientes.
-- **2026-05-24** — El microservicio usa Supabase `service_role_key` para insertar en `stg_yunius_*` (bypassa RLS). Razón: bulk insert eficiente; RLS aplica para lectura desde Next.js.
-- **2026-05-24** — Estado de carga se persiste en `cartera_uploads.estado` (pendiente/procesando/procesado/error). Frontend hace polling cada 3s. Auto-cleanup a 10 min.
+- **2026-05-24** — El microservicio usa Supabase `service_role_key` para bulk insert (bypassa RLS). RLS aplica para lectura desde Next.js.
+- **2026-05-24** — Estado de carga se persiste en `cartera_uploads.estado`. Frontend hace polling 3s. Auto-cleanup 10 min.
 
 ### Datos
 
-- **2026-05-20** — `cartera_uploads` y `stg_yunius_cartera_individual` separadas: uploads es el ledger, stg es el dato crudo. Permite re-procesar sin perder histórico.
+- **2026-05-20** — `cartera_uploads` (ledger) y `stg_yunius_cartera_individual` (dato crudo) separadas. Permite re-procesar sin perder histórico.
 - **2026-05-24** — Storage bucket `cartera` con políticas RLS por `acceso_cartera` o `rol=admin`.
 
 ### Convenciones
@@ -135,12 +221,10 @@ Cartera dashboards quedan FUERA del scope demo (se enseña como “en construcci
 
 ## 5. Próximos Pasos (sesión inmediata)
 
-1. **Decisión pendiente** — ¿Dónde se despliega `crediflexi-services`? (Railway free tier es opción simple).
-2. **Ejecutar A6** — `supabase gen types typescript --project-id riqrhiivtoodtzptbwls > lib/supabase/types.ts` (requiere CLI logueado).
-3. **Ejecutar A3** — Página `/cartera` con queries agregadas sobre `stg_yunius_cartera_individual`:
-   - Cards: total acreditados activos, saldo total, % PAR>30, % PAR>90
-   - Tabla: distribución por `par_bucket`
-   - Gráfica: top 10 coordinaciones por mora (texto bar mientras decidimos librería)
+1. **Decisión pendiente** — ¿Dónde se despliega `crediflexi-services`? (Railway free tier opción simple).
+2. **C1-1 CART-001** — Inventariar exactamente qué columnas faltan mapear (cruzar `cartera_etl.py:301` vs schema de `stg_yunius_cartera_individual`) y extender `df_a_registros()`.
+3. **C1-6 TYP-001** — Correr `supabase gen types typescript --project-id ... > lib/supabase/types.ts`.
+4. **Terminar Fase Demo Tickets** — UI-003 + UI-004 son quick wins.
 
 ---
 
@@ -148,7 +232,7 @@ Cartera dashboards quedan FUERA del scope demo (se enseña como “en construcci
 
 ### IDs de tickets
 
-Prefijos consistentes en `RESEARCH-CONSOLIDADO.md` §6 y aquí:
+Prefijos consistentes en `RESEARCH-CONSOLIDADO.md` §6/§7 y aquí:
 
 - `SEC-` Seguridad / arquitectura
 - `RLS-` Row Level Security específico
@@ -161,6 +245,8 @@ Prefijos consistentes en `RESEARCH-CONSOLIDADO.md` §6 y aquí:
 - `OPS-` Operación / deploy / CI
 - `DEB-` Tests / debugging
 - `PRO-` Producto / features nuevas
+- `CART-` Cartera — datos / ETL / API
+- `DASH-` Cartera — dashboards / UI
 
 ### Migraciones
 
@@ -182,14 +268,15 @@ Prefijos consistentes en `RESEARCH-CONSOLIDADO.md` §6 y aquí:
 1. Antes de empezar tarea grande: revisar `RESEARCH-CONSOLIDADO.md` y `PLAN.md`.
 2. Antes de tocar código: leer los archivos afectados completos.
 3. Commits atómicos durante el avance.
-4. Al cerrar tarea: actualizar `PLAN.md` (mover ticket de Backlog a "Completados" o eliminar) y, si aplica, actualizar `RESEARCH-CONSOLIDADO.md`.
+4. Al cerrar tarea: actualizar `PLAN.md` (mover ticket de Backlog a "Completados" o marcar con ✅) y, si aplica, actualizar `RESEARCH-CONSOLIDADO.md`.
 
 ---
 
 ## 7. Completados recientes
 
+- **2026-05-27** — RESEARCH-CONSOLIDADO + PLAN refactorizados a estructura modular. Investigación profunda del ecosistema cartera (legacy + microservicio + plataforma). Nuevos IDs CART-/DASH- introducidos.
 - **2026-05-25** — UI-001 + UI-002: feedback de error en tickets y adjuntos iniciales visibles.
-- **2026-05-24** — Cartera end-to-end funcional (UI + Storage + microservicio + ETL).
+- **2026-05-24** — Cartera end-to-end funcional (UI + Storage + microservicio + ETL parcial).
 - **2026-05-24** — Auto-cleanup de uploads colgados (timeout 10 min).
 - **2026-05-20** — Schema cartera + RLS + acceso por perfil.
 - **2026-05-14** — Catálogo dinámico, rechazo, onboarding, presets login.
