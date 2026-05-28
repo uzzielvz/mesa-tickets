@@ -1,30 +1,34 @@
 # RESEARCH CONSOLIDADO — mea-tickets (CrediFlexi Operaciones)
 
 > Documento vivo. Single source of truth del estado real del repo.
-> Última actualización: 2026-05-25.
+> Última actualización: 2026-05-27.
 > Para el plan de trabajo activo ver `PLAN.md`.
 
 ---
 
 ## 1. Resumen Ejecutivo
 
-**mea-tickets** es la plataforma interna de Financiera CrediFlexi (Next.js 14 App Router + Supabase). Hoy tiene tres módulos en producción y un cuarto en construcción:
+**mea-tickets** es la plataforma interna de Financiera CrediFlexi (Next.js 14 App Router + Supabase). Hoy convive con un **ecosistema** que comprende:
 
-1. **Mesa de tickets** (Fase 1-5): operativo, en producción.
-2. **Score Crediticio** (acreditados + modelo HM): operativo.
-3. **Onboarding + presets de operador**: operativo.
-4. **Cartera Individual** (en curso): UI de carga lista, microservicio Python FastAPI separado (`crediflexi-services`) procesa Excel de Yunius vía ETL e inserta en `stg_yunius_cartera_individual`. Faltan dashboards (resumen, cobranza, riesgo) y módulo de Chat IA.
+- **Legacy intocable** (`automatizador-crediflexi`, Flask local) — sistema en operación que genera el Reporte de Antigüedad Individual en Excel y lo distribuye por correo. **No es objeto de cambio**; queda como referente funcional y de negocio.
+- **Plataforma** (`mea-tickets`, este repo) — Next.js + Supabase. Convive 4 módulos: Tickets, Score, Onboarding/Auth, Cartera.
+- **Microservicio** (`crediflexi-services`, FastAPI) — separado del repo principal, encargado del ETL de cartera; reemplaza progresivamente al legacy desde el flujo de datos.
 
-**Estado general**: utilizable en producción para tickets y score. Cartera funciona end-to-end (191 registros procesados en pruebas) pero le faltan vistas de explotación de los datos.
+**Estado por módulo** (detalle en §5):
+
+1. **Mesa de Tickets** — producción, dos bugs UX recién resueltos (UI-001, UI-002).
+2. **Score Crediticio** — producción, modelo HM replicado.
+3. **Onboarding + presets** — producción.
+4. **Cartera Individual** — pipeline ETL end-to-end funcional (upload → microservicio → staging). **Falta toda la capa de consumo** (endpoints de lectura + dashboards). Microservicio aún sin deploy. ETL inserta solo ~20 de las ~55 columnas posibles. La tabla `loan_amortizacion_individual` está vacía (se llenará vía script externo TBD).
 
 **Riesgos principales**:
-- Seguridad RLS: `attachments_insert` no valida participación en ticket; `profiles_select using (true)` expone PII interna.
-- Arquitectura: mutaciones de tickets y admin se hacen **desde el cliente** (no Server Actions), la seguridad depende 100% de RLS.
-- Cartera: la carga depende de un microservicio externo (`crediflexi-services`) que aún no está desplegado en producción (solo localhost).
-- Tipos Supabase escritos a mano (`lib/supabase/types.ts`) — falta sincronizar con `cartera_uploads`, `stg_yunius_cartera_individual`, RPCs.
-- Sin tests automatizados, sin CI configurado, sin `error.tsx` global.
+- Seguridad RLS: `attachments_insert` no valida participación; `profiles_select using (true)` expone PII.
+- Cartera depende de microservicio externo sin deploy y sin auth entre servicios.
+- Mutaciones de tickets desde el cliente — seguridad 100% en RLS.
+- Tipos Supabase desactualizados respecto a cartera.
+- Sin tests, sin CI, sin `error.tsx` global.
 
-**Recomendación inmediata**: cerrar Cartera (dashboards básicos + deploy del microservicio) antes de expandir a Chat IA, y endurecer RLS de adjuntos en paralelo.
+**Recomendación inmediata**: Cartera es el eje estratégico. La paridad con el legacy (vía dashboards en la plataforma) es lo que justifica la inversión. Endurecer RLS de tickets en paralelo.
 
 ---
 
@@ -39,10 +43,17 @@
 | Org | Financiera CrediFlexi |
 | Auth | Google OAuth + magic link, dominio `@financieracrediflexi.com` |
 | Producción | Vercel (`mesa-tickets.vercel.app`) |
-| Repo | `github.com/uzzielvz/mesa-tickets` (privado) |
-| Microservicio | `github.com/uzzielvz/crediflexi-services` (privado, sin deploy) |
+| Repo principal | `github.com/uzzielvz/mesa-tickets` (privado) |
 
-### Stack
+### Ecosistema (tres repos en juego)
+
+| Repo | Rol | Estado | Deploy |
+|------|-----|--------|--------|
+| `mea-tickets` (este) | Plataforma Next.js + Supabase | Activo | Vercel |
+| `crediflexi-services` | Microservicio FastAPI (ETL cartera) | Activo, mínimo | Sin deploy (solo localhost) |
+| `automatizador-crediflexi` (legacy) | Flask local, genera Excel actual | Producción operativa | Local en máquina de operador |
+
+### Stack (plataforma)
 
 - **Framework**: Next.js 14.2.35 (App Router) + React 18 + TypeScript 5
 - **DB/Auth/Storage**: Supabase (`@supabase/ssr ^0.10.2`, `@supabase/supabase-js ^2.104.0`)
@@ -99,36 +110,21 @@ middleware.ts
 | `app/api/cartera/procesar/route.ts` | Bridge a microservicio Python |
 | `supabase/migrations/*.sql` | 22 migraciones: schema, RLS, triggers, vistas, scoring, cartera |
 
-### Integraciones
-
-| Integración | Estado |
-|-------------|--------|
-| Supabase Auth + Postgres + RLS | Sí |
-| Supabase Storage bucket `ticket-attachments` | Sí (UI), políticas faltantes en repo |
-| Supabase Storage bucket `cartera` | Sí (con políticas en migración `20260524000002`) |
-| Microservicio Python `crediflexi-services` | Sí (solo localhost, sin deploy) |
-| Vercel | Sí |
-| Resend / notificaciones email | No (planificado) |
-| LLM provider (Chat IA cartera) | No |
-
 ### Server Actions vs Client Mutations
 
 - **Server Actions**: solo `lib/actions/acreditados.ts` (4 funciones: `crearAcreditado`, `actualizarAcreditado`, `guardarEvaluacion`, `eliminarAcreditado`).
 - **Cliente Supabase directo**: tickets (`ticket-form.tsx`, `response-composer.tsx`), admin (`catalogo-admin.tsx`, `usuarios-admin.tsx`, `areas-admin.tsx`, `cartera-accesos.tsx`).
 - **Route Handlers**: `auth/callback`, `api/cartera/{upload,procesar,uploads}`.
 
-### Documentación previa (a archivar/eliminar — ver §10)
+### Documentación del repo
 
 | Archivo | Estado |
 |---------|--------|
 | `context.md` | Spec original MVP + design system tokens. **Conservar** (referencia de diseño). |
-| `research.md` | Reemplazado por este documento. **Eliminar**. |
-| `plan-fase2.md` | Completada y desplegada. **Eliminar**. |
-| `plan-fase5.md` | Mayormente completada. **Eliminar**. |
-| `plan-modificaciones.md` | Onboarding/rechazo/campos dinámicos ya en producción. **Eliminar**. |
-| `plan-operaciones.md` | Módulo Score ya en producción. **Eliminar**. |
-| `propuesta-crediflexi.tex`, `Mesa_de_Ayuda_CrediFlexi_Propuesta.pptx` | Material comercial. **Conservar fuera del flujo dev**. |
+| `RESEARCH-CONSOLIDADO.md` (este) | Single source of truth. |
+| `PLAN.md` | Plan vivo. |
 | `supabase/migrations/GUIA-SQL-SUPABASE.md` | Guía operativa para correr SQL manual. **Conservar**. |
+| Propuesta comercial (`.tex`, `.pptx`) | Material externo. **Conservar fuera del flujo dev**. |
 
 ---
 
@@ -147,14 +143,56 @@ middleware.ts
 | Score Crediticio (CRUD + modelo) | Completo | Server Actions + RPC `guardar_evaluacion_promotor` |
 | Admin tickets/areas/usuarios | Completo | Cliente Supabase + RLS admin |
 | Métricas admin (tickets + score) | Parcial | Falta filtrar `rechazado`, sin gráficas |
-| Cartera — carga Excel + ETL | Completo end-to-end | Next.js → Storage → microservicio Python → `stg_yunius_cartera_individual` |
-| Cartera — dashboards (resumen/cobranza/riesgo) | Pendiente | Solo placeholders en sidebar |
+| Cartera — carga Excel + ETL parcial | Completo end-to-end (con gaps de columnas) | Next.js → Storage → microservicio Python → `stg_yunius_cartera_individual` |
+| Cartera — API de consulta | Pendiente | Sin endpoints GET ni RPCs agregadoras |
+| Cartera — dashboards | Pendiente | Solo placeholders en sidebar |
 | Cartera — Chat IA | Pendiente | Solo ruta `/cartera/chat` en sidebar |
 | Notificaciones email | Pendiente | — |
 | Tests automatizados | Pendiente | — |
 | CI/CD | Pendiente | Solo deploy automático de Vercel desde main |
 
-### Flujos principales
+### Flujo del ecosistema cartera (alto nivel)
+
+```
+                  LEGACY (no se toca)
+┌─────────────────────────────────────────────────┐
+│ automatizador-crediflexi (Flask, local)         │
+│   Excel Yunius → procesa → Excel reformateado   │
+│   (12 hojas) → correo manual a operadores       │
+│                                                 │
+│   Output ref: ReportedeAntiguedad_nuevo_*.xlsx  │
+└─────────────────────────────────────────────────┘
+                  Sigue funcionando en paralelo
+
+                  PLATAFORMA (en construcción)
+┌─────────────────────────────────────────────────┐
+│ mea-tickets (Next.js)                           │
+│   /cartera/cargar                               │
+│   → POST /api/cartera/upload                    │
+│     → Supabase Storage (bucket 'cartera')       │
+│     → insert cartera_uploads (pendiente)        │
+│   → click Procesar                              │
+│   → POST /api/cartera/procesar                  │
+│     → fetch a PYTHON_SERVICE_URL                │
+│                                                 │
+│ crediflexi-services (FastAPI, local)            │
+│   POST /cartera/procesar                        │
+│     → descarga Excel de Storage                 │
+│     → ETL pandas (replica lógica legacy)        │
+│     → bulk insert en stg_yunius_cartera_indiv.  │
+│     → update cartera_uploads.estado=procesado   │
+│                                                 │
+│ Supabase                                        │
+│   cartera_uploads (ledger)                      │
+│   stg_yunius_cartera_individual (datos)         │
+│   loan_amortizacion_individual (vacía hoy)      │
+│                                                 │
+│ /cartera/* dashboards                           │
+│   ❌ NO EXISTEN                                 │
+└─────────────────────────────────────────────────┘
+```
+
+### Flujos de usuario
 
 ```
 [Anónimo]
@@ -176,16 +214,9 @@ middleware.ts
   → Acreditados CRUD + evaluación promotor (RPC)
 
 [Operador Cartera (usuario + acceso_cartera)]
-  → /cartera/cargar
-  → upload-form.tsx → POST /api/cartera/upload
-    → Supabase Storage (bucket 'cartera') + insert cartera_uploads (estado=pendiente)
-  → click "Procesar" → POST /api/cartera/procesar
-    → fetch a PYTHON_SERVICE_URL/cartera/procesar
-      → microservicio descarga Excel + corre ETL pandas
-      → bulk insert en stg_yunius_cartera_individual (batches 500)
-      → actualiza cartera_uploads.estado=procesado + rows_inserted
-  → polling cada 3s mientras haya `procesando`
-  → timeout automático a 10min → estado=error
+  → /cartera/cargar (UI activa)
+  → upload + polling
+  → ❌ Sin vistas de consumo aún
 
 [Admin]
   → Todo lo anterior + /admin/{catalogo,areas,usuarios,metricas,score,cartera}
@@ -200,9 +231,9 @@ middleware.ts
 | Login Google + OTP | Completo | Filtro `@financieracrediflexi.com` en callback y cliente |
 | Onboarding obligatorio | Completo | Layout dashboard fuerza si `!area_id` |
 | Preset login operadores Score | Completo | `login_presets` + `handle_new_user` |
-| Listar/crear tickets | Parcial | Falla silenciosa si `insert` falla (no toast) |
-| Hilo de respuestas | Parcial | Trigger valida paridad; rechazo exento |
-| Adjuntos en tickets | Parcial | Suben a Storage; adjuntos iniciales (response_id=null) **no se muestran** |
+| Listar/crear tickets | Completo | UI-001 (toast error) corregido 2026-05-25 |
+| Hilo de respuestas | Completo | UI-002 (adjuntos iniciales) corregido 2026-05-25 |
+| Adjuntos en tickets | Completo | Suben a Storage; nuevos asocian `response_id` |
 | Rechazo con motivo (≥10 chars) | Completo | enum + trigger + estado `rechazado` en vista |
 | Catálogo dinámico (jsonb) | Completo | Mini-builder en admin + render dinámico en form |
 | Score: captura + cálculo | Completo | `modelo.ts` réplica del modelo HM |
@@ -211,7 +242,7 @@ middleware.ts
 | Admin: usuarios/áreas/catálogo/cartera-accesos | Completo | Toggle por usuario |
 | Métricas admin tickets | Parcial | Sin estado `rechazado` aparte; filtro por nombre de área |
 | Métricas admin score | Completo | A/B/C/D, promedio, pendientes |
-| Cartera: upload + Storage + ETL | Completo | End-to-end probado (191 filas) |
+| Cartera: upload + Storage + ETL parcial | Parcial | Funciona end-to-end pero mapea solo 20 de ~55 cols |
 | Cartera: dashboards | Pendiente | `/cartera`, `/cartera/cobranza`, `/cartera/riesgo` placeholders |
 | Cartera: Chat IA | Pendiente | `/cartera/chat` ruta no existe aún |
 | Notificaciones email | Pendiente | — |
@@ -220,7 +251,194 @@ middleware.ts
 
 ---
 
-## 5. Problemas y Bugs Detectados
+## 5. Módulos — Deep Dive
+
+> Para cada módulo: alcance, estado, archivos clave, riesgos.
+
+### 5.1 Mesa de Tickets
+
+**Alcance**: gestión de incidencias internas. Levantador crea, responsable atiende, hilo de mensajes, cierre con confirmación, rechazo con motivo.
+
+**Estado**: producción. UX bugs críticos cerrados 2026-05-25.
+
+**Archivos clave**: `app/(dashboard)/tickets/*`, `components/tickets/*`, migraciones 01-04, 07-09, 12.
+
+**Pendientes**: SEC-001 (Server Actions), RLS-001/002/004/005, UI-003/004.
+
+### 5.2 Score Crediticio
+
+**Alcance**: captura de acreditados con referencias, modelo HM replicado (réplica del GAS legacy), evaluación A/B/C/D por promotor, historial automático.
+
+**Estado**: producción.
+
+**Archivos clave**: `lib/scoring/modelo.ts`, `lib/actions/acreditados.ts`, `app/(dashboard)/score/*`, `components/score/*`, migraciones 05, 10, 11, 13.
+
+**Pendientes**: DB-001/002 (transacción), SEC-003 (trigger recalcular), RLS-003 (validar capturador), DB-004 (mapear errores RPC).
+
+### 5.3 Auth + Onboarding + Presets
+
+**Alcance**: Google OAuth + magic link, filtro de dominio, onboarding obligatorio (nombre + área), presets de área para operadores con dominio `operador*`.
+
+**Estado**: producción.
+
+**Archivos clave**: `middleware.ts`, `app/(auth)/auth/callback/route.ts`, `app/onboarding/page.tsx`, migraciones 06, 14, 15.
+
+**Pendientes**: UI-003 (copy `?error=auth`).
+
+### 5.4 Módulo Cartera — Deep Dive
+
+> Sección más extensa porque es el eje estratégico actual.
+
+#### 5.4.1 Origen y contexto
+
+CrediFlexi opera con un sistema externo (Yunius) que exporta semanalmente el **Reporte de Antigüedad** crudo (~63 columnas, 1 sheet). Históricamente esto se ha procesado con un Flask local (`automatizador-crediflexi`) que genera un Excel reformateado de 12 hojas y se distribuye por correo a varios roles.
+
+El **legacy NO se toca** — sigue funcionando independiente mientras la plataforma lo reemplaza progresivamente. La plataforma debe lograr **paridad de información** (no de formato) y luego **superación** (real time, multi-corte, drill-down, exportación bajo demanda).
+
+#### 5.4.2 Legacy — lo que entrega hoy
+
+`automatizador-crediflexi` (Flask, 3122 líneas en `app/reportes.py`, 14+ iteraciones recientes según commits). Genera Excel con 12 hojas:
+
+| Hoja | Contenido | Consumidor |
+|------|-----------|-----------|
+| `R_Completo` | 74 cols, todos los registros procesados | Vista de respaldo, filtros manuales |
+| `[DDMMYYYY]` (fecha de corte) | Copia exacta de R_Completo | Snapshot del corte |
+| `[MesAño]` (Marzo2026, Abril2026, Mayo2026...) | Cohort de créditos cuyo **`Inicio ciclo`** cae en ese mes; acumulativo desde antes del 1-abril | Análisis por camada |
+| `X_Coordinación` (6 pivots) | Cartera × PAR por región | Coordinadores |
+| `X_Recuperador` (2 pivots) | Cartera × PAR por recuperador | Recuperadores |
+| `RECUPERADOR_000124` | Hoja especial de un recuperador | Caso particular |
+| `Mora` (+ 4 cols verdes Call Center + 5 cols azules Campo) | Registros con días de mora ≥ 1 | Call center / cobranza campo |
+| `Cuentas con saldo vencido` | Saldo vencido ≥ 1 y mora ≤ 0 | Casos especiales |
+| `Liquidación anticipada` | Calculadora con VLOOKUP a R_Completo | Operativo (cotizar liquidación) |
+| `Cobranza`, `Asignación`, `Recuperación` | Pegadas manualmente | Áreas operativas |
+
+**Reglas de negocio confirmadas** (extraídas de `reportes.py`, `config.py`, `plan.md` del legacy):
+
+- **Filtro de fraude**: 27 códigos hardcodeados en `LISTA_FRAUDE`.
+- **Exclusión de recuperador**: código `000124`.
+- **Buckets PAR**: `0`, `7`, `15`, `30`, `60`, `90`, `Mayor_90`, `Mayor_180` (basado en días de mora).
+- **Columnas calculadas**:
+  - `Concepto Depósito`: `"1" + codigo_acreditado + ciclo_str` (al ciclo mayor cuando hay múltiples).
+  - `Saldo riesgo capital` / `Saldo riesgo total`: vale 0 si mora ≤ 0.
+  - `% MORA`: saldo vencido / saldo total.
+  - `Días desde el último pago`: diff con hoy.
+  - `Alerta`: 1 si `días desde último pago > plazo_dias` según periodicidad.
+  - `Cuotas sin pagar`: `días_desde_último_pago / días_de_periodicidad` (truncado).
+  - `Saldo_Riesgo_total` (nueva def): `saldo_total if mora > 30 else 0`.
+  - `Combinado`: cuotas si mora ≤ 30, else saldo_riesgo_nuevo.
+- **Hojas mensuales**: segmentación por `Inicio ciclo`. Marzo2026 = antes del 1-abril (acumulado), Abril2026 = abril, Mayo2026 = mayo, etc. Es decisión de negocio.
+- **Plantilla**: `PLANTIILA2_nueva.xlsx` aporta los pivots de X_Coordinación / X_Recuperador con caches preconfigurados.
+
+**Reporte de Antigüedad Grupal**: existe ruta `POST /reportes/procesar_antiguedad_grupal` pero es **stub no implementado** (TODO en `reportes.py:3067`). No está en el alcance porque tampoco se usa.
+
+#### 5.4.3 Microservicio `crediflexi-services` — estado actual
+
+FastAPI mínimo (4 commits, ~340 LOC útiles). Estructura:
+
+```
+main.py                  ← app FastAPI + health
+routers/cartera.py       ← POST /cartera/procesar
+services/cartera_etl.py  ← pipeline pandas (replica legacy)
+core/config.py           ← env vars
+core/supabase.py         ← cliente service_role singleton
+```
+
+**Endpoint único**:
+```
+POST /cartera/procesar
+Body: { upload_id, fecha_corte, storage_path }
+→ marca cartera_uploads.estado='procesando'
+→ descarga Excel desde Supabase Storage con service_role
+→ transformar(tmp) [pandas pipeline]
+→ delete previo + insert batches de 500 en stg_yunius_cartera_individual
+→ marca estado='procesado', rows_inserted=N
+→ on error: estado='error', error_detalle=...
+```
+
+**Lo que el ETL hace** (`services/cartera_etl.py:258`):
+- Cargar Excel con DTYPE_CONFIG (preserva strings de teléfonos).
+- Normalizar headers (strip `\n`).
+- Filtrar fraude + excluir recuperador 000124.
+- Calcular PAR, Concepto Depósito, Saldo riesgo, % MORA, Alerta, Cuotas sin pagar, Saldo_Riesgo_total, Combinado.
+
+**Lo que el ETL NO hace** (gap):
+- ❌ No mapea todas las columnas a Supabase: `df_a_registros` solo serializa ~20 campos, pero `stg_yunius_cartera_individual` define ~55 (faltan `nom_region`, `codigo_promotor`, `nombre_promotor`, `codigo_recuperador`, `nombre_recuperador`, garantías, referencias, geolocalización, plazo, fechas de ciclo, montos comisión, etc.).
+- ❌ No procesa amortizaciones (`loan_amortizacion_individual` queda vacía).
+- ❌ No autentica al caller (cualquiera con la URL puede dispararlo).
+
+#### 5.4.4 Plataforma — lo que tiene y lo que falta
+
+**Tiene**:
+- `app/(dashboard)/cartera/cargar/page.tsx` + `components/cartera/upload-form.tsx` — UI drag-drop con polling.
+- `app/api/cartera/upload/route.ts` — sube a Storage + crea `cartera_uploads`.
+- `app/api/cartera/procesar/route.ts` — bridge al microservicio (valida `acceso_cartera`, llama POST).
+- `app/api/cartera/uploads/route.ts` — lista uploads con auto-cleanup de timeouts >10 min.
+- `app/(dashboard)/admin/cartera/page.tsx` — gestión admin de uploads.
+- `app/(dashboard)/admin/usuarios/` con `cartera-accesos.tsx` — toggle `profiles.acceso_cartera`.
+
+**Falta** (todo lo de consumo):
+- ❌ Endpoints GET / RPCs para leer datos agregados.
+- ❌ Vistas materializadas para PAR consolidado, totales por coordinación/recuperador.
+- ❌ Páginas `/cartera`, `/cartera/cobranza`, `/cartera/riesgo` — son placeholders.
+- ❌ Drill-down crédito × cuotas.
+- ❌ Exportación Excel/CSV bajo demanda.
+- ❌ Selector multi-corte (comparar fechas de corte).
+
+#### 5.4.5 Schema en Supabase
+
+3 tablas creadas (`20260520000001_cartera_tables.sql`):
+
+| Tabla | Filas reales | Llenado por | Uso futuro |
+|-------|--------------|-------------|-----------|
+| `cartera_uploads` | Crece con cada upload | Next.js (`/api/cartera/upload`) | Ledger |
+| `stg_yunius_cartera_individual` | ~191 filas probadas | Microservicio (20 de 55 campos) | Fuente principal de dashboards |
+| `loan_amortizacion_individual` | 0 (vacía) | TBD — código externo que tiene el usuario | Drill-down + liquidación real |
+
+**Índices existentes**: `fecha_corte`, `coordinacion`, `par_bucket`, `codigo_recuperador`, `(fecha_corte, codigo_acreditado)` en amortización.
+
+**RLS**: `has_cartera_access()` (admin o `profiles.acceso_cartera = true`).
+
+#### 5.4.6 Gap legacy → plataforma
+
+| Vista del legacy | Equivalente en plataforma | Gap |
+|------------------|---------------------------|-----|
+| Excel completo con 12 hojas | — | No reemplazado |
+| `R_Completo` (74 cols) | tabla `stg_yunius_cartera_individual` | Datos en DB pero sin UI de listado/filtrado |
+| Hoja con fecha del día | snapshot por `fecha_corte` | Falta selector de corte |
+| Hojas mensuales (cohort por `Inicio ciclo`) | filtro por mes | `fecha_inicio_ciclo` está en schema pero NO se llena en ETL |
+| `X_Coordinación` (6 pivots) | RPC/vista agregada por coord × PAR | No existe |
+| `X_Recuperador` | RPC/vista agregada por recuperador × PAR | No existe |
+| `RECUPERADOR_000124` | filtro especial | Caso particular — replicable cuando exista la vista por recuperador |
+| `Mora` + cols Call Center + Campo | tabla con seguimiento | Falta diseño operativo |
+| `Cuentas con saldo vencido` | filtro `saldo_vencido≥1 AND dias_mora≤0` | Query directa, falta UI |
+| `Liquidación anticipada` (VLOOKUP) | drill-down + cálculo | Requiere amortizaciones |
+| `Cobranza`, `Asignación`, `Recuperación` (manuales) | módulo separado | Fuera de scope inmediato |
+
+**Conclusión**: la base de datos tiene la materia prima, pero le faltan: (a) que el ETL llene **todas** las columnas; (b) endpoints/RPCs de consulta; (c) la capa de UI.
+
+#### 5.4.7 Decisiones de diseño confirmadas (sesión 2026-05-27)
+
+- Legacy no se toca; queda como referente.
+- Hojas mensuales = segmentación por `Inicio ciclo` (cohort), no por fecha de corte.
+- Amortizaciones llegarán vía script externo TBD; no bloquean MVP de dashboards.
+- Orden de dashboards: **snapshot ejecutivo → coord × PAR → recuperador → mora operativa → drill-down/liquidación**.
+- Excel no se reemplaza con un Excel mejor: se reemplaza con dashboards interactivos. Si el usuario quiere Excel descargable, será derivable on-demand desde la UI.
+
+#### 5.4.8 Riesgos y preguntas abiertas del módulo
+
+| Tipo | Punto |
+|------|-------|
+| Riesgo | ETL inserta solo 20/55 cols — dashboards quedarán cojos hasta cerrar gap. |
+| Riesgo | Microservicio sin auth + sin deploy. En prod sería disparable por cualquiera. |
+| Riesgo | Hojas mensuales del legacy dependen de hardcodes (`mes=4 año=2026`); la plataforma debe ser dinámica. |
+| Pregunta | ¿De dónde y cómo se llenará `loan_amortizacion_individual`? (usuario: "otro código existe") — confirmar formato y disparador. |
+| Pregunta | Liquidación anticipada en la plataforma: ¿se calcula desde amortizaciones (real) o se replica el VLOOKUP del Excel (aproximación)? |
+| Pregunta | `Cobranza`, `Asignación`, `Recuperación` (hojas pegadas a mano en legacy): ¿entran al scope de la plataforma o quedan fuera? |
+| Pregunta | ¿La plataforma debe ofrecer exportación Excel del listado, o el legacy seguirá generándolo por correo? |
+
+---
+
+## 6. Problemas y Bugs Detectados
 
 ### Arquitectura
 
@@ -233,13 +451,21 @@ middleware.ts
 - **RLS-002 (Media)** — `profiles_select using (true)` (mig. 002:15) expone email/nombre/rol de todos los perfiles a todos los autenticados. **Fix**: restringir a campos públicos vía vista o a admin.
 - **RLS-003 (Media)** — `acreditado_referencias` / `acreditado_historial` INSERT solo validan `has_score_access()`; un operador puede contaminar registros ajenos. **Fix**: validar también que el `acreditado_id` es del capturador o via RPC.
 - **RLS-004 (Media)** — `ticket_responses_insert` no bloquea si `closed_at IS NOT NULL`. **Fix**: trigger `before insert` que rechace.
-- **RLS-005 (Media)** — Bucket Storage `ticket-attachments` no tiene políticas en el repo (sí en el dashboard, según `research.md` previo). **Fix**: migración versionada análoga a `20260524000002_cartera_storage_policy.sql`.
+- **RLS-005 (Media)** — Bucket Storage `ticket-attachments` no tiene políticas en el repo (sí en el dashboard). **Fix**: migración versionada análoga a `20260524000002_cartera_storage_policy.sql`.
 - **SEC-002 (Media)** — Cartera: el microservicio usa `service_role_key` (bypassa RLS). Es correcto para backend-to-DB, pero el endpoint `/cartera/procesar` del microservicio **no autentica** la llamada de Next.js. En localhost no hay riesgo; en producción cualquiera con la URL podría dispararlo. **Fix**: HMAC compartido o JWT entre Next.js y microservicio.
+
+### Cartera (gaps de datos)
+
+- **CART-001 (Alta)** — ETL del microservicio mapea solo 20 de ~55 campos definidos en `stg_yunius_cartera_individual`. Faltan: `nom_region`, `codigo_promotor`, `nombre_promotor`, `codigo_recuperador`, `nombre_recuperador`, plazo, fechas de ciclo, garantías, referencias, geolocalización, etc. **Fix**: extender `df_a_registros()` en `crediflexi-services/services/cartera_etl.py:301`.
+- **CART-002 (Media)** — `fecha_inicio_ciclo` no se llena → no se puede hacer la segmentación cohort del legacy ("Marzo2026/Abril2026/Mayo2026"). **Fix**: parte de CART-001.
+- **CART-003 (Alta)** — `loan_amortizacion_individual` vacía. No se puede hacer drill-down ni liquidación anticipada. **Fix**: integrar con script externo del usuario (pendiente definición).
+- **CART-004 (Media)** — Sin endpoints de consulta. Aunque los datos lleguen completos, la UI no puede leerlos. **Fix**: RPCs de agregación + endpoints GET (ver §7).
+- **CART-005 (Baja)** — `cartera_uploads.fecha_corte` se ingresa manualmente por el usuario; no se valida contra el contenido del Excel. **Fix**: validar al procesar o derivar.
 
 ### UX
 
-- **UI-001 (Alta)** — `ticket-form.tsx:132-135`: si `ticketError`, solo `setLoading(false)`, sin toast. El usuario no sabe que falló.
-- **UI-002 (Alta)** — Adjuntos iniciales no se muestran en el hilo. `ticket-thread.tsx` filtra por `response_id === resp.id`, ignorando los que tienen `response_id IS NULL`.
+- **UI-001 (Alta)** — ~~Toast de error en creación de ticket~~ ✅ 2026-05-25.
+- **UI-002 (Alta)** — ~~Adjuntos iniciales no se muestran en el hilo~~ ✅ 2026-05-25.
 - **UI-003 (Media)** — Login `?error=auth` no tiene copy (solo `error=domain`).
 - **UI-004 (Media)** — No hay `error.tsx` ni `not-found.tsx` específicos para rutas profundas.
 - **UI-005 (Baja)** — Lista de acreditados sin paginación.
@@ -273,17 +499,20 @@ middleware.ts
 
 ---
 
-## 6. Deuda Técnica
+## 7. Deuda Técnica
 
 | ID | Tipo | Ubicación | Severidad | Recomendación |
 |----|------|-----------|-----------|---------------|
+| CART-001 | Datos | `cartera_etl.py:301` | Alta | Mapear todas las columnas a `stg_yunius_*` |
+| CART-003 | Datos | `loan_amortizacion_individual` | Alta | Integrar fuente externa de amortizaciones |
+| CART-004 | API | Falta capa de consulta cartera | Alta | RPCs `cartera_resumen`, `cartera_por_coordinacion`, etc. |
 | RLS-001 | Seguridad | `ticket_attachments.insert` | Alta | Policy con EXISTS sobre tickets |
 | RLS-005 | Seguridad | Storage `ticket-attachments` | Alta | Migración con políticas versionadas |
 | OPS-001 | Operación | Microservicio Python | Alta | Dockerfile + deploy (Railway/Fly/Render) + `PYTHON_SERVICE_URL` en Vercel |
 | SEC-001 | Arquitectura | Mutaciones cliente en tickets/admin | Alta | Migrar a Server Actions |
-| UI-001 | UX | `ticket-form` sin feedback de error | Alta | toast + revert loading |
-| UI-002 | UX | Adjuntos iniciales invisibles | Alta | Bloque "Evidencia inicial" en thread |
 | SEC-002 | Seguridad | Microservicio sin auth | Media | HMAC entre Next.js y microservicio |
+| CART-002 | Datos | `fecha_inicio_ciclo` no llenada | Media | Parte de CART-001 |
+| CART-005 | Datos | `fecha_corte` no validada vs Excel | Baja | Validación al procesar |
 | RLS-002 | Seguridad | `profiles_select` open | Media | Vista pública o restringir |
 | RLS-003 | Seguridad | Score historial/refs INSERT | Media | RPC única + validar capturador |
 | RLS-004 | Seguridad | Responses en ticket cerrado | Media | Trigger before insert |
@@ -298,56 +527,83 @@ middleware.ts
 
 ---
 
-## 7. Gaps y Features Pendientes
+## 8. Gaps y Features Pendientes (por módulo)
 
-### Críticos (bloquean cierre de Cartera en producción)
-1. **OPS-001** — Deploy del microservicio `crediflexi-services`.
-2. **PRO-001** — Dashboard `/cartera` con resumen agregado (total cartera, total mora, % PAR, evolución por corte).
-3. **PRO-002** — Vista `/cartera/cobranza` (tickets de cobranza por recuperador, días de mora, alertas).
-4. **PRO-003** — Vista `/cartera/riesgo` (distribución PAR, top clientes en mora, concentración por coordinación).
-5. **SEC-002** — Auth entre Next.js y microservicio (HMAC).
+### Cartera (crítica — eje estratégico)
 
-### Importantes (mejoran prod actual)
-6. **RLS-001 + RLS-005** — Endurecer adjuntos de tickets y políticas Storage.
-7. **UI-001 + UI-002** — Feedback de error en creación + mostrar adjuntos iniciales.
-8. **SEC-001** — Migrar mutaciones de tickets a Server Actions.
-9. **TYP-001** — Regenerar tipos Supabase con `supabase gen types`.
+1. **CART-001** — Completar mapeo de columnas en ETL.
+2. **CART-002** — Llenar `fecha_inicio_ciclo` (habilita cohort mensual).
+3. **CART-004** — Capa de consulta: RPCs/vistas (resumen, coord × PAR, recuperador × PAR, mora operativa).
+4. **DASH-001** — Dashboard ejecutivo `/cartera` (snapshot: total cartera, total mora, % PAR consolidado, top coord en mora, indicador del último corte).
+5. **DASH-002** — Vista por Coordinación × PAR (equivalente a `X_Coordinación`).
+6. **DASH-003** — Vista por Recuperador (equivalente a `X_Recuperador`, con filtro "mi cartera").
+7. **DASH-004** — Vista de Mora operativa (equivalente a hoja `Mora` + columnas de seguimiento Call Center/Campo).
+8. **DASH-005** — Drill-down de crédito + Liquidación anticipada (bloqueado por CART-003).
+9. **OPS-001** — Deploy del microservicio.
+10. **SEC-002** — Auth entre Next.js y microservicio.
 
-### Roadmap
-10. **PRO-004** — Chat IA en `/cartera/chat` (LLM con contexto de la cartera).
-11. **PRO-005** — Notificaciones email (Resend) cuando se crea/responde/cierra ticket.
-12. **PRO-006** — Dominio custom `tickets.financieracrediflexi.com`.
-13. **DEB-001** — Tests E2E de flujos críticos (login, crear ticket, captura acreditado, carga cartera).
-14. **OPS-002** — Supabase CLI + migraciones en CI.
+### Tickets (UX y seguridad)
+
+11. **RLS-001 + RLS-005** — Endurecer adjuntos y políticas Storage.
+12. **UI-003 + UI-004** — Copy login + `error.tsx` global.
+13. **SEC-001** — Migrar mutaciones a Server Actions (gradual).
+
+### Score (robustez)
+
+14. **DB-001 + DB-002** — RPC atómica `upsert_acreditado`.
+15. **RLS-003** — Validar capturador en historial/refs.
+16. **SEC-003** — Trigger DB recalcula score.
+17. **DB-004** — Mapear errores RPC.
+
+### Transversal
+
+18. **TYP-001** — Regenerar tipos Supabase.
+19. **OPS-002** — Migraciones automatizadas en CI.
+20. **DEB-001** — Tests E2E críticos.
+21. **PRO-004** — Chat IA en `/cartera/chat` (LLM).
+22. **PRO-005** — Notificaciones email (Resend).
+23. **PRO-006** — Dominio custom.
 
 ---
 
-## 8. Recomendaciones Técnicas
+## 9. Recomendaciones Técnicas
 
-1. **Cerrar Cartera antes de Chat IA**: dashboards + deploy del microservicio. Sin esto, el módulo es un cargador sin consumo.
-2. **Endurecer RLS de adjuntos y Storage en migración versionada** (no en dashboard manual).
-3. **Migrar tickets a Server Actions** progresivamente: empezar por `crear ticket` y `responder`.
-4. **HMAC entre Next.js y microservicio** antes de exponer el microservicio en internet.
-5. **`supabase gen types` automatizado** post-migración (script en `scripts/`).
-6. **`error.tsx` global + por sección** (tickets, score, cartera).
-7. **Tests mínimos**: smoke E2E de login + crear ticket + crear acreditado + cargar cartera.
-8. **Documentar variables de entorno** en `.env.example` (sin secretos).
+1. **Cartera primero, todo lo demás después**. Es el módulo con mayor brecha y mayor valor para reemplazar el legacy.
+2. **Cerrar el ETL antes que los dashboards**. Sin todas las columnas, los dashboards se quedan cojos. Orden: CART-001 → CART-004 → DASH-*.
+3. **Endurecer RLS de adjuntos y Storage en migración versionada** (no en dashboard manual).
+4. **Migrar tickets a Server Actions** progresivamente: empezar por `crear ticket` y `responder`.
+5. **HMAC entre Next.js y microservicio** antes de exponer el microservicio en internet.
+6. **`supabase gen types` automatizado** post-migración (script en `scripts/`).
+7. **`error.tsx` global + por sección** (tickets, score, cartera).
+8. **Tests mínimos**: smoke E2E de login + crear ticket + crear acreditado + cargar cartera.
+9. **Documentar variables de entorno** en `.env.example` (sin secretos).
+10. **Considerar Edge Function/RPC para agregaciones** de cartera en vez de SELECT cliente — permite cachear y proteger.
 
 ---
 
-## 9. Preguntas Abiertas
+## 10. Preguntas Abiertas
+
+### Plataforma / transversales
 
 1. ¿Dónde se desplegará el microservicio Python? (Railway / Fly.io / Render / VPS propio de CrediFlexi)
-2. ¿Las políticas Storage del bucket `ticket-attachments` en producción están abiertas o restringidas? (no están en el repo)
-3. ¿Qué LLM provider se usará para Chat IA en cartera? (OpenAI / Anthropic / local) — define costo y arquitectura.
-4. ¿El dashboard de cartera consume el último corte o permite seleccionar fecha?
-5. ¿Notificaciones email son requisito antes de ampliar usuarios de tickets?
-6. ¿El algoritmo de score debe seguir replicando exactamente el GAS legacy o se puede iterar?
-7. ¿Quién corre las migraciones SQL en producción (manualmente vs CI)?
+2. ¿Las políticas Storage del bucket `ticket-attachments` en producción están abiertas o restringidas?
+3. ¿Qué LLM provider se usará para Chat IA en cartera? (OpenAI / Anthropic / local)
+4. ¿Notificaciones email son requisito antes de ampliar usuarios de tickets?
+5. ¿El algoritmo de score debe seguir replicando exactamente el GAS legacy o se puede iterar?
+6. ¿Quién corre las migraciones SQL en producción (manualmente vs CI)?
+
+### Cartera
+
+7. ¿De dónde y cómo se llenará `loan_amortizacion_individual`? El usuario tiene "otro código" — formato esperado y disparador a definir.
+8. ¿Liquidación anticipada: cálculo real desde amortizaciones o aproximación tipo VLOOKUP?
+9. ¿Hojas externas del legacy (`Cobranza`, `Asignación`, `Recuperación`) entran al scope de la plataforma o quedan fuera?
+10. ¿La plataforma exporta Excel del listado, o ese flujo lo sigue cubriendo el legacy?
+11. ¿Quiénes son los consumidores reales del reporte hoy y con qué prioridad? (Asumido: todos los roles, prioridad coord → recuperador → mora operativa.)
+12. ¿El dashboard de cartera consume el último corte por defecto o permite seleccionar fecha?
 
 ---
 
-## 10. Apéndice — Inventario de migraciones
+## 11. Apéndice — Inventario de migraciones
 
 | # | Archivo | Propósito |
 |---|---------|-----------|
@@ -376,17 +632,18 @@ middleware.ts
 
 ---
 
-## 11. Auto-chequeo final
+## 12. Auto-chequeo final
 
 | Pregunta | Respuesta |
 |----------|-----------|
 | ¿Leí package.json, middleware, layouts raíz, dashboard? | Sí |
 | ¿Leí al menos 3 Server Actions / route handlers? | Sí (`acreditados.ts`, `cartera/upload`, `cartera/procesar`) |
-| ¿Revisé las 22 migraciones (al menos las críticas)? | Sí (initial, RLS, scoring, dynamic_fields, cartera_*) |
-| ¿Validé que la documentación previa quedó obsoleta? | Sí — `research.md`, `plan-fase*.md`, `plan-modificaciones.md`, `plan-operaciones.md` |
-| ¿Documenté el estado real, no el aspirable? | Sí — Cartera marcada como parcial (UI lista, dashboards pendientes, microservicio sin deploy) |
-| ¿Identifiqué riesgos críticos? | Sí — RLS adjuntos, microservicio sin deploy, sin auth entre servicios |
-| ¿IDs de tickets consistentes? | Sí — SEC, RLS, DB, UI, API, PERF, TYP, OPS, DEB, PRO |
+| ¿Revisé las 22 migraciones (al menos las críticas)? | Sí |
+| ¿Investigué el legacy y el microservicio? | Sí (README + research.md + plan.md del legacy, código del microservicio completo, schema Supabase) |
+| ¿Distinguí "lo que existe" de "lo que se asume / hay que confirmar"? | Sí — §10 lista preguntas abiertas |
+| ¿Documenté el estado real, no el aspirable? | Sí — Cartera marcada como ETL parcial + dashboards pendientes |
+| ¿Identifiqué riesgos críticos? | Sí — RLS adjuntos, microservicio sin deploy, ETL incompleto |
+| ¿IDs de tickets consistentes? | Sí — SEC, RLS, DB, UI, API, PERF, TYP, OPS, DEB, PRO, CART, DASH |
 
 ---
 
