@@ -35,18 +35,30 @@
 
 **Objetivo**: reemplazar progresivamente la información que entrega el legacy (`automatizador-crediflexi`) con dashboards interactivos en la plataforma. El legacy NO se toca; queda como referente.
 
-#### Fase Cartera-1 — Cerrar el pipeline ETL (1 semana)
+#### Fase Cartera-0 — Especificación del contrato de datos *(gating absoluto)*
 
-> Sin datos completos, los dashboards quedan cojos. Esto es prioridad.
+> Sin entender exactamente qué columnas trae el input y qué entrega el output, cualquier ETL es a ciegas. Esta fase cierra el contrato antes de tocar código.
 
 | # | Ticket | Descripción | Bloqueado por |
 |---|--------|-------------|---------------|
-| C1-1 | CART-001 | Extender `df_a_registros()` en `crediflexi-services` para mapear las ~55 columnas de `stg_yunius_cartera_individual` (hoy solo 20) | — |
+| C0-1 | CART-000 | Análisis profundo del **input** (`test_abril2026_input.xlsx`): inventariar columnas reales, tipos, % nulos, muestras, semántica de negocio. Documentar en `docs/cartera/input-analysis.md`. | — |
+| C0-2 | CART-000b | Análisis profundo del **output** (`ReportedeAntiguedad_nuevo_*.xlsx`): por cada una de las ~12 hojas listar columnas finales, fórmulas, derivaciones desde el input y qué audiencia las consume. Documentar en `docs/cartera/output-analysis.md`. | — |
+| C0-3 | CART-000c | **Matriz de mapeo definitiva** `input_col → transform → stg_col → uso_dashboard`. Identifica columnas sobrantes, faltantes y derivadas. Cierra el contrato. Documentar en `docs/cartera/mapping-matrix.md`. | C0-1, C0-2 |
+| C0-4 | CART-000d | Reajustar schema `stg_yunius_cartera_individual` si la matriz revela columnas mal tipadas o faltantes (migración nueva). | C0-3 |
+| C0-5 | — | Actualizar `RESEARCH-CONSOLIDADO §5.4` con lo necesario para dejar el microservicio al 100%. | C0-3 |
+
+#### Fase Cartera-1 — Cerrar el pipeline ETL (1 semana)
+
+> Implementar el contrato cerrado en Cartera-0.
+
+| # | Ticket | Descripción | Bloqueado por |
+|---|--------|-------------|---------------|
+| C1-1 | CART-001 | Implementar en `df_a_registros()` (`crediflexi-services/services/cartera_etl.py`) el mapeo completo según matriz C0-3. | C0-3, C0-4 |
 | C1-2 | CART-002 | Asegurar que `fecha_inicio_ciclo` se llena (habilita segmentación cohort por mes) | C1-1 |
 | C1-3 | CART-005 | Validar `fecha_corte` contra el contenido del Excel al procesar | C1-1 |
 | C1-4 | OPS-001 | Dockerfile + deploy de `crediflexi-services` (Railway/Fly/Render) | — |
 | C1-5 | SEC-002 | HMAC entre `/api/cartera/procesar` y microservicio | C1-4 |
-| C1-6 | TYP-001 | Regenerar `lib/supabase/types.ts` (desbloquea autocompletado para dashboards) | — |
+| C1-6 | TYP-001 | Regenerar `lib/supabase/types.ts` (desbloquea autocompletado para dashboards) | C0-4 |
 
 #### Fase Cartera-2 — Capa de consulta (3-5 días)
 
@@ -166,22 +178,23 @@
 
 ## 3. Backlog Priorizado (orden de ejecución sugerido)
 
-1. **C1-4 OPS-001** — Deploy microservicio (sin esto Cartera no existe en prod).
+1. **C0-1..5** — Análisis input/output + matriz de mapeo + ajuste research *(gating absoluto, sin esto el ETL es a ciegas)*.
 2. **C1-6 TYP-001** — Regenerar tipos (rápido, desbloquea autocompletado).
-3. **C1-1 CART-001** — Completar ETL (gating de toda Fase 2 y 3).
+3. **C1-1 CART-001** — Implementar ETL según contrato C0-3.
 4. **C1-2 CART-002** — `fecha_inicio_ciclo` (bloquea cohort mensual).
-5. **C1-5 SEC-002** — HMAC antes de exponer microservicio.
-6. **T-D4/T-D5 + P-U1** — Cierre pendientes Fase Demo (login copy + error.tsx global).
-7. **C2-1 CART-010** — RPC resumen (desbloquea primer dashboard).
-8. **C3-1 DASH-001** — Snapshot ejecutivo (mayor valor visible).
-9. **T-S1 + T-S2** — RLS adjuntos y Storage (riesgo de seguridad real).
-10. **C2-2 + C3-2** — Coordinación × PAR.
-11. **C2-3 + C3-3** — Recuperador.
-12. **C2-4 + C3-4** — Mora operativa.
-13. **C2-5 + C3-5** — Cohort mensual.
-14. **T-S3 + T-S4** — Resto RLS tickets.
-15. **S-R*** — Robustez Score.
-16. **C4-* + post-v1.0**.
+5. **C1-4 OPS-001** — Deploy microservicio.
+6. **C1-5 SEC-002** — HMAC antes de exponer microservicio.
+7. **T-D4/T-D5 + P-U1** — Cierre pendientes Fase Demo (login copy + error.tsx global).
+8. **C2-1 CART-010** — RPC resumen (desbloquea primer dashboard).
+9. **C3-1 DASH-001** — Snapshot ejecutivo (mayor valor visible).
+10. **T-S1 + T-S2** — RLS adjuntos y Storage (riesgo de seguridad real).
+11. **C2-2 + C3-2** — Coordinación × PAR.
+12. **C2-3 + C3-3** — Recuperador.
+13. **C2-4 + C3-4** — Mora operativa.
+14. **C2-5 + C3-5** — Cohort mensual.
+15. **T-S3 + T-S4** — Resto RLS tickets.
+16. **S-R*** — Robustez Score.
+17. **C4-* + post-v1.0**.
 
 ---
 
@@ -221,10 +234,11 @@
 
 ## 5. Próximos Pasos (sesión inmediata)
 
-1. **Decisión pendiente** — ¿Dónde se despliega `crediflexi-services`? (Railway free tier opción simple).
-2. **C1-1 CART-001** — Inventariar exactamente qué columnas faltan mapear (cruzar `cartera_etl.py:301` vs schema de `stg_yunius_cartera_individual`) y extender `df_a_registros()`.
-3. **C1-6 TYP-001** — Correr `supabase gen types typescript --project-id ... > lib/supabase/types.ts`.
-4. **Terminar Fase Demo Tickets** — UI-003 + UI-004 son quick wins.
+1. **C0-1 CART-000** — Abrir `test_abril2026_input.xlsx`, mapear columnas reales → `docs/cartera/input-analysis.md`.
+2. **C0-2 CART-000b** — Abrir `ReportedeAntiguedad_nuevo_*.xlsx`, mapear las ~12 hojas → `docs/cartera/output-analysis.md`.
+3. **C0-3 CART-000c** — Matriz `input → transform → stg → uso` → `docs/cartera/mapping-matrix.md`.
+4. **C0-5** — Actualizar `RESEARCH §5.4` con lo necesario para dejar microservicio al 100%.
+5. **Decisión pendiente** — ¿Dónde se despliega `crediflexi-services`? (Railway free tier opción simple).
 
 ---
 
