@@ -1,4 +1,6 @@
-// Tipos generados manualmente — reemplazar con `supabase gen types` cuando el schema esté en producción
+// Tipos de dominio / UI escritos a mano.
+// Los tipos espejo de la base de datos viven en `./database.types.ts` (autogenerados con `npm run db:types`).
+// Cuando un tipo de aquí sea redundante con uno de la DB, refactorizar para derivar del generado.
 
 export type UserRole = 'admin' | 'responsable' | 'usuario'
 export type ResponseType = 'mensaje' | 'terminado_responsable' | 'terminado_usuario' | 'rechazo_responsable'

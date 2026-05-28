@@ -10,7 +10,8 @@
     "db:push": "./bin/supabase.exe db push",
     "db:status": "./bin/supabase.exe migration list",
     "db:new": "./bin/supabase.exe migration new",
-    "db:diff": "./bin/supabase.exe db diff"
+    "db:diff": "./bin/supabase.exe db diff",
+    "db:types": "./bin/supabase.exe gen types typescript --linked --schema public > lib/supabase/database.types.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
