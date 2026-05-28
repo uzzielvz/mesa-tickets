@@ -3,7 +3,7 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-05-27.
+> Última actualización: 2026-05-28.
 
 ---
 
@@ -24,7 +24,7 @@
 - Notificaciones email (Resend).
 - Dominio custom.
 - Tests E2E completos.
-- Migraciones automatizadas en CI.
+- `supabase db push` automatizado en CI *(ya hay flujo local, falta GitHub Action)*.
 - Migración total de mutaciones de tickets a Server Actions (se hace gradual post v1.0).
 
 ---
@@ -41,11 +41,11 @@
 
 | # | Ticket | Descripción | Bloqueado por |
 |---|--------|-------------|---------------|
-| C0-1 | CART-000 | Análisis profundo del **input** (`test_abril2026_input.xlsx`): inventariar columnas reales, tipos, % nulos, muestras, semántica de negocio. Documentar en `docs/cartera/input-analysis.md`. | — |
-| C0-2 | CART-000b | Análisis profundo del **output** (`ReportedeAntiguedad_nuevo_*.xlsx`): por cada una de las ~12 hojas listar columnas finales, fórmulas, derivaciones desde el input y qué audiencia las consume. Documentar en `docs/cartera/output-analysis.md`. | — |
-| C0-3 | CART-000c | **Matriz de mapeo definitiva** `input_col → transform → stg_col → uso_dashboard`. Identifica columnas sobrantes, faltantes y derivadas. Cierra el contrato. Documentar en `docs/cartera/mapping-matrix.md`. | C0-1, C0-2 |
-| C0-4 | CART-000d | Reajustar schema `stg_yunius_cartera_individual` si la matriz revela columnas mal tipadas o faltantes (migración nueva). | C0-3 |
-| C0-5 | — | Actualizar `RESEARCH-CONSOLIDADO §5.4` con lo necesario para dejar el microservicio al 100%. | C0-3 |
+| C0-1 | CART-000 | ✅ **2026-05-28** — Análisis profundo del **input** (63 cols × 343 filas sample). `docs/cartera/input-analysis.md`. | — |
+| C0-2 | CART-000b | ✅ **2026-05-28** — Análisis profundo del **output** (FINAL TARGET vs nuevo). `docs/cartera/output-analysis.md`. | — |
+| C0-3 | CART-000c | ✅ **2026-05-28** — **Matriz de mapeo definitiva** input ↔ schema ↔ output + checklist de aceptación. `docs/cartera/mapping-matrix.md`. | C0-1, C0-2 |
+| C0-4 | CART-000d | Migración: agregar 11 cols faltantes a `stg_yunius_cartera_individual` (`situacion_credito`, `medio_comunic_2/3`, `tipo/desc/garantia_2`, `calle`, `colonia`, `nom_personal_castiga_cartera`, `frecuencia`, `concepto_deposito`, `parcialidad_comision`) + extender `loan_amortizacion_individual` con `estatus_amortizacion`, `monto_recibido`, `categoria`, `incremento`, `fuente_fecha_liquidacion`, `es_no_aplica_liquidacion`, `codigo_ciclo`. | C0-3 |
+| C0-5 | — | ✅ **2026-05-28** — `RESEARCH §5.4.9` con hallazgos + plan de cierre en 5 pasos. | C0-3 |
 
 #### Fase Cartera-1 — Cerrar el pipeline ETL (1 semana)
 
@@ -53,12 +53,13 @@
 
 | # | Ticket | Descripción | Bloqueado por |
 |---|--------|-------------|---------------|
-| C1-1 | CART-001 | Implementar en `df_a_registros()` (`crediflexi-services/services/cartera_etl.py`) el mapeo completo según matriz C0-3. | C0-3, C0-4 |
-| C1-2 | CART-002 | Asegurar que `fecha_inicio_ciclo` se llena (habilita segmentación cohort por mes) | C1-1 |
-| C1-3 | CART-005 | Validar `fecha_corte` contra el contenido del Excel al procesar | C1-1 |
-| C1-4 | OPS-001 | Dockerfile + deploy de `crediflexi-services` (Railway/Fly/Render) | — |
-| C1-5 | SEC-002 | HMAC entre `/api/cartera/procesar` y microservicio | C1-4 |
-| C1-6 | TYP-001 | Regenerar `lib/supabase/types.ts` (desbloquea autocompletado para dashboards) | C0-4 |
+| C1-1 | CART-001 | Refactor `df_a_registros()` (`crediflexi-services/services/cartera_etl.py`): mapear las ~50 cols del input, extender `COLUMN_MAPPING`, eliminar inserts de `cuotas_sin_pagar` y `combinado`, `.zfill(2)` en `ciclo`, quitar filtro `CODIGOS_RECUPERADOR_EXCLUIR`. | C0-4 |
+| C1-2 | CART-002 | Asegurar que `fecha_inicio_ciclo` se llena (habilita segmentación cohort por mes). | C1-1 |
+| C1-3 | CART-005 | Validar `fecha_corte` contra el contenido del Excel al procesar. | C1-1 |
+| C1-4 | CART-006 | Módulo nuevo `cartera_export.py` que regenera el `.xlsx` FINAL TARGET (12 hojas, excluye `Recuperación`/`Cobranza`/`amortizaciones_test` en v1) + endpoint `GET /cartera/export/{fecha_corte}`. | C1-1 |
+| C1-5 | OPS-001 | Dockerfile + deploy de `crediflexi-services` (Railway/Fly/Render). | — |
+| C1-6 | SEC-002 | HMAC entre `/api/cartera/procesar` y microservicio. | C1-5 |
+| C1-7 | TYP-001 | Regenerar `lib/supabase/types.ts` (desbloquea autocompletado para dashboards). | C0-4 |
 
 #### Fase Cartera-2 — Capa de consulta (3-5 días)
 
@@ -153,13 +154,14 @@
 | P-U1 | UI-004 | `app/error.tsx` global + por sección (tickets, score, cartera) |
 | P-U2 | UI-005 | Paginación en lista de acreditados |
 
-#### Fase Plataforma-Operación *(post-v1.0)*
+#### Fase Plataforma-Operación
 
-| # | Ticket | Descripción |
-|---|--------|-------------|
-| P-O1 | OPS-002 | Supabase CLI + `supabase db push` en GitHub Actions |
-| P-O2 | OPS-003 | `.env.example` en raíz |
-| P-O3 | API-001 | `/api/cartera/procesar` fire-and-forget (no espera al microservicio) |
+| # | Ticket | Estado | Descripción |
+|---|--------|--------|-------------|
+| P-O1a | OPS-002a | ✅ **2026-05-28** | Supabase CLI local + `supabase link` + baseline 22 migraciones existentes + scripts npm (`db:push`, `db:status`, `db:new`, `db:diff`). |
+| P-O1b | OPS-002b | 🔲 *(post-v1.0)* | GitHub Action que corre `supabase db push` en cada merge a `main` (requiere `SUPABASE_ACCESS_TOKEN` + `SUPABASE_DB_PASSWORD` en repo secrets). |
+| P-O2 | OPS-003 | 🔲 | `.env.example` en raíz (incluyendo `SUPABASE_DB_PASSWORD`). |
+| P-O3 | API-001 | 🔲 *(post-v1.0)* | `/api/cartera/procesar` fire-and-forget (no espera al microservicio). |
 
 #### Fase Plataforma-Tests *(post-v1.0)*
 
@@ -178,29 +180,30 @@
 
 ## 3. Backlog Priorizado (orden de ejecución sugerido)
 
-1. **C0-1..5** — Análisis input/output + matriz de mapeo + ajuste research *(gating absoluto, sin esto el ETL es a ciegas)*.
-2. **C1-6 TYP-001** — Regenerar tipos (rápido, desbloquea autocompletado).
+1. **C0-4 CART-000d** — Migración con las 11 cols faltantes (siguiente acción, desbloquea TODO el ETL).
+2. **C1-7 TYP-001** — Regenerar tipos (rápido, desbloquea autocompletado).
 3. **C1-1 CART-001** — Implementar ETL según contrato C0-3.
 4. **C1-2 CART-002** — `fecha_inicio_ciclo` (bloquea cohort mensual).
-5. **C1-4 OPS-001** — Deploy microservicio.
-6. **C1-5 SEC-002** — HMAC antes de exponer microservicio.
-7. **T-D4/T-D5 + P-U1** — Cierre pendientes Fase Demo (login copy + error.tsx global).
-8. **C2-1 CART-010** — RPC resumen (desbloquea primer dashboard).
-9. **C3-1 DASH-001** — Snapshot ejecutivo (mayor valor visible).
-10. **T-S1 + T-S2** — RLS adjuntos y Storage (riesgo de seguridad real).
-11. **C2-2 + C3-2** — Coordinación × PAR.
-12. **C2-3 + C3-3** — Recuperador.
-13. **C2-4 + C3-4** — Mora operativa.
-14. **C2-5 + C3-5** — Cohort mensual.
-15. **T-S3 + T-S4** — Resto RLS tickets.
-16. **S-R*** — Robustez Score.
-17. **C4-* + post-v1.0**.
+5. **C1-4 CART-006** — `cartera_export.py` + endpoint export (cierra el ciclo input→output).
+6. **C1-5 OPS-001** — Deploy microservicio.
+7. **C1-6 SEC-002** — HMAC antes de exponer microservicio.
+8. **T-D4/T-D5 + P-U1** — Cierre pendientes Fase Demo (login copy + error.tsx global).
+9. **C2-1 CART-010** — RPC resumen (desbloquea primer dashboard).
+10. **C3-1 DASH-001** — Snapshot ejecutivo (mayor valor visible).
+11. **T-S1 + T-S2** — RLS adjuntos y Storage (riesgo de seguridad real).
+12. **C2-2 + C3-2** — Coordinación × PAR.
+13. **C2-3 + C3-3** — Recuperador.
+14. **C2-4 + C3-4** — Mora operativa.
+15. **C2-5 + C3-5** — Cohort mensual.
+16. **T-S3 + T-S4** — Resto RLS tickets.
+17. **S-R*** — Robustez Score.
+18. **C4-* + post-v1.0**.
 
 ---
 
 ## 4. Decisiones Tomadas
 
-### Cartera (2026-05-27)
+### Cartera (2026-05-27 / 2026-05-28)
 
 - **El legacy (`automatizador-crediflexi`) NO se toca**. Sigue funcionando independiente mientras la plataforma desarrolla su reemplazo. Es referente, no objetivo de cambio.
 - **Paridad antes que superación**: dashboards primero replican la información del Excel; luego se agregan vistas que el Excel no ofrece (multi-corte, drill-down, etc.).
@@ -208,6 +211,9 @@
 - **Amortizaciones** se llenarán vía script externo del usuario (formato y disparador TBD). No bloquean MVP de dashboards; habilitan Fase Cartera-4 (drill-down + liquidación real).
 - **Orden de dashboards**: snapshot ejecutivo → coord × PAR → recuperador → mora operativa → drill-down/liquidación. Justificación: mayor valor visible / menor esfuerzo / consumo más amplio primero.
 - **No reemplazar Excel con Excel**: la plataforma entrega dashboards interactivos. Si se necesita Excel descargable, es exportación derivable on-demand (DASH-013, post-v1.0).
+- **2026-05-28** — `CODIGOS_RECUPERADOR_EXCLUIR = ["000124"]` ya **no filtra al persistir**; persistimos todo y solo filtramos al generar la hoja `X_Recuperador` del export.
+- **2026-05-28** — Pivotes (`X_Coordinación`/`X_Recuperador`) se generan como **tablas estáticas** con `pandas.pivot_table` + `xlsxwriter`, no como PivotTables nativos de Excel (mejor portabilidad).
+- **2026-05-28** — `Saldo_Riesgo_total` y `Combinado` (cols duplicadas en el FINAL) se mantienen como copias literales de `Saldo riesgo total` en el export, calculadas al vuelo (no se persisten en staging).
 
 ### Arquitectura microservicio
 
@@ -221,6 +227,7 @@
 
 - **2026-05-20** — `cartera_uploads` (ledger) y `stg_yunius_cartera_individual` (dato crudo) separadas. Permite re-procesar sin perder histórico.
 - **2026-05-24** — Storage bucket `cartera` con políticas RLS por `acceso_cartera` o `rol=admin`.
+- **2026-05-28** — Migraciones se aplican con **Supabase CLI** (`npm run db:push`). Las 22 migraciones existentes quedaron baseline-marcadas. Workflow oficial documentado en RESEARCH §11.
 
 ### Convenciones
 
@@ -234,11 +241,10 @@
 
 ## 5. Próximos Pasos (sesión inmediata)
 
-1. **C0-1 CART-000** — Abrir `test_abril2026_input.xlsx`, mapear columnas reales → `docs/cartera/input-analysis.md`.
-2. **C0-2 CART-000b** — Abrir `ReportedeAntiguedad_nuevo_*.xlsx`, mapear las ~12 hojas → `docs/cartera/output-analysis.md`.
-3. **C0-3 CART-000c** — Matriz `input → transform → stg → uso` → `docs/cartera/mapping-matrix.md`.
-4. **C0-5** — Actualizar `RESEARCH §5.4` con lo necesario para dejar microservicio al 100%.
-5. **Decisión pendiente** — ¿Dónde se despliega `crediflexi-services`? (Railway free tier opción simple).
+1. **C0-4 CART-000d** — Crear migración `npm run db:new agrega_cols_cartera_canonicas` con las 11 cols faltantes a `stg_yunius_cartera_individual` + cols de amortización. Aplicar con `npm run db:push`.
+2. **C1-7 TYP-001** — Regenerar `lib/supabase/types.ts` (`supabase gen types typescript --linked`).
+3. **C1-1 CART-001** — Refactor `df_a_registros()` para mapear ~50 cols + eliminar inserts inválidos (`cuotas_sin_pagar`, `combinado`).
+4. **Decisión pendiente** — ¿Dónde se despliega `crediflexi-services`? (Railway free tier opción simple).
 
 ---
 
@@ -264,17 +270,18 @@ Prefijos consistentes en `RESEARCH-CONSOLIDADO.md` §6/§7 y aquí:
 
 ### Migraciones
 
-- Nombre: `YYYYMMDDHHMMSS_descripcion.sql`
+- Crear con: `npm run db:new <descripcion>` (genera archivo `YYYYMMDDHHMMSS_descripcion.sql`)
+- Aplicar con: `npm run db:push` (idempotente, solo aplica las pendientes)
+- Estado: `npm run db:status` (muestra local vs remote)
 - Idempotentes cuando sea posible (`if not exists`, `or replace`)
 - Una preocupación por archivo
-- Documentar en `supabase/migrations/GUIA-SQL-SUPABASE.md` si requieren orden manual
 
 ### Commits
 
 - Atómicos, un cambio lógico por commit
 - Mensaje: `tipo(scope): descripción corta`
   - Tipos: `feat`, `fix`, `refactor`, `perf`, `docs`, `chore`, `test`
-  - Scope: `tickets`, `score`, `cartera`, `admin`, `auth`, `rls`, `infra`
+  - Scope: `tickets`, `score`, `cartera`, `admin`, `auth`, `rls`, `infra`, `db`
 - Sin coautoría Claude
 
 ### Workflow
@@ -288,6 +295,8 @@ Prefijos consistentes en `RESEARCH-CONSOLIDADO.md` §6/§7 y aquí:
 
 ## 7. Completados recientes
 
+- **2026-05-28** — OPS-002a: Supabase CLI configurado localmente (v2.101.0). `supabase link` + baseline de 22 migraciones + scripts npm. Fin del copy-paste al SQL editor.
+- **2026-05-28** — Cartera-0 completa (C0-1, C0-2, C0-3, C0-5). Tres documentos definitivos en `docs/cartera/` + `RESEARCH §5.4.9`. Bug crítico documentado: ETL inserta 3 cols inexistentes en schema.
 - **2026-05-27** — RESEARCH-CONSOLIDADO + PLAN refactorizados a estructura modular. Investigación profunda del ecosistema cartera (legacy + microservicio + plataforma). Nuevos IDs CART-/DASH- introducidos.
 - **2026-05-25** — UI-001 + UI-002: feedback de error en tickets y adjuntos iniciales visibles.
 - **2026-05-24** — Cartera end-to-end funcional (UI + Storage + microservicio + ETL parcial).

@@ -548,7 +548,7 @@ Una vez completados estos 5 pasos, el ecosistema Yunius input → Supabase → F
 ### Deuda operativa
 
 - **OPS-001 (Alta)** — Microservicio Python solo corre en localhost. Sin Dockerfile, sin deploy. Cartera en producción no funcionaría.
-- **OPS-002 (Media)** — Migraciones se aplican **a mano** vía SQL editor; no hay `supabase db push` en CI.
+- **OPS-002 (Media)** — Parte 1 ✅ resuelta (2026-05-28): Supabase CLI v2.101 linkeado al proyecto, baseline de 22 migraciones repareadas, scripts `npm run db:new`/`db:push`/`db:status` operativos. Parte 2 pendiente: workflow GitHub Actions con `supabase db push` en CI.
 - **OPS-003 (Baja)** — No hay `.env.example` en el repo raíz.
 
 ---
@@ -573,7 +573,7 @@ Una vez completados estos 5 pasos, el ecosistema Yunius input → Supabase → F
 | DB-001/002 | Datos | Acreditado sin transacción | Media | RPC `upsert_acreditado` |
 | SEC-003 | Seguridad | Score editable vía API | Media | Trigger DB que recalcule |
 | TYP-001 | Tipos | `lib/supabase/types.ts` desincronizado | Media | `supabase gen types` |
-| OPS-002 | Operación | Migraciones a mano | Media | Supabase CLI en CI |
+| OPS-002 | Operación | CLI local ✅, falta CI | Media | Parte 1 hecha (CLI configurado); falta GitHub Action con `supabase db push` |
 | API-001 | Arquitectura | `/api/cartera/procesar` síncrono | Media | Fire-and-forget al microservicio |
 | DEB-001 | Tests | Sin framework | Media | Vitest + Playwright para críticos |
 | UI-003/004 | UX | `error=auth`, `error.tsx` faltantes | Baja | Añadir copy y boundaries |
@@ -612,7 +612,7 @@ Una vez completados estos 5 pasos, el ecosistema Yunius input → Supabase → F
 ### Transversal
 
 18. **TYP-001** — Regenerar tipos Supabase.
-19. **OPS-002** — Migraciones automatizadas en CI.
+19. **OPS-002 (parte 2)** — Migraciones automatizadas en CI (CLI local ya configurado el 2026-05-28).
 20. **DEB-001** — Tests E2E críticos.
 21. **PRO-004** — Chat IA en `/cartera/chat` (LLM).
 22. **PRO-005** — Notificaciones email (Resend).
