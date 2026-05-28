@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:push": "./bin/supabase.exe db push",
+    "db:status": "./bin/supabase.exe migration list",
+    "db:new": "./bin/supabase.exe migration new",
+    "db:diff": "./bin/supabase.exe db diff"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
