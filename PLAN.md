@@ -59,7 +59,7 @@
 | C1-4 | CART-006 | Módulo nuevo `cartera_export.py` que regenera el `.xlsx` FINAL TARGET (12 hojas, excluye `Recuperación`/`Cobranza`/`amortizaciones_test` en v1) + endpoint `GET /cartera/export/{fecha_corte}`. | C1-1 |
 | C1-5 | OPS-001 | Dockerfile + deploy de `crediflexi-services` (Railway/Fly/Render). | — |
 | C1-6 | SEC-002 | HMAC entre `/api/cartera/procesar` y microservicio. | C1-5 |
-| C1-7 | TYP-001 | Regenerar `lib/supabase/types.ts` (desbloquea autocompletado para dashboards). | C0-4 |
+| C1-7 | TYP-001 | ✅ **2026-05-28** — Tipos espejo generados en `lib/supabase/database.types.ts` (1112 líneas). Script `npm run db:types` para regenerar. `types.ts` (manual, dominio/UI) intacto. | C0-4 |
 
 #### Fase Cartera-2 — Capa de consulta (3-5 días)
 
@@ -180,23 +180,22 @@
 
 ## 3. Backlog Priorizado (orden de ejecución sugerido)
 
-1. **C1-7 TYP-001** — Regenerar tipos (rápido, desbloquea autocompletado para todo lo que viene). *(siguiente acción)*
-2. **C1-1 CART-001** — Implementar ETL según contrato C0-3.
-3. **C1-2 CART-002** — `fecha_inicio_ciclo` (bloquea cohort mensual).
-4. **C1-4 CART-006** — `cartera_export.py` + endpoint export (cierra el ciclo input→output).
-5. **C1-5 OPS-001** — Deploy microservicio.
-6. **C1-6 SEC-002** — HMAC antes de exponer microservicio.
-7. **T-D4/T-D5 + P-U1** — Cierre pendientes Fase Demo (login copy + error.tsx global).
-8. **C2-1 CART-010** — RPC resumen (desbloquea primer dashboard).
-9. **C3-1 DASH-001** — Snapshot ejecutivo (mayor valor visible).
-10. **T-S1 + T-S2** — RLS adjuntos y Storage (riesgo de seguridad real).
-11. **C2-2 + C3-2** — Coordinación × PAR.
-12. **C2-3 + C3-3** — Recuperador.
-13. **C2-4 + C3-4** — Mora operativa.
-14. **C2-5 + C3-5** — Cohort mensual.
-15. **T-S3 + T-S4** — Resto RLS tickets.
-16. **S-R*** — Robustez Score.
-17. **C4-* + post-v1.0**.
+1. **C1-1 CART-001** — Implementar ETL según contrato C0-3. *(siguiente acción)*
+2. **C1-2 CART-002** — `fecha_inicio_ciclo` (bloquea cohort mensual).
+3. **C1-4 CART-006** — `cartera_export.py` + endpoint export (cierra el ciclo input→output).
+4. **C1-5 OPS-001** — Deploy microservicio.
+5. **C1-6 SEC-002** — HMAC antes de exponer microservicio.
+6. **T-D4/T-D5 + P-U1** — Cierre pendientes Fase Demo (login copy + error.tsx global).
+7. **C2-1 CART-010** — RPC resumen (desbloquea primer dashboard).
+8. **C3-1 DASH-001** — Snapshot ejecutivo (mayor valor visible).
+9. **T-S1 + T-S2** — RLS adjuntos y Storage (riesgo de seguridad real).
+10. **C2-2 + C3-2** — Coordinación × PAR.
+11. **C2-3 + C3-3** — Recuperador.
+12. **C2-4 + C3-4** — Mora operativa.
+13. **C2-5 + C3-5** — Cohort mensual.
+14. **T-S3 + T-S4** — Resto RLS tickets.
+15. **S-R*** — Robustez Score.
+16. **C4-* + post-v1.0**.
 
 ---
 
@@ -240,10 +239,9 @@
 
 ## 5. Próximos Pasos (sesión inmediata)
 
-1. **C1-7 TYP-001** — Regenerar `lib/supabase/types.ts` (`supabase gen types typescript --linked > lib/supabase/types.ts`).
-2. **C1-1 CART-001** — Refactor `df_a_registros()` para mapear ~50 cols + eliminar inserts inválidos (`cuotas_sin_pagar`, `combinado`) + `.zfill(2)` en `ciclo` + quitar filtro `CODIGOS_RECUPERADOR_EXCLUIR`.
-3. **Verificación end-to-end pre-demo** — Smoke test local (login, ticket, score, cartera) antes de avanzar a C1-2.
-4. **Decisión pendiente** — ¿Dónde se despliega `crediflexi-services`? (Railway free tier opción simple).
+1. **C1-1 CART-001** — Refactor `df_a_registros()` en `crediflexi-services/services/cartera_etl.py`: mapear ~50 cols + eliminar inserts inválidos (`cuotas_sin_pagar`, `combinado`) + `.zfill(2)` en `ciclo` + quitar filtro `CODIGOS_RECUPERADOR_EXCLUIR`. Aprovechar `database.types.ts` (informativo) para chequear nombres.
+2. **Verificación end-to-end pre-demo** — Smoke test local (login, ticket, score, cartera) antes de avanzar a C1-2.
+3. **Decisión pendiente** — ¿Dónde se despliega `crediflexi-services`? (Railway free tier opción simple).
 
 ---
 
@@ -294,6 +292,7 @@ Prefijos consistentes en `RESEARCH-CONSOLIDADO.md` §6/§7 y aquí:
 
 ## 7. Completados recientes
 
+- **2026-05-28** — C1-7 TYP-001: `lib/supabase/database.types.ts` generado (1112 líneas, espejo de la DB con todas las cols nuevas). Script `npm run db:types`. `types.ts` manual queda como tipos de dominio/UI.
 - **2026-05-28** — C0-4 CART-000d: migración `20260528190511_cart_000d_cols_faltantes.sql` aplicada a Supabase remoto. Schema de cartera cerrado contra FINAL TARGET (11 cols nuevas + 3 en amortización). Desbloquea C1-1 (refactor ETL).
 - **2026-05-28** — OPS-002a: Supabase CLI configurado localmente (v2.101.0). `supabase link` + baseline de 22 migraciones + scripts npm. Fin del copy-paste al SQL editor.
 - **2026-05-28** — Cartera-0 completa (C0-1, C0-2, C0-3, C0-5). Tres documentos definitivos en `docs/cartera/` + `RESEARCH §5.4.9`. Bug crítico documentado: ETL inserta 3 cols inexistentes en schema.
