@@ -44,7 +44,7 @@
 | C0-1 | CART-000 | ✅ **2026-05-28** — Análisis profundo del **input** (63 cols × 343 filas sample). `docs/cartera/input-analysis.md`. | — |
 | C0-2 | CART-000b | ✅ **2026-05-28** — Análisis profundo del **output** (FINAL TARGET vs nuevo). `docs/cartera/output-analysis.md`. | — |
 | C0-3 | CART-000c | ✅ **2026-05-28** — **Matriz de mapeo definitiva** input ↔ schema ↔ output + checklist de aceptación. `docs/cartera/mapping-matrix.md`. | C0-1, C0-2 |
-| C0-4 | CART-000d | Migración: agregar 11 cols faltantes a `stg_yunius_cartera_individual` (`situacion_credito`, `medio_comunic_2/3`, `tipo/desc/garantia_2`, `calle`, `colonia`, `nom_personal_castiga_cartera`, `frecuencia`, `concepto_deposito`, `parcialidad_comision`) + extender `loan_amortizacion_individual` con `estatus_amortizacion`, `monto_recibido`, `categoria`, `incremento`, `fuente_fecha_liquidacion`, `es_no_aplica_liquidacion`, `codigo_ciclo`. | C0-3 |
+| C0-4 | CART-000d | ✅ **2026-05-28** — Migración `20260528190511_cart_000d_cols_faltantes.sql`: agrega 11 cols faltantes a `stg_yunius_cartera_individual` (`situacion_credito`, `medio_comunic_2/3`, `tipo/desc/garantia_2`, `calle`, `colonia`, `nom_personal_castiga_cartera`, `frecuencia`, `parcialidad_comision`) y extiende `loan_amortizacion_individual` con `fuente_fecha_liquidacion`, `es_no_aplica_liquidacion`, `codigo_ciclo` (+ índice). `concepto_deposito` ya existía. | C0-3 |
 | C0-5 | — | ✅ **2026-05-28** — `RESEARCH §5.4.9` con hallazgos + plan de cierre en 5 pasos. | C0-3 |
 
 #### Fase Cartera-1 — Cerrar el pipeline ETL (1 semana)
@@ -180,24 +180,23 @@
 
 ## 3. Backlog Priorizado (orden de ejecución sugerido)
 
-1. **C0-4 CART-000d** — Migración con las 11 cols faltantes (siguiente acción, desbloquea TODO el ETL).
-2. **C1-7 TYP-001** — Regenerar tipos (rápido, desbloquea autocompletado).
-3. **C1-1 CART-001** — Implementar ETL según contrato C0-3.
-4. **C1-2 CART-002** — `fecha_inicio_ciclo` (bloquea cohort mensual).
-5. **C1-4 CART-006** — `cartera_export.py` + endpoint export (cierra el ciclo input→output).
-6. **C1-5 OPS-001** — Deploy microservicio.
-7. **C1-6 SEC-002** — HMAC antes de exponer microservicio.
-8. **T-D4/T-D5 + P-U1** — Cierre pendientes Fase Demo (login copy + error.tsx global).
-9. **C2-1 CART-010** — RPC resumen (desbloquea primer dashboard).
-10. **C3-1 DASH-001** — Snapshot ejecutivo (mayor valor visible).
-11. **T-S1 + T-S2** — RLS adjuntos y Storage (riesgo de seguridad real).
-12. **C2-2 + C3-2** — Coordinación × PAR.
-13. **C2-3 + C3-3** — Recuperador.
-14. **C2-4 + C3-4** — Mora operativa.
-15. **C2-5 + C3-5** — Cohort mensual.
-16. **T-S3 + T-S4** — Resto RLS tickets.
-17. **S-R*** — Robustez Score.
-18. **C4-* + post-v1.0**.
+1. **C1-7 TYP-001** — Regenerar tipos (rápido, desbloquea autocompletado para todo lo que viene). *(siguiente acción)*
+2. **C1-1 CART-001** — Implementar ETL según contrato C0-3.
+3. **C1-2 CART-002** — `fecha_inicio_ciclo` (bloquea cohort mensual).
+4. **C1-4 CART-006** — `cartera_export.py` + endpoint export (cierra el ciclo input→output).
+5. **C1-5 OPS-001** — Deploy microservicio.
+6. **C1-6 SEC-002** — HMAC antes de exponer microservicio.
+7. **T-D4/T-D5 + P-U1** — Cierre pendientes Fase Demo (login copy + error.tsx global).
+8. **C2-1 CART-010** — RPC resumen (desbloquea primer dashboard).
+9. **C3-1 DASH-001** — Snapshot ejecutivo (mayor valor visible).
+10. **T-S1 + T-S2** — RLS adjuntos y Storage (riesgo de seguridad real).
+11. **C2-2 + C3-2** — Coordinación × PAR.
+12. **C2-3 + C3-3** — Recuperador.
+13. **C2-4 + C3-4** — Mora operativa.
+14. **C2-5 + C3-5** — Cohort mensual.
+15. **T-S3 + T-S4** — Resto RLS tickets.
+16. **S-R*** — Robustez Score.
+17. **C4-* + post-v1.0**.
 
 ---
 
@@ -241,9 +240,9 @@
 
 ## 5. Próximos Pasos (sesión inmediata)
 
-1. **C0-4 CART-000d** — Crear migración `npm run db:new agrega_cols_cartera_canonicas` con las 11 cols faltantes a `stg_yunius_cartera_individual` + cols de amortización. Aplicar con `npm run db:push`.
-2. **C1-7 TYP-001** — Regenerar `lib/supabase/types.ts` (`supabase gen types typescript --linked`).
-3. **C1-1 CART-001** — Refactor `df_a_registros()` para mapear ~50 cols + eliminar inserts inválidos (`cuotas_sin_pagar`, `combinado`).
+1. **C1-7 TYP-001** — Regenerar `lib/supabase/types.ts` (`supabase gen types typescript --linked > lib/supabase/types.ts`).
+2. **C1-1 CART-001** — Refactor `df_a_registros()` para mapear ~50 cols + eliminar inserts inválidos (`cuotas_sin_pagar`, `combinado`) + `.zfill(2)` en `ciclo` + quitar filtro `CODIGOS_RECUPERADOR_EXCLUIR`.
+3. **Verificación end-to-end pre-demo** — Smoke test local (login, ticket, score, cartera) antes de avanzar a C1-2.
 4. **Decisión pendiente** — ¿Dónde se despliega `crediflexi-services`? (Railway free tier opción simple).
 
 ---
@@ -295,6 +294,7 @@ Prefijos consistentes en `RESEARCH-CONSOLIDADO.md` §6/§7 y aquí:
 
 ## 7. Completados recientes
 
+- **2026-05-28** — C0-4 CART-000d: migración `20260528190511_cart_000d_cols_faltantes.sql` aplicada a Supabase remoto. Schema de cartera cerrado contra FINAL TARGET (11 cols nuevas + 3 en amortización). Desbloquea C1-1 (refactor ETL).
 - **2026-05-28** — OPS-002a: Supabase CLI configurado localmente (v2.101.0). `supabase link` + baseline de 22 migraciones + scripts npm. Fin del copy-paste al SQL editor.
 - **2026-05-28** — Cartera-0 completa (C0-1, C0-2, C0-3, C0-5). Tres documentos definitivos en `docs/cartera/` + `RESEARCH §5.4.9`. Bug crítico documentado: ETL inserta 3 cols inexistentes en schema.
 - **2026-05-27** — RESEARCH-CONSOLIDADO + PLAN refactorizados a estructura modular. Investigación profunda del ecosistema cartera (legacy + microservicio + plataforma). Nuevos IDs CART-/DASH- introducidos.
