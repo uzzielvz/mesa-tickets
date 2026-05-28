@@ -436,6 +436,60 @@ Body: { upload_id, fecha_corte, storage_path }
 | Pregunta | `Cobranza`, `Asignación`, `Recuperación` (hojas pegadas a mano en legacy): ¿entran al scope de la plataforma o quedan fuera? |
 | Pregunta | ¿La plataforma debe ofrecer exportación Excel del listado, o el legacy seguirá generándolo por correo? |
 
+#### 5.4.9 Análisis profundo input/output (sesión 2026-05-28) — fuente de verdad
+
+Tres documentos hijos consolidan el análisis exhaustivo realizado a fin de cuadrar el microservicio al 100 % con el `FINAL TARGET`:
+
+- [`docs/cartera/input-analysis.md`](./docs/cartera/input-analysis.md) — Inventario col-por-col del Excel Yunius (63 cols × 343 filas en sample): tipo, %nulls, unicos, rol semántico, mapeo a schema, uso en legacy.
+- [`docs/cartera/output-analysis.md`](./docs/cartera/output-analysis.md) — Diseccion de las 13 hojas del FINAL y comparación contra el output actual (`nuevo_31032026`): qué se deriva, qué viene externo, cálculos por hoja, schema canónico de detalle (71 + 4 calc cols).
+- [`docs/cartera/mapping-matrix.md`](./docs/cartera/mapping-matrix.md) — Matriz definitiva input ↔ schema ↔ output con estado por col y checklist de aceptación.
+
+##### 5.4.9.a Hallazgos críticos
+
+**Bug en producción** (`cartera_etl.py:336-338`): el ETL inserta tres campos que **no existen** en `stg_yunius_cartera_individual` (`concepto_deposito`, `cuotas_sin_pagar`, `combinado`). PostgREST los rechaza silenciosamente — resultado: `concepto_deposito` se calcula correctamente pero **nunca se persiste**, y los duplicados de `Saldo_Riesgo_total`/`Combinado` se pierden (esto último es deseable: son derivables al exportar).
+
+**Cobertura real del ETL**: persiste solo 19 campos del registro (los del `df_a_registros()`), no los ~55 que el schema permite. Faltan en el insert: `nom_region`, `codigo_promotor`, `nombre_promotor`, `codigo_recuperador`, `nombre_recuperador`, todas las garantías, todas las referencias, plazo, fechas de ciclo, montos de comisión, geolocalización, criticidad, forma_de_entrega, etc.
+
+**Cobertura real del schema**: cubre solo 52 cols de las ~63 que el input trae *y que el output necesita*. Faltan 10 columnas que el output canónico requiere:
+
+1. `situacion_credito` 2. `medio_comunic_2` 3. `medio_comunic_3` 4. `tipo_garantia_2` 5. `descripcion_garantia_2` 6. `garantia_2` 7. `calle` 8. `colonia` 9. `nom_personal_castiga_cartera` 10. `frecuencia`
+
+(+ `parcialidad_comision` para preservar la suma `Parcialidad + Parcialidad comisión`).
+
+**Comportamiento exacto del FINAL** (decisiones nuevas confirmadas por comparación de archivos):
+- La hoja `R_Completo` **se elimina**; la hoja `{ddmmyyyy}` (snapshot del corte) la sustituye con 4 cols calculadas adicionales (`Cuotas sin pagar`, `Saldo_Riesgo_total`, `Combinado`, `Suma`).
+- `Saldo_Riesgo_total` y `Combinado` son **duplicados literales** de `Saldo riesgo total` (col 68). Existen para evitar colisiones de header en pivot tables nativas de Excel. El microservicio puede emitir tablas estáticas con `xlsxwriter` y eliminar la duplicación.
+- `Cuotas sin pagar` (col 72 del detalle) **no se calcula por días/periodicidad** (como hace hoy `cartera_etl.py:248`) sino por `count(amortizaciones WHERE estatus != 'PAGADA' AND es_futura_al_corte = false)` → requiere JOIN con `loan_amortizacion_individual` al exportar.
+- Hoja `Asignación` = unión histórica de últimos 4 snapshots con `Corte` antepuesto (append idempotente).
+- Hojas `Mora` y `Cuentas con saldo vencido` reordenan cols 1-7 del detalle (mueven `Código acreditado` a posición 7). `Mora` agrega 9 cols vacías para llenado manual de Call Center / Campo (`Estatus de llamada`, `Fecha del acuerdo de pago`, ..., `Monto del acuerdo5` — preservar sufijos numéricos textualmente para no romper macros).
+- `Recuperación` (101 cols), `Cobranza` (19 cols) son **externos** al input cartera — la primera viene del core Yunius (REPORTE DE PAGOS), la segunda es un tracking manual de Call Center con ventanas de 28/21/14 días.
+- `amortizaciones_individual_test` (89 cols, solo en FINAL): nuevo formato rico esperado para `loan_amortizacion_individual`, con JOIN del snapshot cartera embebido y cols computadas (`Categoría`, `Incremento`, `es_futura_al_corte`, `es_no_aplica_liquidacion`, `fuente_fecha_liquidacion`).
+
+##### 5.4.9.b Plan de cierre del microservicio (al 100 %)
+
+Pasos ordenados (referenciar `docs/cartera/mapping-matrix.md` §3-4 para detalle por punto):
+
+1. **Migración SQL** — agregar 11 cols a `stg_yunius_cartera_individual` y extender `loan_amortizacion_individual` con `estatus_amortizacion`, `monto_recibido`, `categoria`, `incremento`, `fuente_fecha_liquidacion`, `es_no_aplica_liquidacion`, `codigo_ciclo`.
+2. **Refactor `cartera_etl.py`**:
+   - Extender `COLUMN_MAPPING` con TODOS los headers persistibles.
+   - Reescribir `df_a_registros()` para serializar las ~50 cols (no solo 19).
+   - Eliminar inserts de `cuotas_sin_pagar` y `combinado`.
+   - Agregar `.zfill(2)` para `ciclo` antes de persistir.
+   - Quitar el filtro `CODIGOS_RECUPERADOR_EXCLUIR` al persistir (mover al exportador).
+3. **Módulo nuevo `cartera_export.py`** — genera el `.xlsx` FINAL TARGET (12 hojas, excluyendo `Recuperación`/`Cobranza`/`amortizaciones_test` en v1). Usa `pandas.pivot_table` + `xlsxwriter` para los pivotes (tablas estáticas, no PivotTables nativos).
+4. **Endpoint nuevo** `GET /cartera/export/{fecha_corte}` que emite el XLSX bajo demanda. Llamable desde la UI Next.js.
+5. **Tests E2E**: subir input → ETL → export → comparar `.xlsx` celda a celda contra `FINAL TARGET.xlsx`.
+
+Una vez completados estos 5 pasos, el ecosistema Yunius input → Supabase → FINAL TARGET output queda cerrado.
+
+##### 5.4.9.c Decisiones aún pendientes (cliente)
+
+- ¿Mantener la hoja `RECUPERADOR_000124` o eliminarla (ahora que no se filtra al persistir)?
+- ¿Generar `amortizaciones_individual_test` en v1 o diferir a fase 2?
+- ¿Automatizar parser del export Yunius para llenar `Recuperación` (101 cols)?
+- Criterio exacto para `Liquidación anticipada` (¿todos los vigentes? ¿solo con saldo adelantado?).
+- ¿Las 9 cols operativas de `Mora` siguen siendo Excel-manuales o migran a UI?
+
 ---
 
 ## 6. Problemas y Bugs Detectados
