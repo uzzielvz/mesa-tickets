@@ -53,12 +53,12 @@
 
 | # | Ticket | Descripción | Bloqueado por |
 |---|--------|-------------|---------------|
-| C1-1 | CART-001 | Refactor `df_a_registros()` (`crediflexi-services/services/cartera_etl.py`): mapear las ~50 cols del input, extender `COLUMN_MAPPING`, eliminar inserts de `cuotas_sin_pagar` y `combinado`, `.zfill(2)` en `ciclo`, quitar filtro `CODIGOS_RECUPERADOR_EXCLUIR`. | C0-4 |
-| C1-2 | CART-002 | Asegurar que `fecha_inicio_ciclo` se llena (habilita segmentación cohort por mes). | C1-1 |
-| C1-3 | CART-005 | Validar `fecha_corte` contra el contenido del Excel al procesar. | C1-1 |
-| C1-4 | CART-006 | Módulo nuevo `cartera_export.py` que regenera el `.xlsx` FINAL TARGET (12 hojas, excluye `Recuperación`/`Cobranza`/`amortizaciones_test` en v1) + endpoint `GET /cartera/export/{fecha_corte}`. | C1-1 |
-| C1-5 | OPS-001 | Dockerfile + deploy de `crediflexi-services` (Railway/Fly/Render). | — |
-| C1-6 | SEC-002 | HMAC entre `/api/cartera/procesar` y microservicio. | C1-5 |
+| C1-1 | CART-001 | 🟡 **PR #1 abierto** — Refactor `df_a_registros()` listo. Pendiente smoke test local + squash-merge. Brief `docs/handoff/CART-001-refactor-etl.md` v1.1. | C0-4 |
+| C1-2 | CART-002 | Asegurar que `fecha_inicio_ciclo` se llena (habilita segmentación cohort por mes). Crítico si la demo incluye cohort. | C1-1 |
+| C1-3 | CART-005 | Validar `fecha_corte` contra el contenido del Excel al procesar. **No crítico para demo.** | C1-1 |
+| C1-4 | CART-006 | Módulo nuevo `cartera_export.py` que regenera el `.xlsx` FINAL TARGET (12 hojas, excluye `Recuperación`/`Cobranza`/`amortizaciones_test` en v1) + endpoint `GET /cartera/export/{fecha_corte}`. Crítico solo si la demo muestra descarga Excel. | C1-1 |
+| C1-5 | OPS-001 | 🔴 **CRÍTICO PARA DEMO** — Dockerfile + render.yaml + CORS + /health en `crediflexi-services` + deploy a Render Free. Brief `docs/handoff/OPS-001-deploy-microservicio.md` v1.0. | C1-1 |
+| C1-6 | SEC-002 | HMAC entre `/api/cartera/procesar` y microservicio. **Post-aprobación** (no bloqueador de demo). | C1-5 |
 | C1-7 | TYP-001 | ✅ **2026-05-28** — Tipos espejo generados en `lib/supabase/database.types.ts` (1112 líneas). Script `npm run db:types` para regenerar. `types.ts` (manual, dominio/UI) intacto. | C0-4 |
 
 #### Fase Cartera-2 — Capa de consulta (3-5 días)
@@ -180,22 +180,30 @@
 
 ## 3. Backlog Priorizado (orden de ejecución sugerido)
 
-1. **C1-1 CART-001** — Implementar ETL según contrato C0-3. *(siguiente acción)*
-2. **C1-2 CART-002** — `fecha_inicio_ciclo` (bloquea cohort mensual).
-3. **C1-4 CART-006** — `cartera_export.py` + endpoint export (cierra el ciclo input→output).
-4. **C1-5 OPS-001** — Deploy microservicio.
-5. **C1-6 SEC-002** — HMAC antes de exponer microservicio.
-6. **T-D4/T-D5 + P-U1** — Cierre pendientes Fase Demo (login copy + error.tsx global).
-7. **C2-1 CART-010** — RPC resumen (desbloquea primer dashboard).
-8. **C3-1 DASH-001** — Snapshot ejecutivo (mayor valor visible).
-9. **T-S1 + T-S2** — RLS adjuntos y Storage (riesgo de seguridad real).
-10. **C2-2 + C3-2** — Coordinación × PAR.
-11. **C2-3 + C3-3** — Recuperador.
-12. **C2-4 + C3-4** — Mora operativa.
-13. **C2-5 + C3-5** — Cohort mensual.
-14. **T-S3 + T-S4** — Resto RLS tickets.
-15. **S-R*** — Robustez Score.
-16. **C4-* + post-v1.0**.
+### 3.1 Ruta crítica para demo ejecutiva (~7 días desde 2026-05-28)
+
+| Día | Acción | Owner | Notas |
+|---|---|---|---|
+| 1 | Smoke test CART-001 local + squash-merge PR #1 | Usuario | Sin esto, deployamos bugs. |
+| 1-2 | OPS-001: brief al Implementador, espera PR | Coordinador + Implementador | Dockerfile + render.yaml + CORS + /health. |
+| 2-3 | Usuario crea cuenta Render + secrets + primer deploy | Usuario | Sigue instrucciones del PR de OPS-001. |
+| 3 | Smoke test end-to-end vía Vercel → Render → Supabase | Usuario | Subir Excel real, verificar cols. |
+| 3-5 | C2-1 CART-010 (RPC resumen) + C3-1 DASH-001 (snapshot ejecutivo) | Coordinador / agentes | Primer dashboard visible. |
+| 4-6 | C1-2 CART-002 (cohort) + C3-2/C3-3 (coord, recuperador) | Agentes | Solo si la demo cubre estos cortes. |
+| 6 | C1-4 CART-006 (export Excel) | Implementador | Solo si la demo muestra descarga. |
+| 7 | Pulido + ensayo demo + Excel de respaldo cargado | Usuario | Plan B por si Render se cae. |
+
+### 3.2 Backlog general (post-demo o si hay slack)
+
+1. **T-D4/T-D5 + P-U1** — Cierre pendientes Fase Demo (login copy + error.tsx global).
+2. **T-S1 + T-S2** — RLS adjuntos y Storage (riesgo de seguridad real).
+3. **C2-4 + C3-4** — Mora operativa.
+4. **C2-5 + C3-5** — Cohort mensual.
+5. **T-S3 + T-S4** — Resto RLS tickets.
+6. **C1-6 SEC-002** — HMAC microservicio (post-aprobación).
+7. **C1-3 CART-005** — Validar `fecha_corte` contra Excel.
+8. **S-R*** — Robustez Score.
+9. **C4-* + post-v1.0**.
 
 ---
 
@@ -220,6 +228,9 @@
 - **2026-05-24** — Repos separados (no monorepo). Razón: deploys y ciclos de vida independientes.
 - **2026-05-24** — El microservicio usa Supabase `service_role_key` para bulk insert (bypassa RLS). RLS aplica para lectura desde Next.js.
 - **2026-05-24** — Estado de carga se persiste en `cartera_uploads.estado`. Frontend hace polling 3s. Auto-cleanup 10 min.
+- **2026-05-28** — **Demo ejecutiva en ~7 días**: se prioriza deploy serio del microservicio (no ngrok) para mostrar todo el flujo desde el dominio Vercel productivo.
+- **2026-05-28** — Plataforma de deploy = **Render** (Free tier inicial; upgrade a Standard $7/mes solo si cold start arruina UX post-aprobación). Build = **Docker** (no nixpacks — más control y portabilidad). Wake-up via cron externo (cron-job.org) cada 10 min para evitar cold start.
+- **2026-05-28** — Brief operativo del deploy en `docs/handoff/OPS-001-deploy-microservicio.md` v1.0.
 
 ### Datos
 
@@ -239,9 +250,13 @@
 
 ## 5. Próximos Pasos (sesión inmediata)
 
-1. **C1-1 CART-001** — Refactor `df_a_registros()` en `crediflexi-services/services/cartera_etl.py`: mapear ~50 cols + eliminar inserts inválidos (`cuotas_sin_pagar`, `combinado`) + `.zfill(2)` en `ciclo` + quitar filtro `CODIGOS_RECUPERADOR_EXCLUIR`. Aprovechar `database.types.ts` (informativo) para chequear nombres.
-2. **Verificación end-to-end pre-demo** — Smoke test local (login, ticket, score, cartera) antes de avanzar a C1-2.
-3. **Decisión pendiente** — ¿Dónde se despliega `crediflexi-services`? (Railway free tier opción simple).
+1. **Smoke test CART-001 local** (Usuario) — pull branch `claude/cart-001-refactor-etl-Hfiyy`, levantar microservicio + UI mea-tickets, subir Excel real, verificar 11 cols nuevas pobladas en Supabase.
+2. **Squash-merge PR #1** (Usuario) — limpia autoría a la tuya, mantiene atomicidad en PR description.
+3. **Disparar OPS-001** (Usuario → Implementador) — pegar el prompt al agente en `crediflexi-services` con referencia al brief OPS-001 v1.0.
+4. **Primer deploy en Render** (Usuario) — seguir las instrucciones que el Implementador deje en el PR de OPS-001.
+5. **Actualizar `PYTHON_SERVICE_URL` en Vercel** (Usuario) — al URL de Render.
+6. **Smoke test end-to-end en prod** (Usuario) — Vercel → Render → Supabase con Excel real.
+7. **Continuar con C2-1 + C3-1** (primer dashboard) y dependientes.
 
 ---
 
@@ -292,6 +307,8 @@ Prefijos consistentes en `RESEARCH-CONSOLIDADO.md` §6/§7 y aquí:
 
 ## 7. Completados recientes
 
+- **2026-05-28** — Brief OPS-001 v1.0 redactado (`docs/handoff/OPS-001-deploy-microservicio.md`). Decisión: Render + Docker. Demo en ~7 días. PLAN reorganizado con ruta crítica día-por-día.
+- **2026-05-28** — PR #1 (CART-001) abierto por Implementador en `crediflexi-services`: 5 commits atómicos, 9/9 criterios técnicos del brief cumplidos. Pendiente smoke test local y squash-merge.
 - **2026-05-28** — C1-7 TYP-001: `lib/supabase/database.types.ts` generado (1112 líneas, espejo de la DB con todas las cols nuevas). Script `npm run db:types`. `types.ts` manual queda como tipos de dominio/UI.
 - **2026-05-28** — C0-4 CART-000d: migración `20260528190511_cart_000d_cols_faltantes.sql` aplicada a Supabase remoto. Schema de cartera cerrado contra FINAL TARGET (11 cols nuevas + 3 en amortización). Desbloquea C1-1 (refactor ETL).
 - **2026-05-28** — OPS-002a: Supabase CLI configurado localmente (v2.101.0). `supabase link` + baseline de 22 migraciones + scripts npm. Fin del copy-paste al SQL editor.
