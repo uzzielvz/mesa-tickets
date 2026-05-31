@@ -67,7 +67,7 @@
 
 | # | Ticket | Descripción | Bloqueado por |
 |---|--------|-------------|---------------|
-| C2-1 | CART-010 | Vista/RPC `cartera_resumen(fecha_corte)` — totales + distribución PAR consolidada | C1-1 |
+| C2-1 | CART-010 | ✅ **2026-05-30** — RPC `cartera_resumen(p_fecha_corte date) returns json`. Migraciones `20260531031407_cart_010_resumen_rpc.sql` + `20260531033054_cart_010b_resumen_saldo_total.sql`. Devuelve `totales` (5 campos), `par` (8 buckets), `indicadores` (PAR>30/>90). Métrica = `saldo_total` (estándar industria). Security definer + grant a authenticated + check `rol=admin OR acceso_cartera=true`. Validado con 215 filas (fecha_corte 2026-05-30): pct_par_30=34.52, pct_par_90=15.95, pct_mora=51.20. | C1-1 |
 | C2-2 | CART-011 | RPC `cartera_por_coordinacion(fecha_corte)` — cartera × PAR por región | C1-1 |
 | C2-3 | CART-012 | RPC `cartera_por_recuperador(fecha_corte, recuperador?)` — `mi cartera` o todos | C1-1 |
 | C2-4 | CART-013 | Vista `cartera_mora_operativa` — registros con `dias_mora >= 1` + cols seguimiento (Call Center, Campo) | C1-1 |
@@ -307,6 +307,7 @@ Prefijos consistentes en `RESEARCH-CONSOLIDADO.md` §6/§7 y aquí:
 
 ## 7. Completados recientes
 
+- **2026-05-30** — C2-1 CART-010: RPC `cartera_resumen(fecha_corte)` aplicada. Devuelve JSON con totales + distribución PAR (8 buckets) + indicadores (PAR>30, PAR>90). Security definer + check de permisos. Métrica = `saldo_total` (decisión técnica: `saldo_riesgo_total` inflaba porcentajes). Validado contra 215 filas. Desbloquea C3-1 (UI dashboard).
 - **2026-05-30** — C1-5 OPS-001: microservicio LIVE en `https://crediflexi-services.onrender.com`. Render Free + Docker + autoDeploy. PR #2 mergeado (5 commits, sin firma Claude). Vercel `PYTHON_SERVICE_URL` actualizada. Smoke E2E productivo OK: 215 filas insertadas vía Vercel → Render → Supabase. Demo ya puede correr sobre infra real.
 - **2026-05-30** — C1-1 CART-001: PR #1 squash-mergeado a `master` de `crediflexi-services` (commit `7d7d626`). Refactor ETL valida 11 cols nuevas pobladas en smoke local (215 filas, fecha_corte 2026-05-06). Desbloquea OPS-001.
 - **2026-05-28** — Brief OPS-001 v1.0 redactado (`docs/handoff/OPS-001-deploy-microservicio.md`). Decisión: Render + Docker. Demo en ~7 días. PLAN reorganizado con ruta crítica día-por-día.
