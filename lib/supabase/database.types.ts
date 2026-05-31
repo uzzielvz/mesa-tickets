@@ -949,6 +949,7 @@ export type Database = {
       }
     }
     Functions: {
+      cartera_resumen: { Args: { p_fecha_corte: string }; Returns: Json }
       complete_onboarding: {
         Args: { p_area_id: string; p_nombre: string }
         Returns: undefined
@@ -1110,3 +1111,5 @@ export const Constants = {
     },
   },
 } as const
+A new version of Supabase CLI is available: v2.102.0 (currently installed v2.101.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
