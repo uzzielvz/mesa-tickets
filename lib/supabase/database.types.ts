@@ -949,7 +949,16 @@ export type Database = {
       }
     }
     Functions: {
-      cartera_resumen: { Args: { p_fecha_corte: string }; Returns: Json }
+      cartera_filtros: { Args: { p_fecha_corte: string }; Returns: Json }
+      cartera_resumen: {
+        Args: {
+          p_ciclo?: string
+          p_codigo_recuperador?: string
+          p_coordinacion?: string
+          p_fecha_corte: string
+        }
+        Returns: Json
+      }
       complete_onboarding: {
         Args: { p_area_id: string; p_nombre: string }
         Returns: undefined
