@@ -3,7 +3,7 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-05-28.
+> Última actualización: 2026-05-30.
 
 ---
 
@@ -53,7 +53,7 @@
 
 | # | Ticket | Descripción | Bloqueado por |
 |---|--------|-------------|---------------|
-| C1-1 | CART-001 | 🟡 **PR #1 abierto** — Refactor `df_a_registros()` listo. Pendiente smoke test local + squash-merge. Brief `docs/handoff/CART-001-refactor-etl.md` v1.1. | C0-4 |
+| C1-1 | CART-001 | ✅ **2026-05-30** — PR #1 squash-mergeado a `master` (commit `7d7d626`). Refactor `df_a_registros()` con `EXCEL_TO_SCHEMA` (54 cols) + `DERIVED_TO_SCHEMA` (7) verificado en smoke local (215 filas, 11 cols nuevas pobladas). Filtro `CODIGOS_RECUPERADOR_EXCLUIR` pospuesto a C1-4. Brief `docs/handoff/CART-001-refactor-etl.md` v1.1. | C0-4 |
 | C1-2 | CART-002 | Asegurar que `fecha_inicio_ciclo` se llena (habilita segmentación cohort por mes). Crítico si la demo incluye cohort. | C1-1 |
 | C1-3 | CART-005 | Validar `fecha_corte` contra el contenido del Excel al procesar. **No crítico para demo.** | C1-1 |
 | C1-4 | CART-006 | Módulo nuevo `cartera_export.py` que regenera el `.xlsx` FINAL TARGET (12 hojas, excluye `Recuperación`/`Cobranza`/`amortizaciones_test` en v1) + endpoint `GET /cartera/export/{fecha_corte}`. Crítico solo si la demo muestra descarga Excel. | C1-1 |
@@ -184,8 +184,8 @@
 
 | Día | Acción | Owner | Notas |
 |---|---|---|---|
-| 1 | Smoke test CART-001 local + squash-merge PR #1 | Usuario | Sin esto, deployamos bugs. |
-| 1-2 | OPS-001: brief al Implementador, espera PR | Coordinador + Implementador | Dockerfile + render.yaml + CORS + /health. |
+| 1 | ✅ Smoke test CART-001 local + squash-merge PR #1 | Usuario | Hecho 2026-05-30. Commit `7d7d626`. |
+| 1-2 | 🟡 OPS-001: brief al Implementador, espera PR | Coordinador + Implementador | Dockerfile + render.yaml + CORS + /health. |
 | 2-3 | Usuario crea cuenta Render + secrets + primer deploy | Usuario | Sigue instrucciones del PR de OPS-001. |
 | 3 | Smoke test end-to-end vía Vercel → Render → Supabase | Usuario | Subir Excel real, verificar cols. |
 | 3-5 | C2-1 CART-010 (RPC resumen) + C3-1 DASH-001 (snapshot ejecutivo) | Coordinador / agentes | Primer dashboard visible. |
@@ -250,13 +250,12 @@
 
 ## 5. Próximos Pasos (sesión inmediata)
 
-1. **Smoke test CART-001 local** (Usuario) — pull branch `claude/cart-001-refactor-etl-Hfiyy`, levantar microservicio + UI mea-tickets, subir Excel real, verificar 11 cols nuevas pobladas en Supabase.
-2. **Squash-merge PR #1** (Usuario) — limpia autoría a la tuya, mantiene atomicidad en PR description.
-3. **Disparar OPS-001** (Usuario → Implementador) — pegar el prompt al agente en `crediflexi-services` con referencia al brief OPS-001 v1.0.
-4. **Primer deploy en Render** (Usuario) — seguir las instrucciones que el Implementador deje en el PR de OPS-001.
-5. **Actualizar `PYTHON_SERVICE_URL` en Vercel** (Usuario) — al URL de Render.
-6. **Smoke test end-to-end en prod** (Usuario) — Vercel → Render → Supabase con Excel real.
-7. **Continuar con C2-1 + C3-1** (primer dashboard) y dependientes.
+1. ✅ ~~Smoke test CART-001 local + squash-merge PR #1~~ (hecho 2026-05-30, commit `7d7d626`).
+2. **Implementar OPS-001** (Agente, en sesión actuando como Implementador en `crediflexi-services`) — Dockerfile, render.yaml, CORS, /health, README. Brief OPS-001 v1.0.
+3. **Primer deploy en Render** (Usuario) — seguir instrucciones del PR OPS-001.
+4. **Actualizar `PYTHON_SERVICE_URL` en Vercel** (Usuario) — al URL de Render.
+5. **Smoke test end-to-end en prod** (Usuario) — Vercel → Render → Supabase con Excel real.
+6. **Continuar con C2-1 + C3-1** (primer dashboard) y dependientes.
 
 ---
 
@@ -307,6 +306,7 @@ Prefijos consistentes en `RESEARCH-CONSOLIDADO.md` §6/§7 y aquí:
 
 ## 7. Completados recientes
 
+- **2026-05-30** — C1-1 CART-001: PR #1 squash-mergeado a `master` de `crediflexi-services` (commit `7d7d626`). Refactor ETL valida 11 cols nuevas pobladas en smoke local (215 filas, fecha_corte 2026-05-06). Desbloquea OPS-001.
 - **2026-05-28** — Brief OPS-001 v1.0 redactado (`docs/handoff/OPS-001-deploy-microservicio.md`). Decisión: Render + Docker. Demo en ~7 días. PLAN reorganizado con ruta crítica día-por-día.
 - **2026-05-28** — PR #1 (CART-001) abierto por Implementador en `crediflexi-services`: 5 commits atómicos, 9/9 criterios técnicos del brief cumplidos. Pendiente smoke test local y squash-merge.
 - **2026-05-28** — C1-7 TYP-001: `lib/supabase/database.types.ts` generado (1112 líneas, espejo de la DB con todas las cols nuevas). Script `npm run db:types`. `types.ts` manual queda como tipos de dominio/UI.
