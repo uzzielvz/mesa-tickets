@@ -68,7 +68,7 @@
 | # | Ticket | Descripción | Bloqueado por |
 |---|--------|-------------|---------------|
 | C2-1 | CART-010 | ✅ **2026-05-30** — RPC `cartera_resumen(p_fecha_corte date) returns json`. Migraciones `20260531031407_cart_010_resumen_rpc.sql` + `20260531033054_cart_010b_resumen_saldo_total.sql`. Devuelve `totales` (5 campos), `par` (8 buckets), `indicadores` (PAR>30/>90). Métrica = `saldo_total` (estándar industria). Security definer + grant a authenticated + check `rol=admin OR acceso_cartera=true`. Validado con 215 filas (fecha_corte 2026-05-30): pct_par_30=34.52, pct_par_90=15.95, pct_mora=51.20. | C1-1 |
-| C2-2 | CART-011 | RPC `cartera_por_coordinacion(fecha_corte)` — cartera × PAR por región | C1-1 |
+| C2-2 | CART-011 | ✅ **2026-06-02** — RPC `cartera_por_coordinacion(p_fecha_corte date) returns json`. Migración `20260602135452_cart_011_por_coordinacion_rpc.sql`. Array de coordinaciones con totales + indicadores (pct_mora, PAR>30/90) + 8 buckets PAR c/u. Ordenado por `pct_par_30 desc`. Validado: 5 coords (Valle de Bravo peor 43.76% PAR>30, Metepec mejor 27.39%), suma 215 créditos / 5.1M cartera. | C1-1 |
 | C2-3 | CART-012 | RPC `cartera_por_recuperador(fecha_corte, recuperador?)` — `mi cartera` o todos | C1-1 |
 | C2-4 | CART-013 | Vista `cartera_mora_operativa` — registros con `dias_mora >= 1` + cols seguimiento (Call Center, Campo) | C1-1 |
 | C2-5 | CART-014 | RPC `cartera_cohort_mensual(fecha_corte)` — agrupa por mes de `fecha_inicio_ciclo` | C1-2 |
@@ -81,7 +81,7 @@
 | # | Ticket | Descripción | Bloqueado por |
 |---|--------|-------------|---------------|
 | ✅ C3-1 | DASH-001 | `/cartera` — snapshot ejecutivo: cards (total cartera, total mora, % PAR>30, % PAR>90), tabla distribución PAR, selectores (fecha, coord, recuperador, ciclo) | C2-1 |
-| C3-2 | DASH-002 | `/cartera/coordinacion` — tabla por coord × PAR (equivalente a `X_Coordinación` del Excel) | C2-2 |
+| ✅ C3-2 | DASH-002 | **2026-06-02** — `/cartera/coordinacion`: tabla de riesgo por coordinación (créditos, cartera, %mora, PAR>30/90 con semáforo) + tabla distribución coord × 8 buckets con heatmap por % de fila. Selector de fecha reutilizable. Item "Coordinación" agregado al sidebar. | C2-2 |
 | C3-3 | DASH-003 | `/cartera/recuperador` — tabla por recuperador × PAR + filtro "mi cartera" | C2-3 |
 | C3-4 | DASH-004 | `/cartera/mora` — tabla operativa con columnas de seguimiento Call Center / Campo, filtros por días, alertas, coord | C2-4 |
 | C3-5 | DASH-005 | Selector de cohort mensual en C3-1 (equivalente a hojas `Marzo2026`/`Abril2026`/`Mayo2026`) | C2-5 |
@@ -307,6 +307,7 @@ Prefijos consistentes en `RESEARCH-CONSOLIDADO.md` §6/§7 y aquí:
 
 ## 7. Completados recientes
 
+- **2026-06-02** — C2-2 CART-011 + C3-2 DASH-002: cartera por coordinación. RPC `cartera_por_coordinacion` (coords ordenadas por riesgo, 8 buckets c/u) + página `/cartera/coordinacion` con tabla de indicadores (semáforo PAR) + tabla distribución heatmap coord × buckets. Selector de fecha reutilizable (`fecha-selector.tsx`). Validado: Valle de Bravo región más riesgosa (44% PAR>30), Metepec la más sana pese a mayor cartera.
 - **2026-05-30** — C3-1 DASH-001: `/cartera` snapshot ejecutivo live. Server Component que llama `cartera_filtros` + `cartera_resumen` en paralelo. 6 métricas (cartera total, en mora, %mora, PAR>30, PAR>90, saldo promedio) + tabla distribución PAR 8 buckets con barras de progreso. Filtros URL-state (fecha, coordinación, recuperador, ciclo) en client component con `useTransition`. Empty states + error banner. Build verde (1.12 kB / 97.1 kB First Load).
 - **2026-05-30** — C2-1 CART-010: RPC `cartera_resumen(fecha_corte)` aplicada. Devuelve JSON con totales + distribución PAR (8 buckets) + indicadores (PAR>30, PAR>90). Security definer + check de permisos. Métrica = `saldo_total` (decisión técnica: `saldo_riesgo_total` inflaba porcentajes). Validado contra 215 filas. Desbloquea C3-1 (UI dashboard).
 - **2026-05-30** — C1-5 OPS-001: microservicio LIVE en `https://crediflexi-services.onrender.com`. Render Free + Docker + autoDeploy. PR #2 mergeado (5 commits, sin firma Claude). Vercel `PYTHON_SERVICE_URL` actualizada. Smoke E2E productivo OK: 215 filas insertadas vía Vercel → Render → Supabase. Demo ya puede correr sobre infra real.
