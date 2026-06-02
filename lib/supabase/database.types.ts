@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       acreditado_historial: {
@@ -949,6 +974,10 @@ export type Database = {
       }
     }
     Functions: {
+      cartera_cohort: {
+        Args: { p_fecha_corte: string; p_frontera?: string }
+        Returns: Json
+      }
       cartera_filtros: { Args: { p_fecha_corte: string }; Returns: Json }
       cartera_mora_operativa: {
         Args: {
@@ -1124,6 +1153,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       response_type: [
