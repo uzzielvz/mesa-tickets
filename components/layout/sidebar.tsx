@@ -230,6 +230,12 @@ function NavContent({
             onClick={onNav}
           />
           <NavItem
+            href="/cartera/cohort"
+            label="Cohortes"
+            active={pathname === '/cartera/cohort'}
+            onClick={onNav}
+          />
+          <NavItem
             href="/cartera/cargar"
             label="Cargar reporte"
             active={pathname === '/cartera/cargar'}
