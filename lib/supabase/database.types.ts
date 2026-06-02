@@ -954,6 +954,10 @@ export type Database = {
         Args: { p_fecha_corte: string }
         Returns: Json
       }
+      cartera_por_recuperador: {
+        Args: { p_coordinacion?: string; p_fecha_corte: string }
+        Returns: Json
+      }
       cartera_resumen: {
         Args: {
           p_ciclo?: string
