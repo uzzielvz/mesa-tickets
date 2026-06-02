@@ -950,6 +950,14 @@ export type Database = {
     }
     Functions: {
       cartera_filtros: { Args: { p_fecha_corte: string }; Returns: Json }
+      cartera_mora_operativa: {
+        Args: {
+          p_coordinacion?: string
+          p_dias_min?: number
+          p_fecha_corte: string
+        }
+        Returns: Json
+      }
       cartera_por_coordinacion: {
         Args: { p_fecha_corte: string }
         Returns: Json
