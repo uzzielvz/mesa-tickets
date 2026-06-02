@@ -218,6 +218,12 @@ function NavContent({
             onClick={onNav}
           />
           <NavItem
+            href="/cartera/recuperador"
+            label="Recuperador"
+            active={pathname === '/cartera/recuperador'}
+            onClick={onNav}
+          />
+          <NavItem
             href="/cartera/cargar"
             label="Cargar reporte"
             active={pathname === '/cartera/cargar'}
