@@ -3,7 +3,14 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
-import { Menu, X, ChevronDown } from 'lucide-react'
+import {
+  Menu, X, ChevronDown,
+  LayoutDashboard, Ticket, Inbox, Tags, FolderTree,
+  Users, UserPlus, Gauge,
+  PieChart, Building2, UserSearch, AlertTriangle, Layers, Upload, Bot, KeyRound,
+  BarChart3,
+  type LucideIcon,
+} from 'lucide-react'
 import Wordmark from '@/components/brand/wordmark'
 import UserMenu from '@/components/layout/user-menu'
 import type { Database } from '@/lib/supabase/types'
@@ -19,19 +26,20 @@ interface SidebarProps {
 interface NavItemProps {
   href: string
   label: string
+  icon: LucideIcon
   count?: number
   active: boolean
   onClick?: () => void
   muted?: boolean
 }
 
-function NavItem({ href, label, count, active, onClick, muted }: NavItemProps) {
+function NavItem({ href, label, icon: Icon, count, active, onClick, muted }: NavItemProps) {
   return (
     <Link
       href={href}
       onClick={onClick}
       className={`
-        flex items-center justify-between px-[10px] py-[6px] rounded-[5px] transition-colors
+        flex items-center gap-2 px-[10px] py-[6px] rounded-[5px] transition-colors
         ${active
           ? 'bg-white border border-[#ECECEC] text-navy font-medium'
           : muted
@@ -40,7 +48,8 @@ function NavItem({ href, label, count, active, onClick, muted }: NavItemProps) {
         }
       `}
     >
-      <span className="text-[13px]">{label}</span>
+      <Icon size={15} className={`shrink-0 ${active ? 'text-navy' : 'text-ink-400'}`} />
+      <span className="text-[13px] flex-1 truncate">{label}</span>
       {count !== undefined && count > 0 && (
         <span className={`text-[11px] ${active ? 'text-orange' : 'text-ink-400'}`}>
           {count}
@@ -105,9 +114,16 @@ function NavContent({
   const hasCarteraAccess = accesoCartera || isAdmin
   const soloScore = esSoloOperadorScore(profile.rol, accesoScore)
 
-  const [ticketsOpen, setTicketsOpen] = useState(true)
-  const [scoreOpen, setScoreOpen] = useState(true)
-  const [carteraOpen, setCarteraOpen] = useState(true)
+  // Auto-abre solo la sección activa según la ruta; las demás arrancan colapsadas.
+  const [ticketsOpen, setTicketsOpen] = useState(
+    () => pathname.startsWith('/tickets') || pathname.startsWith('/admin/catalogo') || pathname.startsWith('/admin/areas')
+  )
+  const [scoreOpen, setScoreOpen] = useState(
+    () => pathname.startsWith('/score') || pathname.startsWith('/admin/score')
+  )
+  const [carteraOpen, setCarteraOpen] = useState(
+    () => pathname.startsWith('/cartera') || pathname.startsWith('/admin/cartera')
+  )
 
   return (
     <div className="flex flex-col gap-3">
@@ -115,6 +131,7 @@ function NavContent({
       <NavItem
         href="/dashboard"
         label="Dashboard"
+        icon={LayoutDashboard}
         active={pathname === '/dashboard'}
         onClick={onNav}
       />
@@ -129,6 +146,7 @@ function NavContent({
         <NavItem
           href="/tickets/mios"
           label="Mis tickets"
+          icon={Ticket}
           count={counts?.mios}
           active={pathname === '/tickets/mios'}
           onClick={onNav}
@@ -137,6 +155,7 @@ function NavContent({
           <NavItem
             href="/tickets/asignados"
             label="Asignados a mí"
+            icon={Inbox}
             count={counts?.asignados}
             active={pathname === '/tickets/asignados'}
             onClick={onNav}
@@ -148,6 +167,7 @@ function NavContent({
             <NavItem
               href="/admin/catalogo"
               label="Catálogo"
+              icon={Tags}
               active={pathname.startsWith('/admin/catalogo')}
               onClick={onNav}
               muted
@@ -155,6 +175,7 @@ function NavContent({
             <NavItem
               href="/admin/areas"
               label="Áreas"
+              icon={FolderTree}
               active={pathname.startsWith('/admin/areas')}
               onClick={onNav}
               muted
@@ -174,12 +195,14 @@ function NavContent({
           <NavItem
             href="/score/acreditados"
             label="Acreditados"
+            icon={Users}
             active={pathname === '/score/acreditados'}
             onClick={onNav}
           />
           <NavItem
             href="/score/acreditados/nuevo"
             label="Nuevo registro"
+            icon={UserPlus}
             active={pathname === '/score/acreditados/nuevo'}
             onClick={onNav}
           />
@@ -189,6 +212,7 @@ function NavContent({
               <NavItem
                 href="/admin/score/metricas"
                 label="Métricas de score"
+                icon={Gauge}
                 active={pathname.startsWith('/admin/score/metricas')}
                 onClick={onNav}
                 muted
@@ -205,57 +229,57 @@ function NavContent({
           open={carteraOpen}
           onToggle={() => setCarteraOpen(v => !v)}
         >
+          {/* Análisis */}
           <NavItem
             href="/cartera"
-            label="Dashboard"
+            label="Resumen"
+            icon={PieChart}
             active={pathname === '/cartera'}
             onClick={onNav}
           />
           <NavItem
             href="/cartera/coordinacion"
             label="Coordinación"
+            icon={Building2}
             active={pathname === '/cartera/coordinacion'}
             onClick={onNav}
           />
           <NavItem
             href="/cartera/recuperador"
             label="Recuperador"
+            icon={UserSearch}
             active={pathname === '/cartera/recuperador'}
-            onClick={onNav}
-          />
-          <NavItem
-            href="/cartera/mora"
-            label="Bandeja de mora"
-            active={pathname === '/cartera/mora'}
             onClick={onNav}
           />
           <NavItem
             href="/cartera/cohort"
             label="Cohortes"
+            icon={Layers}
             active={pathname === '/cartera/cohort'}
+            onClick={onNav}
+          />
+
+          <SectionDivider />
+
+          {/* Operación */}
+          <NavItem
+            href="/cartera/mora"
+            label="Bandeja de mora"
+            icon={AlertTriangle}
+            active={pathname === '/cartera/mora'}
             onClick={onNav}
           />
           <NavItem
             href="/cartera/cargar"
             label="Cargar reporte"
+            icon={Upload}
             active={pathname === '/cartera/cargar'}
-            onClick={onNav}
-          />
-          <NavItem
-            href="/cartera/cobranza"
-            label="Cobranza"
-            active={pathname === '/cartera/cobranza'}
-            onClick={onNav}
-          />
-          <NavItem
-            href="/cartera/riesgo"
-            label="Riesgo"
-            active={pathname === '/cartera/riesgo'}
             onClick={onNav}
           />
           <NavItem
             href="/cartera/chat"
             label="Chat IA"
+            icon={Bot}
             active={pathname === '/cartera/chat'}
             onClick={onNav}
           />
@@ -265,6 +289,7 @@ function NavContent({
               <NavItem
                 href="/admin/cartera"
                 label="Accesos cartera"
+                icon={KeyRound}
                 active={pathname.startsWith('/admin/cartera')}
                 onClick={onNav}
                 muted
@@ -284,12 +309,14 @@ function NavContent({
             <NavItem
               href="/admin/usuarios"
               label="Usuarios"
+              icon={Users}
               active={pathname.startsWith('/admin/usuarios')}
               onClick={onNav}
             />
             <NavItem
               href="/admin/metricas"
               label="Métricas"
+              icon={BarChart3}
               active={pathname.startsWith('/admin/metricas')}
               onClick={onNav}
             />
