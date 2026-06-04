@@ -40,8 +40,9 @@ function NavItem({ href, label, icon: Icon, count, active, onClick, muted }: Nav
       onClick={onClick}
       className={`
         flex items-center gap-2 px-[10px] py-[6px] rounded-[5px] transition-colors
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange/30
         ${active
-          ? 'bg-white border border-[#ECECEC] text-navy font-medium'
+          ? 'bg-white border border-border text-navy font-medium'
           : muted
             ? 'text-ink-400 hover:bg-surface-hover hover:text-ink-700'
             : 'text-ink-500 hover:bg-surface-hover'
@@ -60,17 +61,19 @@ function NavItem({ href, label, icon: Icon, count, active, onClick, muted }: Nav
 }
 
 function SectionDivider() {
-  return <div className="my-1.5 border-t border-[#F0F0F0]" />
+  return <div className="my-1.5 border-t border-border-subtle" />
 }
 
 function NavSection({
   title,
   open,
+  hasActive,
   onToggle,
   children,
 }: {
   title: string
   open: boolean
+  hasActive?: boolean
   onToggle: () => void
   children: React.ReactNode
 }) {
@@ -78,9 +81,12 @@ function NavSection({
     <div>
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between px-[10px] py-[5px] text-[10.5px] uppercase tracking-[0.4px] text-ink-400 font-medium hover:text-ink-700 transition-colors"
+        className="w-full flex items-center justify-between px-[10px] py-[5px] text-[10.5px] uppercase tracking-[0.4px] text-ink-400 font-medium hover:text-ink-700 transition-colors rounded-[5px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange/30"
       >
-        {title}
+        <span className="flex items-center gap-1.5">
+          {!open && hasActive && <span className="w-1.5 h-1.5 rounded-full bg-orange" />}
+          {title}
+        </span>
         <ChevronDown
           size={11}
           className={`transition-transform duration-150 ${open ? '' : '-rotate-90'}`}
@@ -114,16 +120,15 @@ function NavContent({
   const hasCarteraAccess = accesoCartera || isAdmin
   const soloScore = esSoloOperadorScore(profile.rol, accesoScore)
 
+  // Secciones que contienen la ruta activa.
+  const ticketsActive = pathname.startsWith('/tickets') || pathname.startsWith('/admin/catalogo') || pathname.startsWith('/admin/areas')
+  const scoreActive = pathname.startsWith('/score') || pathname.startsWith('/admin/score')
+  const carteraActive = pathname.startsWith('/cartera') || pathname.startsWith('/admin/cartera')
+
   // Auto-abre solo la sección activa según la ruta; las demás arrancan colapsadas.
-  const [ticketsOpen, setTicketsOpen] = useState(
-    () => pathname.startsWith('/tickets') || pathname.startsWith('/admin/catalogo') || pathname.startsWith('/admin/areas')
-  )
-  const [scoreOpen, setScoreOpen] = useState(
-    () => pathname.startsWith('/score') || pathname.startsWith('/admin/score')
-  )
-  const [carteraOpen, setCarteraOpen] = useState(
-    () => pathname.startsWith('/cartera') || pathname.startsWith('/admin/cartera')
-  )
+  const [ticketsOpen, setTicketsOpen] = useState(() => ticketsActive)
+  const [scoreOpen, setScoreOpen] = useState(() => scoreActive)
+  const [carteraOpen, setCarteraOpen] = useState(() => carteraActive)
 
   return (
     <div className="flex flex-col gap-3">
@@ -141,6 +146,7 @@ function NavContent({
       <NavSection
         title="Mesa de tickets"
         open={ticketsOpen}
+        hasActive={ticketsActive}
         onToggle={() => setTicketsOpen(v => !v)}
       >
         <NavItem
@@ -190,6 +196,7 @@ function NavContent({
         <NavSection
           title="Score Crediticio"
           open={scoreOpen}
+          hasActive={scoreActive}
           onToggle={() => setScoreOpen(v => !v)}
         >
           <NavItem
@@ -227,6 +234,7 @@ function NavContent({
         <NavSection
           title="Cartera Individual"
           open={carteraOpen}
+          hasActive={carteraActive}
           onToggle={() => setCarteraOpen(v => !v)}
         >
           {/* Análisis */}
@@ -334,7 +342,7 @@ export default function Sidebar({ profile, counts }: SidebarProps) {
   return (
     <>
       {/* ── Mobile top bar ── */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-surface-sidebar border-b border-[#ECECEC] flex items-center justify-between px-4 h-12">
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-surface-sidebar border-b border-border flex items-center justify-between px-4 h-12">
         <Wordmark />
         <button onClick={() => setOpen(v => !v)} className="text-ink-500 p-1">
           {open ? <X size={18} /> : <Menu size={18} />}
@@ -348,27 +356,27 @@ export default function Sidebar({ profile, counts }: SidebarProps) {
         onClick={() => setOpen(false)}
       >
         <div
-          className={`absolute top-12 left-0 bottom-0 w-[220px] bg-surface-sidebar border-r border-[#ECECEC] flex flex-col transition-transform duration-200 ${open ? 'translate-x-0' : '-translate-x-full'}`}
+          className={`absolute top-12 left-0 bottom-0 w-[220px] bg-surface-sidebar border-r border-border flex flex-col transition-transform duration-200 ${open ? 'translate-x-0' : '-translate-x-full'}`}
           onClick={e => e.stopPropagation()}
         >
           <div className="flex-1 px-[14px] py-5 overflow-y-auto">
             <NavContent pathname={pathname} profile={profile} counts={counts} onNav={() => setOpen(false)} />
           </div>
-          <div className="border-t border-[#ECECEC] px-[14px] py-4">
+          <div className="border-t border-border px-[14px] py-4">
             <UserMenu profile={profile} />
           </div>
         </div>
       </div>
 
       {/* ── Desktop sidebar ── */}
-      <aside className="hidden md:flex w-[220px] flex-shrink-0 bg-surface-sidebar border-r border-[#ECECEC] border-r-[0.5px] flex-col min-h-screen">
+      <aside className="hidden md:flex w-[220px] flex-shrink-0 bg-surface-sidebar border-r border-border border-r-[0.5px] flex-col min-h-screen">
         <div className="flex-1 px-[14px] py-5">
           <div className="mb-6">
             <Wordmark />
           </div>
           <NavContent pathname={pathname} profile={profile} counts={counts} />
         </div>
-        <div className="border-t border-[#ECECEC] border-t-[0.5px] px-[14px] py-4">
+        <div className="border-t border-border border-t-[0.5px] px-[14px] py-4">
           <UserMenu profile={profile} />
         </div>
       </aside>
