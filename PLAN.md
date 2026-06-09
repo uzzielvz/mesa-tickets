@@ -3,7 +3,7 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-05-30.
+> Última actualización: 2026-06-06.
 
 ---
 
@@ -101,6 +101,19 @@
 
 ### 2.2 Módulo Tickets
 
+> **2026-06-06 — Decisión de alcance**: la "demo" es en realidad un **go-live a producción** con 3 tipos de ticket reales (PII de clientes). Después se agregan más tipos/funciones incrementalmente. Volumen inicial ~17/semana (12 FICHA + 2 CRÉDITO + 3 MORA), crece con el tiempo. Búsqueda/paginación/SLA NO urgen aún.
+
+#### Fase Tickets-Producción *(go-live · 3 tipos reales)* — BLOQUEANTE
+
+> Los 3 flujos comparten patrón: **Comercial reporta → Tesorería/Data Science valida → resuelto o rechazado**, con un caso "se carga en el segundo corte". Dos cambios estructurales + endurecer seguridad antes de meter PII real.
+
+| # | Ticket | Descripción | Tipo | Bloqueado por |
+|---|--------|-------------|------|---------------|
+| T-P1 | TKT-020 | **Modelo de cola por área** (estructural). Hoy el ticket se asigna a una **persona fija** (`responsable_id`). Cambiar a: el ticket pertenece a un **área** (`area_id`, cola) y `responsable_id` es **nullable** hasta que alguien del área lo "toma" (self-assign). FICHA/CRÉDITO → cola **Tesorería**; MORA → cola **Data Science**. Reasignación manual del gerente = botón posterior, no día 1. | Estructural | — |
+| T-P2 | TKT-021 | **Estados explícitos** (estructural). Reemplazar el estado derivado por paridad por estados que controla el responsable: **Abierto** (auto al crear) → **En revisión** (alguien lo tomó) → **Programado** (validado, se carga en el siguiente corte/tanda) → **Resuelto** / **Rechazado** (motivo obligatorio). "Programado" cubre el "se carga en la siguiente"; **sin fecha/hora por ahora** (cortes sin horario fijo). Esto también resuelve TKT-001 (la paridad bloqueaba dos mensajes consecutivos del mismo lado). | Estructural | — |
+| T-P3 | TKT-022 | **Seed de los 3 tipos**: áreas (Tesorería, Data Science) + catálogo (FICHA NO REFLEJADA, CRÉDITO FALTANTE, ERROR EN MORA) con sus **campos dinámicos** y ruteo a cola de área. Campos pendientes de confirmar listado fino con el usuario. | Datos | T-P1, listados usuario |
+| T-P4 | RLS-001/002/004/005 + SEC-001 | **Seguridad full antes de PII real** (ver Fase Tickets-Seguridad/Arquitectura abajo). Con datos reales de clientes pasa de "nice to have" a **bloqueante de go-live**: cerrar `profiles_select` (RLS-002), validar participación en adjuntos lectura+escritura/Storage (RLS-001/005), bloquear respuestas en tickets cerrados (RLS-004), migrar mutaciones a Server Actions con Zod servidor (SEC-001). | Seguridad | — |
+
 #### Fase Tickets-Demo *(esta semana)*
 
 | # | Ticket | Estado | Notas |
@@ -120,11 +133,11 @@
 | T-S3 | RLS-002 | Restringir `profiles_select` (vista pública o admin only) |
 | T-S4 | RLS-004 | Trigger rechaza INSERT en `ticket_responses` si `closed_at IS NOT NULL` |
 
-#### Fase Tickets-Arquitectura *(post-v1.0)*
+#### Fase Tickets-Arquitectura
 
 | # | Ticket | Descripción |
 |---|--------|-------------|
-| T-A1 | SEC-001 | Migrar `crearTicket` y `responderTicket` a Server Actions con Zod servidor |
+| T-A1 | SEC-001 | Migrar `crearTicket` y `responderTicket` a Server Actions con Zod servidor. **Elevado a bloqueante de go-live (2026-06-06)** por PII real — ver T-P4. |
 
 ### 2.3 Módulo Score
 
@@ -209,6 +222,15 @@
 ---
 
 ## 4. Decisiones Tomadas
+
+### Tickets — go-live a producción (2026-06-06)
+
+- **La "demo" es un go-live real**: se lanzan 3 tipos de ticket a producción con PII de clientes (FICHA NO REFLEJADA, CRÉDITO FALTANTE, ERROR EN MORA), luego se agregan más incrementalmente. Audiencia: Dupont (dir. crédito) + gerente de sistemas. Objetivo declarado: **uso diario real**, que además luzca en la demo.
+- **Asignación = cola por área, NO asignación manual del gerente** (al inicio). El ticket cae en la cola del área (Tesorería / Data Science) y cualquiera del área lo "toma". Razón: con ~17/semana la cola se autorregula; la asignación manual agrega un cuello de botella humano. Reasignación del gerente = botón posterior, no día 1.
+- **Estados explícitos** controlados por el responsable (Abierto → En revisión → Programado → Resuelto / Rechazado), reemplazan el estado derivado por paridad. "Programado" = "se carga en el siguiente corte/tanda".
+- **"Se carga en la siguiente" SIN fecha/hora** por ahora (los cortes no tienen horario fijo). Se agrega fecha estimada cuando los cortes se calendaricen.
+- **Seguridad full = bloqueante de go-live** (no post-v1.0) por PII real: RLS-001/002/004/005 + SEC-001.
+- **Limpieza solo del módulo de Tickets** para producción. Score ya está perfecto (no se toca).
 
 ### Cartera (2026-05-27 / 2026-05-28)
 
