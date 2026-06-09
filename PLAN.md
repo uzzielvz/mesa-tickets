@@ -3,7 +3,7 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-06-06.
+> Última actualización: 2026-06-09.
 
 ---
 
@@ -97,7 +97,7 @@
 | C4-3 | DASH-011 | Liquidación anticipada real (cálculo desde amortizaciones, no VLOOKUP) | C4-1 |
 | C4-4 | DASH-012 | Comparativa multi-corte (mismo recuperador entre dos fechas) | C2-1 |
 | C4-5 | DASH-013 | Exportación Excel/CSV bajo demanda (replica formato legacy si se requiere) | C3-* |
-| C4-6 | PRO-004 | Chat IA `/cartera/chat` con contexto de cartera (LLM TBD) | C3-* |
+| C4-6 | PRO-004 | ✅ **2026-06-04** — Demo determinística de `/cartera/chat` entregada (KB embebida, sin LLM). Evolución a agente real → §2.5 (AI-*). | C3-* |
 
 ### 2.2 Módulo Tickets
 
@@ -189,6 +189,33 @@
 | P-P1 | PRO-005 | Notificaciones Resend (nuevo ticket / nueva respuesta / cierre) |
 | P-P2 | PRO-006 | Dominio custom `tickets.financieracrediflexi.com` |
 
+### 2.5 Módulo Asistente IA *(agente — track paralelo)*
+
+> La demo determinística de `/cartera/chat` (PRO-004, KB embebida sin LLM) se entregó el 2026-06-04. Esta sección la evoluciona a **agente real con tools sobre datos vivos**. Decisiones de stack/PII del 2026-06-09 en §4. Sin infra nueva: todo vive en el route handler de Next.js en Vercel.
+
+#### Fase IA-A — Agente con tools sobre RPCs existentes *(en curso)*
+
+| # | Ticket | Descripción | Bloqueado por |
+|---|--------|-------------|---------------|
+| IA-A1 | AI-001 | Migrar `/api/ai/assistant` de respuesta determinística a **LLM real (Gemini API de pago)** vía Vercel AI SDK: `streamText` + `useChat`, system prompt dinámico (rol + accesos del usuario + los 13 chunks de la KB embebidos completos — sin RAG vectorial, caben en contexto). | — |
+| IA-A2 | AI-002 | **Tools sobre los 5 RPCs existentes**: `getResumen`, `getPorCoordinacion`, `getPorRecuperador`, `getMora`, `getCohort`. Server-side con el cliente Supabase de la sesión del usuario (los checks `rol=admin OR acceso_cartera` de los RPCs aplican solos). `getMora` **seudonimizada**: código de acreditado + saldos + días, sin nombres ni teléfonos. | AI-001 |
+| IA-A3 | AI-003 | Guardrails + pulido: nunca inventar cifras (números solo vía tools, citados con su `fecha_corte`), actualizar copy del banner (deja de ser "demo embebida"), `GOOGLE_GENERATIVE_AI_API_KEY` documentada en `.env.example` y cargada en Vercel. | AI-001 |
+
+#### Fase IA-B — Memoria + RAG ligero
+
+| # | Ticket | Descripción | Bloqueado por |
+|---|--------|-------------|---------------|
+| IA-B1 | AI-010 | Tabla `assistant_conversations` (historial persistente + logging de preguntas reales para mejorar la KB). | AI-001 |
+| IA-B2 | AI-011 | pgvector en Supabase + tool `buscarDocumentacion` sobre los `.md` de `docs/` (solo cuando la KB ya no quepa en contexto). | AI-001 |
+
+#### Fase IA-C — Acciones y escalado
+
+| # | Ticket | Descripción | Bloqueado por |
+|---|--------|-------------|---------------|
+| IA-C1 | AI-020 | Tool `crearBorradorTicket` integrada al catálogo de tickets. | Fase Tickets-Producción |
+| IA-C2 | AI-021 | "Preguntar sobre este dashboard" (contexto por página) + comparativas multi-corte. | IA-B* |
+| IA-C3 | AI-022 | Detalle completo de mora en la tool (nombres/teléfonos) tras visto bueno de cumplimiento; evaluar migración a **Vertex AI** con ZDR/region pinning (swap de provider de una línea con AI SDK). | OK cumplimiento |
+
 ---
 
 ## 3. Backlog Priorizado (orden de ejecución sugerido)
@@ -222,6 +249,15 @@
 ---
 
 ## 4. Decisiones Tomadas
+
+### Asistente IA (2026-06-09)
+
+- **Provider = Gemini, tier de pago** (la empresa opera con Google Workspace). Billing activo desde el día 1: el tier gratuito de AI Studio usa prompts/respuestas para entrenar modelos (con revisores humanos) — **prohibido** con datos de la empresa. El tier de pago procesa bajo el Data Processing Addendum, sin entrenamiento, logs breves solo anti-abuso.
+- **Orquestación = Vercel AI SDK** (`ai` + `@ai-sdk/google`; `@ai-sdk/react` ya estaba instalado). Migración futura a Vertex AI (`@ai-sdk/google-vertex`) con zero data retention y region pinning si cumplimiento o data residency lo exigen — es swap de provider de una línea.
+- **Alcance Fase A** = LLM + streaming + tools que envuelven los 5 RPCs de cartera existentes. Sin RAG vectorial ni persistencia (la KB de 13 chunks cabe completa en el system prompt).
+- **PII (decisión 2026-06-09)**: la tool de mora va **seudonimizada** (código de acreditado, saldos, días de mora; sin nombres ni teléfonos) hasta tener visto bueno de cumplimiento (LFPDPPP, aviso de privacidad, secreto financiero). Los RPCs agregados (resumen/coordinación/recuperador/cohort) no exponen PII.
+- **Guardrail central**: el agente nunca inventa cifras — todo número sale de una tool y se cita con su `fecha_corte`.
+- **Infra**: cero servicios nuevos. Vive en `/api/ai/assistant` (Next.js en Vercel, `maxDuration: 60`). El microservicio Render no participa.
 
 ### Tickets — go-live a producción (2026-06-06)
 
@@ -279,6 +315,7 @@
 4. **Cron-job.org wake-up** (Usuario, 5 min) — GET `https://crediflexi-services.onrender.com/health` cada 10 min.
 5. **C2-1 CART-010** (RPC `cartera_resumen`) + **C3-1 DASH-001** (snapshot ejecutivo `/cartera`).
 6. **Decidir scope demo**: ¿cohort (C1-2 + C3-5)? ¿coord/recuperador (C3-2/3)? ¿export Excel (C1-4)?
+7. **Fase IA-A (AI-001..003)**: agente Gemini + tools sobre RPCs (§2.5). Usuario: crear API key de Gemini **con billing activo** y cargarla en Vercel/`.env.local`.
 
 ---
 
@@ -301,6 +338,7 @@ Prefijos consistentes en `RESEARCH-CONSOLIDADO.md` §6/§7 y aquí:
 - `PRO-` Producto / features nuevas
 - `CART-` Cartera — datos / ETL / API
 - `DASH-` Cartera — dashboards / UI
+- `AI-` Asistente IA / agente
 
 ### Migraciones
 

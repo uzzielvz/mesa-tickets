@@ -1,7 +1,7 @@
 # RESEARCH CONSOLIDADO — mea-tickets (CrediFlexi Operaciones)
 
 > Documento vivo. Single source of truth del estado real del repo.
-> Última actualización: 2026-06-04.
+> Última actualización: 2026-06-09.
 > Para el plan de trabajo activo ver `PLAN.md`.
 
 ---
@@ -147,7 +147,7 @@ middleware.ts
 | Cartera — carga Excel + ETL parcial | Completo end-to-end (con gaps de columnas) | Next.js → Storage → microservicio Python → `stg_yunius_cartera_individual` |
 | Cartera — API de consulta | Pendiente | Sin endpoints GET ni RPCs agregadoras |
 | Cartera — dashboards | Pendiente | Solo placeholders en sidebar |
-| Cartera — Chat IA | Pendiente | Solo ruta `/cartera/chat` en sidebar |
+| Cartera — Chat IA / Asistente | Demo entregada (sin LLM) | KB embebida determinística (2026-06-04); agente real con Gemini + tools planeado (PLAN §2.5, ver §5.5) |
 | Notificaciones email | Pendiente | — |
 | Tests automatizados | Pendiente | — |
 | CI/CD | Pendiente | Solo deploy automático de Vercel desde main |
@@ -245,7 +245,7 @@ middleware.ts
 | Métricas admin score | Completo | A/B/C/D, promedio, pendientes |
 | Cartera: upload + Storage + ETL parcial | Parcial | Funciona end-to-end pero mapea solo 20 de ~55 cols |
 | Cartera: dashboards | Pendiente | `/cartera`, `/cartera/cobranza`, `/cartera/riesgo` placeholders |
-| Cartera: Chat IA | Pendiente | `/cartera/chat` ruta no existe aún |
+| Cartera: Chat IA (demo) | Parcial | `/cartera/chat` live con KB embebida determinística (sin LLM). Evolución a agente = PLAN §2.5 |
 | Notificaciones email | Pendiente | — |
 | `error.tsx` global | Pendiente | 0 archivos en el proyecto |
 | Tests | Pendiente | No hay framework instalado |
@@ -617,6 +617,26 @@ Una vez completados estos 5 pasos, el ecosistema Yunius input → Supabase → F
 - Criterio exacto para `Liquidación anticipada` (¿todos los vigentes? ¿solo con saldo adelantado?).
 - ¿Las 9 cols operativas de `Mora` siguen siendo Excel-manuales o migran a UI?
 
+### 5.5 Asistente IA
+
+**Alcance**: asistente conversacional con doble rol — experto en la empresa (cartera, PAR, reportes legacy) y experto en uso de la plataforma. Brainstorm completo en `docs/ideas-agente-ia-asistente.md`.
+
+**Estado actual (entregado 2026-06-04, PRO-004)**: demo **determinística sin LLM**:
+
+- `lib/ai/knowledge-base.ts` — KB embebida (13 chunks empresa + plataforma) + `retrieveRelevant` (keyword overlap) + `generateDemoResponse`.
+- `app/api/ai/assistant/route.ts` — endpoint que arma la respuesta con retrieval + templates.
+- `components/cartera/assistant-chat.tsx` + `app/(dashboard)/cartera/chat/page.tsx` — UI con empty-state, chips de sugerencias, citas y banner "modo demo".
+- `@ai-sdk/react` ya instalado (preparado para la migración).
+
+**Decisiones 2026-06-09** (detalle en PLAN §4 "Asistente IA"):
+
+- Stack: **Vercel AI SDK + Gemini API tier de pago** (nunca el tier gratuito de AI Studio — entrena con los datos). Escalado futuro a Vertex AI (ZDR + region pinning) = swap de provider.
+- Fase A (PLAN §2.5): LLM + streaming + **tools que envuelven los 5 RPCs de cartera existentes** (los checks de permisos de los RPCs aplican al ejecutarse con la sesión del usuario). KB completa en el system prompt — sin RAG vectorial todavía.
+- PII: tool de mora **seudonimizada** (códigos/saldos/días, sin nombres ni teléfonos) hasta visto bueno de cumplimiento (LFPDPPP / secreto financiero). El resto de tools son agregados sin PII.
+- Guardrail: el agente nunca inventa cifras; todo número proviene de una tool y se cita con `fecha_corte`.
+
+**Riesgos**: enviar PII a un tercero requiere validación de cumplimiento antes de habilitar el detalle de mora (AI-022); una API key creada sin billing cae en el tier gratuito (entrenamiento) — verificar tier antes de usar en producción.
+
 ---
 
 ## 6. Problemas y Bugs Detectados
@@ -741,7 +761,7 @@ Una vez completados estos 5 pasos, el ecosistema Yunius input → Supabase → F
 18. **TYP-001** — Regenerar tipos Supabase.
 19. **OPS-002 (parte 2)** — Migraciones automatizadas en CI (CLI local ya configurado el 2026-05-28).
 20. **DEB-001** — Tests E2E críticos.
-21. **PRO-004** — Chat IA en `/cartera/chat` (LLM).
+21. **PRO-004** — Chat IA en `/cartera/chat`: demo determinística ✅ (2026-06-04); agente real con LLM + tools en curso (PLAN §2.5, AI-001..003).
 22. **PRO-005** — Notificaciones email (Resend).
 23. **PRO-006** — Dominio custom.
 
