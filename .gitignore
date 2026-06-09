@@ -39,3 +39,9 @@ next-env.d.ts
 /bin/
 /supabase/.branches
 /supabase/.temp
+
+# tooling local de skills / agentes IDE (no parte del proyecto)
+/skills-lock.json
+/.agents/
+/.windsurf/
+/.claude/skills/

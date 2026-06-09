@@ -123,3 +123,12 @@
 - **Pendiente próxima sesión:** C2-6 CART-015 (endpoints GET de RPCs); tabla `cartera_seguimiento` + persistencia real de gestión de mora; cron wake-up Render.
 - **Bloqueos:** Muestra actual sin ciclos 2026 (rango 2023-08 a 2025-11) → frontera de cohorte se hizo configurable. Profiles sin `codigo_recuperador` → "Mi cartera" diferido.
 - **Notas para RESEARCH-CONSOLIDADO.md:** Paridad con hojas mensuales del legacy vía cohorte por `fecha_inicio_ciclo`. Gestión de mora persistente es la feature que supera al Excel (histórico entre cortes).
+
+## 2026-06-04 — Sesión [15:08-15:37]
+- **Commits:** 3 (`a9f7208`, `ece883d`, `d70faeb`)
+- **Duración:** ~estimada 1.5-2 h (incluye diagnóstico iterativo de GUI)
+- **Hecho:** Asistente IA demo `/cartera/chat` (PRO-004): knowledge base embebida (13 chunks empresa+plataforma) + retrieval por keywords + UI (empty-state, sugerencias, citas), sin LLM aún. Fix de 2 bugs que rompían el endpoint (`ReferenceError` question→query + redefinición de `sources`). Refactor del sidebar: borra 2 links muertos (`/cartera/cobranza` y `/cartera/riesgo`, sin página → 404), íconos lucide, auto-apertura de sección activa, rename Cartera>Dashboard → "Resumen", agrupación Análisis/Operación. Pulido de chat (fuera header duplicado, empty-state en tarjetas, pills unificadas, tokens) y sidebar (punto indicador de sección activa colapsada, focus-visible, migración hex→tokens).
+- **Avance vs PLAN.md:** C4-6 PRO-004 (Chat IA cartera) — primera entrega (estaba en "no v1.0" / Fase Cartera-4). Mejora transversal de Plataforma-UX.
+- **Pendiente próxima sesión:** Cablear LLM real + tools (fase agente); crear o descartar páginas Cobranza/Riesgo; breadcrumbs en cartera; consistencia de empty-states/skeletons; rail colapsable del sidebar.
+- **Bloqueos:** —
+- **Notas para RESEARCH-CONSOLIDADO.md:** El asistente arranca como demo determinística (KB embebida, sin API key) por diseño; evolución a LLM + RAG + tools documentada en `docs/ideas-agente-ia-asistente.md`. El setup del sistema de tracking de sesiones (commit `801cf32`) se hizo al cierre del 2026-06-02.

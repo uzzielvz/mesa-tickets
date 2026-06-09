@@ -1,7 +1,7 @@
 # RESEARCH CONSOLIDADO — mea-tickets (CrediFlexi Operaciones)
 
 > Documento vivo. Single source of truth del estado real del repo.
-> Última actualización: 2026-05-27.
+> Última actualización: 2026-06-04.
 > Para el plan de trabajo activo ver `PLAN.md`.
 
 ---
@@ -16,7 +16,7 @@
 
 **Estado por módulo** (detalle en §5):
 
-1. **Mesa de Tickets** — producción, dos bugs UX recién resueltos (UI-001, UI-002).
+1. **Mesa de Tickets** — producción. Base de captura **superior al promedio** (formularios dinámicos sin código, cierre confirmado, rechazo con motivo), pero con gaps en el **ciclo de vida operativo** del ticket: sin notificaciones, sin reasignación, conversación con paridad forzada y sin búsqueda/filtros. Benchmark y no-negociables en §5.1.2–5.1.6.
 2. **Score Crediticio** — producción, modelo HM replicado.
 3. **Onboarding + presets** — producción.
 4. **Cartera Individual** — pipeline ETL end-to-end funcional (upload → microservicio → staging). **Falta toda la capa de consumo** (endpoints de lectura + dashboards). Microservicio aún sin deploy. ETL inserta solo ~20 de las ~55 columnas posibles. La tabla `loan_amortizacion_individual` está vacía (se llenará vía script externo TBD).
@@ -25,6 +25,7 @@
 - Seguridad RLS: `attachments_insert` no valida participación; `profiles_select using (true)` expone PII.
 - Cartera depende de microservicio externo sin deploy y sin auth entre servicios.
 - Mutaciones de tickets desde el cliente — seguridad 100% en RLS.
+- Tickets: ciclo de vida operativo incompleto (notificar, reasignar, priorizar, buscar) — ver no-negociables §5.1.4.
 - Tipos Supabase desactualizados respecto a cartera.
 - Sin tests, sin CI, sin `error.tsx` global.
 
@@ -264,6 +265,132 @@ middleware.ts
 **Archivos clave**: `app/(dashboard)/tickets/*`, `components/tickets/*`, migraciones 01-04, 07-09, 12.
 
 **Pendientes**: SEC-001 (Server Actions), RLS-001/002/004/005, UI-003/004.
+
+#### 5.1.1 Cómo funciona hoy (modelo de datos + máquina de estados)
+
+**Modelo de datos** (mig. 01 + 09):
+
+```
+areas ──< problem_catalog (campos jsonb dinámicos, responsable_default_id)
+                 │
+tickets (numero bigserial, levantado_por_id, responsable_id FIJO, datos jsonb)
+   ├──< ticket_responses (orden int, autor_id, tipo enum, contenido)
+   └──< ticket_attachments (response_id, storage_path)
+```
+
+- **Roles**: `admin` / `responsable` / `usuario`. Un ticket tiene **un solo responsable fijo**, asignado al crear (`responsable_default_id` del catálogo, o el propio creador si el catálogo no define default — `ticket-form.tsx:124`).
+- **Campos dinámicos**: cada tipo de problema (`problem_catalog`) define un array `campos` jsonb (`key/label/type/required/options`); las respuestas viven en `tickets.datos`. Hay compat legacy con columnas `grupo/cliente/ciclo_cliente`.
+- **Conversación = paridad estricta** (`validate_response_order`, mig. 04 + 08): orden impar → debe ser el levantador, orden par → debe ser el responsable. El `rechazo_responsable` es la única excepción (cualquier orden, solo responsable).
+- **Estatus derivado** de la última respuesta (vista `tickets_with_status`): `abierto` → `contestado` → `terminado` → `cerrado`, más `rechazado`. No es un campo editable; se infiere del tipo/paridad del último mensaje y de `closed_at`.
+- **Cierre en dos pasos**: el responsable marca `terminado_responsable`; el levantador confirma (`terminado_usuario` → `closed_at`) o reabre con un mensaje. El rechazo cierra directo.
+- **Seguridad**: 100% en RLS (mig. 02). Las mutaciones se hacen con el **cliente Supabase desde el navegador** (`ticket-form.tsx`, `response-composer.tsx`), no por Server Actions.
+- **Vistas de usuario**: `mios` (levantados por mí), `asignados` (responsable = yo), `[numero]` (detalle/hilo). Sidebar con contadores de no-cerrados.
+
+#### 5.1.2 Limitaciones y bugs propios del módulo
+
+> Todo lo de abajo se verificó leyendo el código fuente, no es especulación. IDs `TKT-` = familia nueva de funcionalidad de tickets.
+
+| ID | Sev. | Hallazgo | Evidencia |
+|----|------|----------|-----------|
+| **TKT-001** | **Alta** | **La paridad estricta rompe conversaciones reales.** El responsable **no puede enviar dos mensajes seguidos** (ni el usuario): tras una respuesta par, el siguiente orden es impar y el trigger exige que sea el levantador. Un follow-up del agente antes de que conteste el usuario es rechazado con excepción SQL. | `validate_response_order` mig. 04:23-33 / 08:36-44 |
+| **TKT-002** | **Alta** | **Sin reasignación ni transferencia.** El responsable se fija al crear y no hay UI ni flujo para cambiarlo. Si el problema cae en el área equivocada o la persona no está, el ticket queda atascado. (`tickets_update_admin` existe pero ninguna UI lo usa.) | `tickets` schema mig. 01:43 / sin ruta de reasignación |
+| **TKT-003** | **Alta** | **Sin notificaciones.** Nadie se entera de un ticket nuevo, respuesta o cierre salvo que entre a la app y mire los contadores. Para reemplazar WhatsApp/correo esto es central. (Diferido a Resend, PRO-005.) | No hay integración de email/in-app |
+| **TKT-004** | **Media** | **Sin prioridad / urgencia / severidad.** Todos los tickets son iguales; no hay forma de triar. | `tickets` schema sin campo prioridad |
+| **TKT-005** | **Media** | **Sin SLA, fecha de vencimiento ni envejecimiento.** No hay "tickets vencidos" ni alertas de tiempo. | — |
+| **TKT-006** | **Media** | **Sin búsqueda ni filtros en las listas.** `mios`/`asignados` traen todo ordenado por fecha; no se puede filtrar por estatus, área, responsable ni buscar por texto/número. | `mios/page.tsx`, `asignados/page.tsx` |
+| **TKT-007** | **Media** | **Sin cola global de administración.** El admin puede leer todos los tickets vía RLS, pero no hay página `/admin/tickets` para verlos/gestionarlos; solo métricas parciales. | `app/(dashboard)/admin/*` sin vista de tickets |
+| **TKT-008** | **Media** | **Sin notas internas.** Todo mensaje es visible para el solicitante; no hay comentario privado entre agentes/admin. | `ticket_responses.tipo` sin tipo "interno" |
+| **TKT-009** | Baja | **Auto-asignación degenerada.** Si el catálogo no tiene `responsable_default_id`, el ticket se asigna al propio creador (levantador = responsable). El modelo de paridad colapsa (misma persona en orden par e impar) y la "solicitud" no llega a nadie. | `ticket-form.tsx:124` |
+| **TKT-010** | Baja | **Sin paginación.** Las listas crecen sin límite (también UI-005 en acreditados). A escala org-wide degrada. | `mios/asignados` sin `range()` |
+| **TKT-011** | Baja | **Sin reapertura de tickets ya `cerrado`.** Desde `terminado` se puede reabrir, pero un ticket con `closed_at` no tiene camino de reapertura en UI. | `[numero]/page.tsx:136` |
+| **RLS-004** | Media | **Respuestas en ticket cerrado no bloqueadas en DB.** El trigger no valida `closed_at`; solo la UI oculta el composer. Vía API se podría insertar en un ticket cerrado. | (ya en §6) |
+| **RLS-001/002** | Alta/Media | Adjuntos sin validar participación; `profiles_select using(true)` expone PII. | (ya en §6) |
+| **SEC-001** | Alta | Mutaciones desde el cliente; toda la barrera es RLS. | (ya en §6) |
+
+#### 5.1.3 Benchmark vs herramientas del mercado
+
+> **Vara de medir** *(supuesto a confirmar — el usuario quedó indeciso)*: **mesa de ayuda interna para empleados** (referencia: Jira Service Management, Zammad, osTicket, Freshservice en modo interno). **Se excluye a propósito** lo cliente-facing que no aplica a un tool interno: multicanal (email entrante, chat, redes), portal de clientes, CSAT público. Si más adelante se quiere comparar contra Zendesk/Freshdesk completos, la lista de gaps crece.
+
+| Capacidad estándar (helpdesk interno) | Mercado | mea-tickets | Veredicto |
+|---|---|---|---|
+| Crear ticket con categoría/formulario | ✅ | ✅ (catálogo + campos dinámicos jsonb) | **Paridad — y bien resuelto** |
+| Hilo de conversación + adjuntos | ✅ | ✅ (con paridad forzada, ver TKT-001) | Parcial |
+| Asignación a un responsable | ✅ | ✅ (fija, default por catálogo) | Parcial |
+| **Reasignación / transferencia** | ✅ | ❌ | **Gap (TKT-002)** |
+| **Prioridad / urgencia** | ✅ | ❌ | **Gap (TKT-004)** |
+| **SLA / vencimiento / escalación** | ✅ | ❌ | **Gap (TKT-005)** |
+| **Notificaciones (email/in-app)** | ✅ | ❌ | **Gap (TKT-003)** |
+| **Búsqueda y filtros de cola** | ✅ | ❌ | **Gap (TKT-006)** |
+| **Cola/Bandeja de agente y de admin** | ✅ | Parcial (mios/asignados, sin global) | **Gap (TKT-007)** |
+| **Notas internas (privadas)** | ✅ | ❌ | **Gap (TKT-008)** |
+| Estados de ticket | ✅ | ✅ (derivados, no editables) | Parcial |
+| Cierre con confirmación del solicitante | A veces | ✅ (mejor que el promedio) | **Ventaja propia** |
+| Rechazo con motivo obligatorio | A veces | ✅ | **Ventaja propia** |
+| Campos dinámicos por tipo (sin código) | A veces (planes altos) | ✅ | **Ventaja propia** |
+| Historial/auditoría de cambios | ✅ | Parcial (solo el hilo; la asignación nunca cambia) | Gap menor |
+| Respuestas predefinidas / macros | ✅ | ❌ | Opcional interno |
+| Reportes / dashboards | ✅ | Parcial (métricas admin) | Opcional interno |
+| Base de conocimiento | ✅ | ❌ | Fuera de alcance interno |
+| Multicanal / portal cliente | ✅ | ❌ | Fuera de alcance (interno) |
+
+**Lectura**: el módulo tiene una base de captura **superior al promedio** (formularios dinámicos sin código, cierre confirmado, rechazo con motivo). Donde se queda corto frente a cualquier helpdesk es en el **ciclo de vida operativo del ticket**: reasignar, priorizar, ser notificado, encontrar y triar. Eso es justo lo que diferencia "un tablero de mensajes" de "una mesa de ayuda".
+
+#### 5.1.4 Requisitos no negociables (para que sume valor real)
+
+> Calibrado a uso interno reemplazando WhatsApp/correo/Sheets. Clasificación: **Crítico** = sin esto no supera al estado actual; **Importante** = se nota su ausencia rápido en operación; **Opcional** = mejora, no bloquea valor.
+
+**Crítico (no negociable):**
+1. **Notificaciones** (TKT-003) — sin avisos, la gente sigue dependiendo de WhatsApp para "avisar que hay ticket". Mata la propuesta de valor.
+2. **Reasignación/transferencia** (TKT-002) — los tickets mal ruteados deben poder moverse, o se atascan.
+3. **Conversación libre** (TKT-001) — quitar la paridad forzada; permitir mensajes consecutivos de cualquiera de las dos partes.
+4. **Seguridad real en escritura** (SEC-001 + RLS-001/002/004) — autorización del lado servidor, no solo RLS con mutaciones desde el navegador. En una financiera, PII y trazabilidad no son opcionales.
+5. **Búsqueda/filtro de cola** (TKT-006) — encontrar un ticket por número/cliente/estatus es operación básica diaria.
+
+**Importante:**
+6. **Prioridad** (TKT-004) y **SLA/envejecimiento básico** (TKT-005) — al menos marcar urgentes y ver "lleva N días sin respuesta".
+7. **Cola global de admin** (TKT-007) — supervisión.
+8. **Notas internas** (TKT-008).
+9. **Auditoría de cambios** (estado, asignación, prioridad) — relevante en contexto financiero.
+10. **Paginación** (TKT-010).
+
+**Opcional (post-valor):**
+11. Respuestas predefinidas / plantillas. 12. Reportes/dashboards de tickets. 13. Reapertura de cerrados (TKT-011). 14. Etiquetas/tags. 15. Acciones masivas.
+
+**Fuera de alcance (uso interno):** multicanal (email entrante, chat, redes), portal de clientes externos, base de conocimiento pública, CSAT cliente-facing.
+
+#### 5.1.5 Recomendación de orden
+
+Si el objetivo es "sólido y que sume valor" como reemplazo operativo real: **1) liberar la conversación (TKT-001) + endurecer seguridad de escritura (SEC-001/RLS-*) → 2) notificaciones (TKT-003) → 3) reasignación (TKT-002) → 4) búsqueda/filtros + cola admin (TKT-006/007) → 5) prioridad + SLA básico (TKT-004/005)**. Los puntos 1-3 son los que convierten el módulo de "demo bonita" en herramienta de uso diario.
+
+#### 5.1.6 Validación de requisitos (de dónde sale cada no-negociable)
+
+> **Advertencia de método**: la lista de no-negociables de §5.1.4 es una **hipótesis** derivada de (a) las normas genéricas de un helpdesk y (b) el poco contexto de negocio que hay documentado. **No está validada** contra cómo opera CrediFlexi de verdad. Un requisito riguroso no se justifica con *"el mercado lo trae"* sino con **un dolor observado en el flujo actual (WhatsApp/correo/Sheets) o una necesidad declarada por un usuario real**. Por eso aquí se marca el **nivel de evidencia** de cada uno y **cómo confirmarlo** antes de construir.
+
+| No-negociable | Fuente | Nivel de evidencia | Cómo confirmarlo (validación) |
+|---|---|---|---|
+| Notificaciones (TKT-003) | Reemplaza WhatsApp, cuyo valor central es *avisar* | Inferido fuerte | Preguntar: "¿cómo te enteras hoy de que tienes algo pendiente?" Si la respuesta es "me escriben por WhatsApp", está confirmado. |
+| Reasignación (TKT-002) | Norma de helpdesk | Supuesto | Preguntar: "¿alguna vez una solicitud cae en la persona equivocada? ¿qué hacen hoy?" |
+| Conversación libre (TKT-001) | Limitación verificada en código | Confirmado (técnico), impacto Supuesto | Observar 5-10 hilos reales: ¿alguien necesitó mandar 2 mensajes seguidos y no pudo? |
+| Seguridad en escritura (SEC-001/RLS-*) | Debilidad técnica real + contexto financiera | Confirmado (técnico) | Validar con sistemas/cumplimiento qué exige CrediFlexi para PII y trazabilidad. |
+| Búsqueda/filtros (TKT-006) | Norma + volumen esperado | Supuesto (depende del volumen) | Estimar tickets/semana esperados. Si son <20 quizá no urge; si son cientos, es crítico. |
+| Prioridad / SLA (TKT-004/005) | Norma de helpdesk | Supuesto | Preguntar: "¿hay incidencias que NO pueden esperar? ¿cómo las distinguen hoy?" |
+
+**Método para traducir requisitos bien (lo que asegura que ayudas):**
+
+1. **Observa el flujo que reemplazas** ("shadowing"): pide ver 10 incidencias reales en el WhatsApp/correo/Sheets actual. Cada fricción que veas es un requisito con evidencia.
+2. **Habla 20-30 min con 2-3 usuarios por rol** (un solicitante, un responsable/recuperador, un admin/coordinador). No preguntes por funciones ("¿quieres SLA?"); pregunta por **dolores y por la última vez que pasó** ("cuéntame la última vez que se te perdió una incidencia").
+3. **Traduce dolor → requisito → criterio de aceptación.** Ej: *"se me pierden tickets en WhatsApp"* → *requisito: notificación + cola buscable* → *aceptación: el responsable ve y encuentra todo pendiente sin salir de la app*.
+4. **Marca cada requisito como Confirmado / Inferido / Supuesto** (como la tabla de arriba). Solo construye sin validar los Confirmados; los Supuestos se confirman antes de invertir esfuerzo.
+5. **Separa los dos objetivos**: lo que hace falta para la **demo ejecutiva** (impresionar a Dupont) ≠ lo que hace falta para **operación diaria real**. Un no-negociable de operación (notificaciones) puede ser opcional para la demo, y viceversa.
+
+**Preguntas de descubrimiento listas para llevar a los usuarios:**
+- ¿Cómo reportas/recibes una incidencia hoy y cómo sabes que llegó?
+- ¿Cuántas incidencias manejas por semana, aprox.?
+- ¿Cuántas veces algo se perdió o se atendió tarde? ¿Por qué?
+- ¿Hay incidencias urgentes vs. que pueden esperar? ¿Cómo las distingues?
+- ¿Alguna vez algo cayó en la persona equivocada? ¿qué hiciste?
+- ¿Qué necesitas ver de un vistazo al abrir la herramienta?
+- ¿Qué te haría dejar de usar WhatsApp/correo para esto?
 
 ### 5.2 Score Crediticio
 
