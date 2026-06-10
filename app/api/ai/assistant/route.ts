@@ -1,56 +1,106 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { retrieveRelevant, generateDemoResponse } from '@/lib/ai/knowledge-base'
+import { NextResponse } from 'next/server'
+import { google } from '@ai-sdk/google'
+import { streamText, convertToModelMessages, stepCountIs, type UIMessage } from 'ai'
+import { createClient } from '@/lib/supabase/server'
+import { KNOWLEDGE_BASE } from '@/lib/ai/knowledge-base'
+import { buildCarteraTools, isMockMode } from '@/lib/ai/tools'
 
 /**
- * Demo endpoint del Asistente CrediFlexi.
- * 
- * Por ahora es 100% determinístico con knowledge base embebida + retrieval simple.
- * Esto es perfecto para la demo: respuestas consistentes, de alta calidad, con fuentes.
- * 
- * En el futuro:
- * - Se cableará un LLM real (Vercel AI SDK + provider) con system prompt + RAG.
- * - Se agregarán tools para consultar RPCs de cartera en vivo.
- * - Se guardará historial de conversaciones.
+ * Asistente CrediFlexi — agente real (Fase IA-A: AI-001/002/003).
+ *
+ * - LLM: Gemini (tier de pago) vía Vercel AI SDK, con streaming.
+ * - Tools: envuelven los RPCs de cartera existentes, ejecutadas con la sesión
+ *   del usuario (los checks de permisos de los RPCs aplican solos).
+ * - KB embebida completa en el system prompt (13 chunks — sin RAG todavía).
+ * - Guardrail: nunca inventar cifras; todo número sale de una tool.
  */
 
-export async function POST(req: NextRequest) {
-  try {
-    const { message } = await req.json()
+export const maxDuration = 60
 
-    if (!message || typeof message !== 'string' || message.trim().length < 3) {
-      return NextResponse.json({ error: 'Mensaje demasiado corto' }, { status: 400 })
+const MODEL_ID = 'gemini-3.5-flash'
+
+function buildSystemPrompt(usuario: { nombre: string | null; rol: string | null; accesoCartera: boolean }) {
+  const kb = KNOWLEDGE_BASE.map(
+    c => `### [${c.dominio}] ${c.titulo}\n${c.contenido}`
+  ).join('\n\n')
+
+  return `Eres el **Asistente CrediFlexi**, el asistente interno de Financiera CrediFlexi dentro de la plataforma de Operaciones (mea-tickets).
+
+Tienes dos dominios de experticia:
+1. **Empresa / negocio**: cartera, reportes de antigüedad, buckets PAR, mora, el sistema legacy (Excel de 12 hojas), flujo de datos Yunius → plataforma.
+2. **Plataforma / uso**: cómo usar los módulos (Cartera, Tickets, Score), dashboards, roles y accesos, flujos de carga.
+
+## Reglas críticas (no negociables)
+- **NUNCA inventes cifras de cartera.** Cualquier número (totales, porcentajes, PAR, morosos) debe venir de una tool. Si no llamaste una tool, no des números.
+- Toda cifra que reportes debe citar su **fecha de corte** ("al corte 2026-05-30...").
+- Si no sabes qué fecha de corte usar, llama primero \`obtenerFechasDisponibles\`; "el último corte" = la fecha más reciente.
+- Los datos de mora vienen **seudonimizados** (código de acreditado, sin nombre ni teléfono). Si piden el nombre o contacto de un acreditado, dirige al usuario a /cartera/mora donde puede verlo con sus permisos.
+- Si una tool devuelve error de permisos, explica que el módulo Cartera requiere acceso (admin o acceso_cartera) y que se gestiona en /admin/cartera.
+- No des asesoría legal ni financiera externa; tu alcance es la operación interna de CrediFlexi.
+
+## Estilo
+- Responde **siempre en español**, conciso y operativo.
+- Usa Markdown: negritas para cifras clave, listas con guiones, y **tablas pequeñas** (máx ~6 columnas y ~10 filas) cuando compares coordinaciones, buckets o recuperadores — la UI las renderiza bien.
+- Sé accionable: además de explicar, di qué hacer y en qué ruta de la plataforma (ej. "ve a /cartera/mora").
+- Montos en pesos MXN; usa separador de miles.
+- Al final de respuestas con datos, puedes sugerir 1-2 preguntas de seguimiento naturales.
+
+## Usuario actual
+- Nombre: ${usuario.nombre ?? 'desconocido'}
+- Rol: ${usuario.rol ?? 'usuario'}
+- Acceso a cartera: ${usuario.accesoCartera ? 'sí' : 'no'}
+${isMockMode() ? `
+## MODO DEMOSTRACIÓN ACTIVO
+Las tools devuelven DATOS SINTÉTICOS (no son cifras reales de CrediFlexi). Cuando reportes números, aclara brevemente que son "datos de demostración". En producción el asistente se conecta a la cartera real.` : ''}
+
+## Base de conocimiento (fuente de verdad cualitativa)
+${kb}`
+}
+
+export async function POST(req: Request) {
+  try {
+    const supabase = createClient()
+
+    // Auth + permisos (mismo guard que el layout de /cartera).
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
     }
 
-    const query = message.trim()
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('nombre_completo, rol, acceso_cartera')
+      .eq('id', user.id)
+      .single()
 
-    // 1. Recuperar chunks relevantes
-    const relevant = retrieveRelevant(query, 4)
+    const tieneAcceso = profile?.rol === 'admin' || profile?.acceso_cartera === true
+    if (!tieneAcceso) {
+      return NextResponse.json({ error: 'Sin acceso al módulo Cartera' }, { status: 403 })
+    }
 
-    // 2. Generar respuesta "inteligente" de demo
-    const { answer, sources } = generateDemoResponse(query, relevant)
+    const { messages }: { messages: UIMessage[] } = await req.json()
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return NextResponse.json({ error: 'Mensajes inválidos' }, { status: 400 })
+    }
 
-    // 3. Devolver en formato simple (el cliente puede evolucionar a streaming después)
-    // Sugerencias de follow-up (hace que se sienta como un agente)
-    const followUps = [
-      'Cuéntame más sobre los buckets de PAR',
-      'Cómo funciona el flujo de carga completo',
-      'Qué dashboards ya están listos para la demo',
-      'Diferencia entre el Excel legacy y estos dashboards',
-      'Cómo levantar un ticket relacionado a Cartera'
-    ].filter(s => !query.toLowerCase().includes(s.toLowerCase().slice(0, 10)))
-
-    return NextResponse.json({
-      role: 'assistant',
-      content: answer,
-      sources: sources.length > 0 ? sources : ['Conocimiento general de la plataforma y operaciones de CrediFlexi'],
-      suggestions: followUps.slice(0, 3),
-      // metadata útil para debug / futuro
-      retrievedChunks: relevant.map(r => ({ id: r.id, titulo: r.titulo, dominio: r.dominio }))
+    const result = streamText({
+      model: google(MODEL_ID),
+      system: buildSystemPrompt({
+        nombre: profile?.nombre_completo ?? null,
+        rol: profile?.rol ?? null,
+        accesoCartera: profile?.acceso_cartera === true,
+      }),
+      messages: await convertToModelMessages(messages),
+      tools: buildCarteraTools(supabase),
+      // Permite varios pasos tool → respuesta (ej. fechas disponibles → resumen → texto).
+      stopWhen: stepCountIs(6),
     })
-  } catch (err: any) {
+
+    return result.toUIMessageStreamResponse()
+  } catch (err) {
     console.error('[AI Assistant] Error:', err)
     return NextResponse.json(
-      { error: 'Error procesando tu pregunta. Intenta de nuevo o usa palabras clave más específicas.' },
+      { error: 'Error procesando tu pregunta. Intenta de nuevo en unos segundos.' },
       { status: 500 }
     )
   }

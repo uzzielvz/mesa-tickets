@@ -6,10 +6,10 @@ export default function CarteraChatPage() {
     <div className="flex flex-col h-[calc(100vh-80px)]">
       <Header
         title="Asistente CrediFlexi"
-        subtitle="Dudas sobre la empresa (cartera, PAR, reportes) y cómo usar la plataforma."
+        subtitle="Datos en vivo de cartera (PAR, mora, coordinaciones) y guía de uso de la plataforma."
         action={
           <span className="text-[10px] px-2 py-0.5 rounded bg-orange/10 text-orange-dark border border-orange/20 font-medium">
-            MODO DEMO
+            BETA
           </span>
         }
       />
