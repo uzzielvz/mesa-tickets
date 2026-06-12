@@ -17,7 +17,7 @@ import { buildCarteraTools, isMockMode } from '@/lib/ai/tools'
 
 export const maxDuration = 60
 
-const MODEL_ID = 'gemini-3.5-flash'
+const MODEL_ID = 'gemini-2.5-flash'
 
 function buildSystemPrompt(usuario: { nombre: string | null; rol: string | null; accesoCartera: boolean }) {
   const kb = KNOWLEDGE_BASE.map(
