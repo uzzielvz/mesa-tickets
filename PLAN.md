@@ -3,7 +3,7 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-06-09.
+> Última actualización: 2026-06-12.
 
 ---
 
@@ -339,6 +339,7 @@ Prefijos consistentes en `RESEARCH-CONSOLIDADO.md` §6/§7 y aquí:
 - `CART-` Cartera — datos / ETL / API
 - `DASH-` Cartera — dashboards / UI
 - `AI-` Asistente IA / agente
+- `TKT-` Tickets — funcionalidad / ciclo de vida
 
 ### Migraciones
 
@@ -367,6 +368,7 @@ Prefijos consistentes en `RESEARCH-CONSOLIDADO.md` §6/§7 y aquí:
 
 ## 7. Completados recientes
 
+- **2026-06-12** — Limpieza pre go-live: borrados todos los tickets de prueba y reiniciada la numeración (`tickets_numero_seq` → 1) vía migración `20260612154500_tkt_limpieza_tickets_prueba.sql` (aplicada en remoto). El primer ticket real será #1. Pendiente: vaciar el bucket `ticket-attachments` (delete directo de `storage.objects` no permitido por SQL → vía Storage API). No toca `areas`/`problem_catalog`/`profiles`.
 - **2026-06-02** — C2-5 CART-014 + C3-5 DASH-005: cohortes por fecha de inicio de ciclo. RPC `cartera_cohort(fecha_corte, frontera)` parte la cartera en dos grupos (`antes`/`desde` la frontera) con el mismo contrato que `cartera_resumen`. Página `/cartera/cohort` con dos paneles comparativos + selector de fecha frontera (default 1-abr-2026, configurable). Hallazgo: la muestra actual no tiene ciclos 2026 (rango 2023-08 a 2025-11), por eso se adelantó la frontera configurable para que la demo muestre ambas cohortes pobladas. `sin_fecha=0` confirma `fecha_inicio_ciclo` 100% poblado.
 - **2026-06-02** — C2-4 CART-013 + C3-4 DASH-004: bandeja de mora operativa. RPC `cartera_mora_operativa` (lista de 120 morosos con datos de gestión) + página `/cartera/mora` con tabla interactiva (búsqueda, orden) y columnas de gestión Call Center/Campo **mockeadas** (editables sin persistir, banner modo demo). Decisión: la captura real (tabla `cartera_seguimiento` + escritura) queda como siguiente feature — es la que supera al Excel (histórico de gestión entre cortes).
 - **2026-06-02** — C2-3 CART-012 + C3-3 DASH-003: cartera por recuperador. RPC `cartera_por_recuperador(fecha, coordinacion?)` + página `/cartera/recuperador` (tabla indicadores semáforo + distribución heatmap). Filtro opcional por coordinación. Validado: 7 recuperadores, identifica al cobrador crítico (Campos Sánchez 100% PAR>90) vs sano (CALL CENTER 8.97%). "Mi cartera" diferido (profiles sin codigo_recuperador).

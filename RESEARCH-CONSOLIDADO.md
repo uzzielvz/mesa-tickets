@@ -266,6 +266,8 @@ middleware.ts
 
 **Pendientes**: SEC-001 (Server Actions), RLS-001/002/004/005, UI-003/004.
 
+**Plan de evolución (go-live producción)**: las limitaciones de §5.1.1–5.1.4 (responsable fijo, paridad forzada, estado derivado) se resuelven en la fase **Tickets-Producción** del `PLAN.md` (T-P1 cola por área, T-P2 estados explícitos, T-P3 seed de los 3 tipos, T-P4 seguridad full). Este §5.1 describe el **estado real actual**; el plan de cambio vive en `PLAN.md §2.2`.
+
 #### 5.1.1 Cómo funciona hoy (modelo de datos + máquina de estados)
 
 **Modelo de datos** (mig. 01 + 09):
