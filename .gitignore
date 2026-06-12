@@ -45,3 +45,6 @@ next-env.d.ts
 /.agents/
 /.windsurf/
 /.claude/skills/
+
+# tracking de sesiones (detalle local; el resumen vive en el vault de Obsidian)
+/sessions.md
