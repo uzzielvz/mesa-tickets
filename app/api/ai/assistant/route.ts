@@ -19,6 +19,11 @@ export const maxDuration = 60
 
 const MODEL_ID = 'gemini-2.5-flash'
 
+// Tarifas Gemini 2.5 Flash (USD por 1M tokens) — ajustar si cambia el pricing oficial.
+const PRECIO_INPUT_USD_POR_1M = 0.3
+const PRECIO_OUTPUT_USD_POR_1M = 2.5
+const USD_A_MXN = 17.5
+
 function buildSystemPrompt(usuario: { nombre: string | null; rol: string | null; accesoCartera: boolean }) {
   const kb = KNOWLEDGE_BASE.map(
     c => `### [${c.dominio}] ${c.titulo}\n${c.contenido}`
@@ -94,6 +99,19 @@ export async function POST(req: Request) {
       tools: buildCarteraTools(supabase),
       // Permite varios pasos tool → respuesta (ej. fechas disponibles → resumen → texto).
       stopWhen: stepCountIs(6),
+      // Log de consumo real por pregunta (tokens + costo estimado). 'usage' lo reporta el LLM.
+      onFinish: ({ usage }) => {
+        const inTok = usage?.inputTokens ?? 0
+        const outTok = usage?.outputTokens ?? 0
+        const totalTok = usage?.totalTokens ?? inTok + outTok
+        const costoUsd =
+          (inTok / 1_000_000) * PRECIO_INPUT_USD_POR_1M +
+          (outTok / 1_000_000) * PRECIO_OUTPUT_USD_POR_1M
+        const costoMxn = costoUsd * USD_A_MXN
+        console.log(
+          `[IA] in: ${inTok} tok | out: ${outTok} tok | total: ${totalTok} tok | ~USD ${costoUsd.toFixed(5)} | ~MXN ${costoMxn.toFixed(4)}`
+        )
+      },
     })
 
     return result.toUIMessageStreamResponse()
