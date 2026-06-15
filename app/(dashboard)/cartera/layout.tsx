@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import AssistantWidget from '@/components/cartera/assistant-widget'
 
 export default async function CarteraLayout({ children }: { children: React.ReactNode }) {
   const supabase = createClient()
@@ -19,6 +20,7 @@ export default async function CarteraLayout({ children }: { children: React.Reac
   return (
     <div className="px-5 pt-16 pb-10 md:px-9 md:pt-9 md:pb-10">
       {children}
+      <AssistantWidget />
     </div>
   )
 }

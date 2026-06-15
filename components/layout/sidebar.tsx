@@ -7,7 +7,7 @@ import {
   Menu, X, ChevronDown,
   LayoutDashboard, Ticket, Inbox, Tags, FolderTree,
   Users, UserPlus, Gauge,
-  PieChart, Building2, UserSearch, AlertTriangle, Layers, Upload, Bot, KeyRound,
+  PieChart, Building2, UserSearch, AlertTriangle, Layers, Upload, KeyRound,
   BarChart3,
   type LucideIcon,
 } from 'lucide-react'
@@ -282,13 +282,6 @@ function NavContent({
             label="Cargar reporte"
             icon={Upload}
             active={pathname === '/cartera/cargar'}
-            onClick={onNav}
-          />
-          <NavItem
-            href="/cartera/chat"
-            label="Chat IA"
-            icon={Bot}
-            active={pathname === '/cartera/chat'}
             onClick={onNav}
           />
           {isAdmin && (

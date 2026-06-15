@@ -1,22 +1,8 @@
-import Header from '@/components/layout/header'
-import AssistantChat from '@/components/cartera/assistant-chat'
+import { redirect } from 'next/navigation'
 
+// El asistente IA dejó de ser una página: ahora vive como widget flotante
+// montado en el layout de cartera (components/cartera/assistant-widget.tsx).
+// Esta ruta legacy redirige al resumen para no romper enlaces antiguos.
 export default function CarteraChatPage() {
-  return (
-    <div className="flex flex-col h-[calc(100vh-80px)]">
-      <Header
-        title="Asistente CrediFlexi"
-        subtitle="Datos en vivo de cartera (PAR, mora, coordinaciones) y guía de uso de la plataforma."
-        action={
-          <span className="text-[10px] px-2 py-0.5 rounded bg-orange/10 text-orange-dark border border-orange/20 font-medium">
-            BETA
-          </span>
-        }
-      />
-
-      <div className="flex-1 min-h-0 px-5 md:px-9 pb-6">
-        <AssistantChat />
-      </div>
-    </div>
-  )
+  redirect('/cartera')
 }
