@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
-interface Profile { id: string; nombre_completo: string; email: string; rol: string; area_id: string | null; activo: boolean; acceso_score: boolean }
+interface Profile { id: string; nombre_completo: string; email: string; rol: string; area_id: string | null; activo: boolean; acceso_score: boolean; acceso_cartera: boolean }
 interface Area { id: string; nombre: string }
 
 const ROL_LABEL: Record<string, string> = {
@@ -53,11 +53,21 @@ export default function UsuariosAdmin({ profiles, areas }: { profiles: Profile[]
     setSaving(null)
   }
 
+  async function toggleCarteraAccess(id: string, actual: boolean) {
+    setSaving(id)
+    const supabase = createClient()
+    const { error } = await supabase.from('profiles').update({ acceso_cartera: !actual }).eq('id', id)
+    if (error) { toast.error('Error al actualizar acceso.'); setSaving(null); return }
+    toast.success(actual ? 'Acceso a Cartera retirado' : 'Acceso a Cartera otorgado')
+    router.refresh()
+    setSaving(null)
+  }
+
   return (
     <div className="border border-[#ECECEC] rounded-md overflow-hidden max-w-3xl">
       {/* Headers */}
-      <div className="hidden md:grid grid-cols-[1fr_130px_150px_100px] px-5 py-2 border-b border-[#ECECEC] bg-surface-sidebar">
-        {['Usuario', 'Rol', 'Área', 'Score'].map(h => (
+      <div className="hidden md:grid grid-cols-[1fr_130px_150px_80px_80px] px-5 py-2 border-b border-[#ECECEC] bg-surface-sidebar">
+        {['Usuario', 'Rol', 'Área', 'Score', 'Cartera'].map(h => (
           <span key={h} className="text-[11px] uppercase tracking-[0.3px] text-ink-400 font-medium">{h}</span>
         ))}
       </div>
@@ -65,7 +75,7 @@ export default function UsuariosAdmin({ profiles, areas }: { profiles: Profile[]
       {profiles.map((profile, i) => (
         <div
           key={profile.id}
-          className={`grid grid-cols-1 md:grid-cols-[1fr_130px_150px_100px] items-center px-5 py-3 gap-2 ${i < profiles.length - 1 ? 'border-b border-[#F5F5F5]' : ''} ${saving === profile.id ? 'opacity-50' : ''}`}
+          className={`grid grid-cols-1 md:grid-cols-[1fr_130px_150px_80px_80px] items-center px-5 py-3 gap-2 ${i < profiles.length - 1 ? 'border-b border-[#F5F5F5]' : ''} ${saving === profile.id ? 'opacity-50' : ''}`}
         >
           <div>
             <p className="text-[13px] font-medium text-ink-900">{profile.nombre_completo}</p>
@@ -107,6 +117,23 @@ export default function UsuariosAdmin({ profiles, areas }: { profiles: Profile[]
             <span className={`
               inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform duration-200
               ${profile.acceso_score ? 'translate-x-4' : 'translate-x-0'}
+            `} />
+          </button>
+
+          {/* Toggle acceso Cartera Individual */}
+          <button
+            onClick={() => toggleCarteraAccess(profile.id, profile.acceso_cartera)}
+            disabled={saving === profile.id}
+            title={profile.acceso_cartera ? 'Quitar acceso a Cartera' : 'Dar acceso a Cartera'}
+            className={`
+              relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent
+              transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed
+              ${profile.acceso_cartera ? 'bg-navy' : 'bg-[#DCDCDC]'}
+            `}
+          >
+            <span className={`
+              inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform duration-200
+              ${profile.acceso_cartera ? 'translate-x-4' : 'translate-x-0'}
             `} />
           </button>
         </div>
