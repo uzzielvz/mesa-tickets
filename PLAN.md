@@ -3,7 +3,7 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-06-12.
+> Última actualización: 2026-06-15.
 
 ---
 
@@ -200,7 +200,7 @@
 | IA-A1 | AI-001 | Migrar `/api/ai/assistant` de respuesta determinística a **LLM real (Gemini API de pago)** vía Vercel AI SDK: `streamText` + `useChat`, system prompt dinámico (rol + accesos del usuario + los 13 chunks de la KB embebidos completos — sin RAG vectorial, caben en contexto). | — |
 | IA-A2 | AI-002 | **Tools sobre los 5 RPCs existentes**: `getResumen`, `getPorCoordinacion`, `getPorRecuperador`, `getMora`, `getCohort`. Server-side con el cliente Supabase de la sesión del usuario (los checks `rol=admin OR acceso_cartera` de los RPCs aplican solos). `getMora` **seudonimizada**: código de acreditado + saldos + días, sin nombres ni teléfonos. | AI-001 |
 | IA-A3 | AI-003 | Guardrails + pulido: nunca inventar cifras (números solo vía tools, citados con su `fecha_corte`), actualizar copy del banner (deja de ser "demo embebida"), `GOOGLE_GENERATIVE_AI_API_KEY` documentada en `.env.example` y cargada en Vercel. | AI-001 |
-| IA-A4 | AI-004 | **Asistente como widget flotante** (deja de ser una página de menú). Paso a paso: **(1)** quitar el item "Chat IA" del sidebar (`components/layout/sidebar.tsx`). **(2)** nuevo `components/cartera/assistant-widget.tsx` (client): FAB fijo abajo-derecha + panel popover que **reusa** `AssistantChat` sin duplicar lógica. **(3)** montar el widget en `app/(dashboard)/cartera/layout.tsx` → aparece en **todas** las páginas de cartera (resumen, coordinación, recuperador, cohort, mora, cargar). **(4)** `/cartera/chat` redirige a `/cartera` (ruta legacy, el chat ya vive en el globito). | AI-001 |
+| IA-A4 | AI-004 | ✅ **2026-06-15** — **Asistente como widget flotante** en layout de cartera: FAB + panel que reusa `AssistantChat`; `/cartera/chat` redirige a `/cartera`; item del sidebar retirado. **Pantalla completa**: botón expandir/contraer en header del panel (`Maximize2`/`Minimize2`), `Esc` sale de fullscreen (segundo `Esc` cierra), `body` sin scroll al expandir. | AI-001 |
 
 #### Fase IA-B — Memoria + RAG ligero
 
@@ -369,6 +369,7 @@ Prefijos consistentes en `RESEARCH-CONSOLIDADO.md` §6/§7 y aquí:
 
 ## 7. Completados recientes
 
+- **2026-06-15** — AI-004: asistente como widget flotante en todas las páginas de cartera + modo pantalla completa (expandir/contraer, Esc, sin scroll de fondo).
 - **2026-06-12** — Limpieza pre go-live: borrados todos los tickets de prueba y reiniciada la numeración (`tickets_numero_seq` → 1) vía migración `20260612154500_tkt_limpieza_tickets_prueba.sql` (aplicada en remoto). El primer ticket real será #1. Pendiente: vaciar el bucket `ticket-attachments` (delete directo de `storage.objects` no permitido por SQL → vía Storage API). No toca `areas`/`problem_catalog`/`profiles`.
 - **2026-06-02** — C2-5 CART-014 + C3-5 DASH-005: cohortes por fecha de inicio de ciclo. RPC `cartera_cohort(fecha_corte, frontera)` parte la cartera en dos grupos (`antes`/`desde` la frontera) con el mismo contrato que `cartera_resumen`. Página `/cartera/cohort` con dos paneles comparativos + selector de fecha frontera (default 1-abr-2026, configurable). Hallazgo: la muestra actual no tiene ciclos 2026 (rango 2023-08 a 2025-11), por eso se adelantó la frontera configurable para que la demo muestre ambas cohortes pobladas. `sin_fecha=0` confirma `fecha_inicio_ciclo` 100% poblado.
 - **2026-06-02** — C2-4 CART-013 + C3-4 DASH-004: bandeja de mora operativa. RPC `cartera_mora_operativa` (lista de 120 morosos con datos de gestión) + página `/cartera/mora` con tabla interactiva (búsqueda, orden) y columnas de gestión Call Center/Campo **mockeadas** (editables sin persistir, banner modo demo). Decisión: la captura real (tabla `cartera_seguimiento` + escritura) queda como siguiente feature — es la que supera al Excel (histórico de gestión entre cortes).
