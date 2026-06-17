@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Plataforma de Operaciones CrediFlexi</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/white.css" id="theme" />
+
+  <style>
+    :root {
+      --cf-azul: #1d4ed8;
+      --cf-teal: #0d9488;
+      --cf-tinta: #0f172a;
+      --cf-gris: #475569;
+      --cf-gris-claro: #94a3b8;
+      --cf-linea: #e2e8f0;
+      --cf-bg-suave: #f8fafc;
+      --cf-rojo: #dc2626;
+      --cf-verde: #16a34a;
+      --cf-ambar: #d97706;
+    }
+
+    .reveal {
+      font-family: "Inter", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+      font-size: 28px;
+      color: var(--cf-tinta);
+      font-weight: 400;
+    }
+    .reveal .slides { text-align: left; }
+    .reveal h1, .reveal h2, .reveal h3 {
+      font-family: inherit;
+      color: var(--cf-tinta);
+      text-transform: none;
+      letter-spacing: -0.02em;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+    .reveal h1 { font-size: 2.0em; }
+    .reveal h2 { font-size: 1.4em; margin-bottom: 0.45em; }
+    .reveal h3 { font-size: 1.0em; color: var(--cf-azul); margin-bottom: 0.25em; }
+    .reveal p, .reveal li { line-height: 1.38; color: var(--cf-gris); font-size: 0.92em; }
+    .reveal strong { color: var(--cf-tinta); font-weight: 600; }
+    .reveal ul { list-style: none; margin-left: 0; }
+    .reveal ul li {
+      position: relative;
+      padding-left: 1.1em;
+      margin-bottom: 0.4em;
+    }
+    .reveal ul li::before {
+      content: "";
+      position: absolute;
+      left: 0; top: 0.55em;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--cf-azul);
+    }
+
+    .kicker {
+      display: inline-block;
+      font-size: 0.48em;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--cf-teal);
+      margin-bottom: 0.35em;
+    }
+
+    .portada { text-align: center; }
+    .portada .marca {
+      font-size: 0.55em; letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--cf-gris-claro); font-weight: 700; margin-bottom: 1em;
+    }
+    .portada h1 { font-size: 2.1em; margin-bottom: 0.25em; }
+    .portada .sub { font-size: 0.82em; color: var(--cf-gris); }
+    .portada .meta { margin-top: 1.4em; font-size: 0.52em; color: var(--cf-gris-claro); }
+
+    .demo {
+      background: linear-gradient(135deg, var(--cf-azul), var(--cf-teal));
+    }
+    .demo .demo-tag {
+      font-size: 0.48em; letter-spacing: 0.18em; text-transform: uppercase;
+      color: rgba(255,255,255,0.85); font-weight: 700;
+    }
+    .demo h2, .demo h1 { color: #fff; }
+    .demo p, .demo li { color: rgba(255,255,255,0.92); }
+    .demo strong { color: #fff; }
+    .demo ul li::before { background: #fff; }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.55em; margin-top: 0.35em; }
+    .card {
+      background: var(--cf-bg-suave);
+      border: 1px solid var(--cf-linea);
+      border-left: 4px solid var(--cf-azul);
+      border-radius: 8px;
+      padding: 0.55em 0.75em;
+    }
+    .card h3 { margin: 0 0 0.12em 0; font-size: 0.85em; }
+    .card p { margin: 0; font-size: 0.58em; line-height: 1.32; }
+    .card .estado {
+      display: inline-block;
+      font-size: 0.5em;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-top: 0.35em;
+      padding: 0.15em 0.45em;
+      border-radius: 4px;
+    }
+    .estado-verde { background: #dcfce7; color: #166534; }
+    .estado-ambar { background: #fef3c7; color: #92400e; }
+    .estado-gris { background: #f1f5f9; color: #475569; }
+
+    .kpis { display: flex; gap: 1em; margin-top: 0.5em; flex-wrap: wrap; }
+    .kpi { text-align: center; }
+    .kpi .num { font-size: 1.6em; font-weight: 800; color: var(--cf-azul); line-height: 1; }
+    .kpi .lbl { font-size: 0.48em; color: var(--cf-gris); text-transform: uppercase; letter-spacing: 0.04em; }
+    .kpi.rojo .num { color: var(--cf-rojo); }
+
+    .reveal table { font-size: 0.58em; border-collapse: collapse; width: 100%; margin-top: 0.25em; }
+    .reveal table th {
+      background: var(--cf-tinta); color: #fff; font-weight: 600;
+      text-align: left; padding: 0.45em 0.6em; border: none;
+    }
+    .reveal table td { padding: 0.4em 0.6em; border-bottom: 1px solid var(--cf-linea); color: var(--cf-gris); vertical-align: top; }
+    .reveal table tr:nth-child(even) td { background: var(--cf-bg-suave); }
+
+    .nota {
+      background: #f8fafc; border-left: 4px solid var(--cf-gris-claro);
+      border-radius: 6px; padding: 0.5em 0.75em; font-size: 0.58em; margin-top: 0.45em;
+    }
+    .nota.azul { background: #eff6ff; border-left-color: var(--cf-azul); }
+    .nota.ambar { background: #fffbeb; border-left-color: var(--cf-ambar); }
+    .nota strong { color: var(--cf-tinta); }
+
+    .dos-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1em; }
+    .mermaid { background: transparent; display: flex; justify-content: center; }
+    .mermaid svg { max-height: 420px; max-width: 100%; }
+    .mermaid-lg svg { max-height: 520px; max-width: 100%; }
+    .reveal .footnote { font-size: 0.48em; color: var(--cf-gris-claro); margin-top: 0.5em; }
+    .reveal .progress { color: var(--cf-azul); }
+    .reveal .controls { color: var(--cf-azul); }
+    .compact li { margin-bottom: 0.28em; font-size: 0.85em; }
+  </style>
+</head>
+<body>
+<div class="reveal">
+  <div class="slides">
+
+    <!-- 1 -->
+    <section class="portada">
+      <div class="marca">Financiera CrediFlexi</div>
+      <h1>Plataforma de Operaciones</h1>
+      <p class="sub">Piloto demostrable &mdash; ajustable a las necesidades de la empresa</p>
+      <p class="meta">Direcci&oacute;n de Operaciones &middot; Junio 2026</p>
+      <aside class="notes">Mensaje central: no es un producto cerrado; es una base para decidir qu&eacute; construir con requerimientos reales.</aside>
+    </section>
+
+    <!-- 2 -->
+    <section>
+      <span class="kicker">Objetivo</span>
+      <h2>Plataforma centralizada de operaciones</h2>
+      <p style="font-size:0.82em;">Un solo lugar donde ir agregando herramientas confiables para el personal, reduciendo trabajo manual y procesos desorganizados.</p>
+      <ul style="font-size:0.78em; margin-top:0.5em;">
+        <li><strong>Datos centralizados</strong> en lugar de compartir Excel o WhatsApp en cada incidencia.</li>
+        <li><strong>Trazabilidad</strong> de qui&eacute;n levant&oacute;, qui&eacute;n atendi&oacute; y c&oacute;mo se cerr&oacute; cada caso (auditor&iacute;a y KPIs).</li>
+        <li><strong>Procesos m&aacute;s r&aacute;pidos y seguros</strong> cuando el volumen o la evidencia justifican dejar el canal informal.</li>
+        <li><strong>Mejor insumo para Data Science</strong>: datos estructurados por &aacute;rea, no solo archivos sueltos.</li>
+        <li><strong>Decisiones con datos</strong> cuando la informaci&oacute;n est&aacute; versionada y consultable.</li>
+      </ul>
+      <div class="nota ambar"><strong>No implica</strong> reemplazar todo de golpe. Cada m&oacute;dulo se valida antes de escalar.</div>
+      <aside class="notes">Enfatiza visi&oacute;n, no producto terminado.</aside>
+    </section>
+
+    <!-- 3 -->
+    <section>
+      <span class="kicker">Punto de partida</span>
+      <h2>Estado honesto por m&oacute;dulo</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Mesa de Tickets</h3>
+          <p>Infraestructura lista; 3 tipos de incidencia sembrados. Falta levantamiento de requerimientos por &aacute;rea, cola por &aacute;rea, estados expl&iacute;citos y endurecer seguridad antes de PII masiva.</p>
+          <span class="estado estado-ambar">En proceso</span>
+        </div>
+        <div class="card">
+          <h3>Score Crediticio</h3>
+          <p>En uso por el equipo comercial: captura de acreditados, evaluaci&oacute;n del promotor, clasificaci&oacute;n A/B/C/D.</p>
+          <span class="estado estado-verde">En uso</span>
+        </div>
+        <div class="card">
+          <h3>Cartera Individual</h3>
+          <p>Demostraci&oacute;n de capacidad: carga de Excel &rarr; ETL parcial &rarr; 5 vistas. Cuello de botella: solo llegan <strong>reportes Excel de Yunius</strong> (API del RP no materializada). Requiere auditor&iacute;a del equipo de Data Science.</p>
+          <span class="estado estado-gris">Piloto / demo</span>
+        </div>
+        <div class="card">
+          <h3>Asistente IA</h3>
+          <p>Ejemplo de consulta en lenguaje natural sobre cartera. Hoy en <strong>modo demostraci&oacute;n</strong> (datos sint&eacute;ticos); conectar datos reales es un ajuste menor. Con API del RP podr&iacute;a extenderse a otros &aacute;mbitos.</p>
+          <span class="estado estado-gris">Piloto / demo</span>
+        </div>
+      </div>
+      <aside class="notes">Tickets no est&aacute; cerrado. Cartera e IA son muestra de lo posible.</aside>
+    </section>
+
+    <!-- 4 DEMO -->
+    <section class="demo">
+      <div class="demo-tag">Demostraci&oacute;n &mdash; 1 / 3</div>
+      <h2>Mesa de Tickets</h2>
+      <ul>
+        <li>Levantar incidencia con <strong>campos seg&uacute;n el tipo</strong> (ej. ficha no reflejada).</li>
+        <li>Evidencia adjunta y hilo de respuestas.</li>
+        <li>Cat&aacute;logo inicial: Tesorer&iacute;a y Data Science.</li>
+        <li><strong>Pendiente:</strong> entrevistas por &aacute;rea para afinar tipos, flujos y prioridades.</li>
+      </ul>
+      <aside class="notes">No digas &quot;producci&oacute;n completa&quot;. Muestra el flujo y menciona requerimientos pendientes.</aside>
+    </section>
+
+    <!-- 5 DEMO -->
+    <section class="demo">
+      <div class="demo-tag">Demostraci&oacute;n &mdash; 2 / 3</div>
+      <h2>Cartera (piloto)</h2>
+      <ul>
+        <li>Resumen ejecutivo, coordinaci&oacute;n, recuperador (muestra de 215 cr&eacute;ditos).</li>
+        <li>Datos originados en <strong>export Excel de Yunius</strong>, no en tiempo real del RP.</li>
+      </ul>
+      <div class="kpis">
+        <div class="kpi rojo"><div class="num">34.5%</div><div class="lbl">PAR &gt; 30</div></div>
+        <div class="kpi rojo"><div class="num">15.9%</div><div class="lbl">PAR &gt; 90</div></div>
+        <div class="kpi"><div class="num">215</div><div class="lbl">cr&eacute;ditos (muestra)</div></div>
+      </div>
+      <p class="footnote">Corte 2026-05-30. M&eacute;tricas sujetas a validaci&oacute;n por Data Science.</p>
+      <aside class="notes">Dejar claro: es demo con ETL parcial, no reemplazo operativo del legacy a&uacute;n.</aside>
+    </section>
+
+    <!-- 6 DEMO -->
+    <section class="demo">
+      <div class="demo-tag">Demostraci&oacute;n &mdash; 3 / 3</div>
+      <h2>Asistente IA (modo demo)</h2>
+      <ul>
+        <li>Respuestas con <strong>datos sint&eacute;ticos</strong> (configuraci&oacute;n actual).</li>
+        <li>Pasar a <strong>datos reales de cartera</strong> = desactivar modo mock (ajuste menor; Gemini ya est&aacute; en tier de pago).</li>
+        <li>Las cifras salen de las mismas consultas que los dashboards, no inventadas.</li>
+      </ul>
+      <aside class="notes">Preguntas de ejemplo. Aclara que hoy es mock por decisi&oacute;n (no exponer cartera real hasta aprobaci&oacute;n); el costo de IA ya est&aacute; resuelto.</aside>
+    </section>
+
+    <!-- 7 CASO DE USO TICKETS -->
+    <section>
+      <span class="kicker">Caso de uso</span>
+      <h2>Mesa de Tickets</h2>
+      <div class="mermaid">
+flowchart TD
+    A["&Aacute;rea comercial / cr&eacute;dito"] -->|"Levanta incidencia + evidencia"| B["Ticket tipificado"]
+    B --> C{"Tipo"}
+    C -->|Ficha / Cr&eacute;dito faltante| D["Cola Tesorer&iacute;a"]
+    C -->|Error en mora| E["Cola Data Science"]
+    D --> F["En revisi&oacute;n / Programado / Resuelto o Rechazado"]
+    E --> F
+    F --> G["Registro auditable"]
+      </div>
+      <div class="dos-col" style="margin-top:0.4em; font-size:0.62em;">
+        <div>
+          <h3>Hoy</h3>
+          <ul class="compact">
+            <li>Formularios din&aacute;micos por tipo</li>
+            <li>3 tipos sembrados (junta de procesos)</li>
+            <li>73 presets de acceso por &aacute;rea</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Por definir / construir</h3>
+          <ul class="compact">
+            <li>Cola por &aacute;rea (no solo persona fija)</li>
+            <li>Estados expl&iacute;citos + motivo de rechazo</li>
+            <li>M&aacute;s tipos tras entrevistas por &aacute;rea</li>
+            <li>RLS completa antes de PII masiva</li>
+          </ul>
+        </div>
+      </div>
+      <aside class="notes">Flujo objetivo vs lo que falta. Entrevistas son cr&iacute;ticas.</aside>
+    </section>
+
+    <!-- 8 CASO DE USO SCORE -->
+    <section>
+      <span class="kicker">Caso de uso</span>
+      <h2>Score Crediticio</h2>
+      <div class="mermaid">
+flowchart LR
+    P["Promotor / operador"] -->|"Captura acreditado + referencias"| A["Expediente"]
+    A -->|"Evaluaci&oacute;n"| E["Modelo HM"]
+    E --> C["Clasificaci&oacute;n A/B/C/D"]
+    C --> R["Consulta y auditor&iacute;a interna"]
+      </div>
+      <div class="dos-col" style="margin-top:0.4em; font-size:0.62em;">
+        <div>
+          <h3>En uso</h3>
+          <ul class="compact">
+            <li>CRUD de acreditados y referencias</li>
+            <li>Evaluaci&oacute;n del promotor (RPC)</li>
+            <li>Acceso por rol y m&oacute;dulo</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Mejoras posibles (no bloqueantes)</h3>
+          <ul class="compact">
+            <li>Transacci&oacute;n at&oacute;mica en guardado</li>
+            <li>Trigger de rec&aacute;lculo en servidor</li>
+            <li>Paginaci&oacute;n en listados grandes</li>
+          </ul>
+        </div>
+      </div>
+      <aside class="notes">&Uacute;nico m&oacute;dulo con adopci&oacute;n real hoy.</aside>
+    </section>
+
+    <!-- 9 CASO DE USO CARTERA -->
+    <section>
+      <span class="kicker">Caso de uso</span>
+      <h2>Cartera Individual (piloto)</h2>
+      <div class="mermaid">
+flowchart TD
+    Y["Yunius: export Excel<br/>(Reporte de Antig&uuml;edad)"] -->|"Carga manual"| U["Plataforma"]
+    U --> E["Microservicio ETL<br/>(parcial)"]
+    E --> DB[("PostgreSQL")]
+    DB --> D1["Resumen PAR"]
+    DB --> D2["Por coordinaci&oacute;n"]
+    DB --> D3["Por recuperador"]
+    DB --> D4["Mora / Cohortes"]
+      </div>
+      <div class="nota ambar" style="font-size:0.58em;">
+        <strong>Cuello de botella:</strong> se plane&oacute; API al RP (Yunius); sin avance conocido. Hoy solo reportes Excel. Con API estable, los dashboards y el asistente podr&iacute;an alimentarse sin carga manual y extenderse a otros procesos.
+      </div>
+      <aside class="notes">Validaci&oacute;n pendiente equipo DS. ETL no cubre todas las columnas del legacy.</aside>
+    </section>
+
+    <!-- 10 CASO DE USO IA -->
+    <section>
+      <span class="kicker">Caso de uso</span>
+      <h2>Asistente IA</h2>
+      <div class="mermaid">
+flowchart LR
+    U["Usuario autorizado"] --> API["API asistente"]
+    API --> P["Permisos + sesi&oacute;n"]
+    P --> T["Tools sobre RPCs"]
+    T --> DB[("Cartera agregada")]
+    API --> LLM["Gemini"]
+    LLM --> R["Respuesta citando corte"]
+      </div>
+      <table style="margin-top:0.35em;">
+        <tr><th>Tool (hoy)</th><th>Para qu&eacute;</th></tr>
+        <tr><td>obtenerFechasDisponibles</td><td>Qu&eacute; cortes hay cargados</td></tr>
+        <tr><td>obtenerResumenCartera</td><td>Totales y PAR (dashboard resumen)</td></tr>
+        <tr><td>obtenerPorCoordinacion</td><td>Riesgo por regi&oacute;n</td></tr>
+        <tr><td>obtenerPorRecuperador</td><td>Riesgo por cobrador</td></tr>
+        <tr><td>obtenerMora</td><td>Top morosos (seudonimizado, m&aacute;x. 30 filas)</td></tr>
+        <tr><td>obtenerCohort</td><td>Comparativo por inicio de ciclo</td></tr>
+      </table>
+      <p class="footnote">Futuro (seg&uacute;n prioridad): documentaci&oacute;n interna (RAG), borrador de ticket, contexto por p&aacute;gina, datos del RP v&iacute;a API.</p>
+      <aside class="notes">Regla: n&uacute;meros solo v&iacute;a tools. Mora sin nombre/tel&eacute;fono al modelo.</aside>
+    </section>
+
+    <!-- 11 ARQUITECTURA -->
+    <section>
+      <span class="kicker">Arquitectura</span>
+      <h2>Vista global del sistema</h2>
+      <div class="mermaid mermaid-lg">
+flowchart TD
+    U["Usuario CrediFlexi<br/>(navegador)"] -->|"OAuth @financieracrediflexi.com"| V
+
+    subgraph VC["Vercel — Next.js 14"]
+        V["Frontend + API Routes"]
+        AI["/api/ai/assistant<br/>(Asistente IA)"]
+        CAR["/api/cartera/*<br/>(carga / procesar)"]
+    end
+
+    subgraph SB["Supabase — Postgres + Auth + Storage"]
+        DB[("PostgreSQL<br/>RLS en tablas")]
+        AU["Auth<br/>(OAuth + magic link)"]
+        ST["Storage<br/>cartera · ticket-attachments"]
+    end
+
+    subgraph RN["Render — microservicio Python"]
+        FA["FastAPI<br/>ETL (pandas + openpyxl)"]
+    end
+
+    YUN["Yunius RP<br/>(export Excel hoy)"]
+    GE["Google Gemini<br/>(IA — tier de pago activo)"]
+
+    YUN -.->|"carga manual"| CAR
+    V --> DB
+    V --> AU
+    V --> ST
+    AI -->|"tools sobre RPCs<br/>(mora seudonimizada)"| DB
+    AI --> GE
+    CAR -->|"dispara ETL"| FA
+    FA -->|"bulk insert"| DB
+    FA -->|"descarga Excel"| ST
+      </div>
+      <p class="footnote">Cada pieza se despliega con <strong>git push</strong> (Vercel + Render). Sin servidores propios que operar en el piloto actual.</p>
+      <aside class="notes">Diagrama global: muestra de d&oacute;nde viven tickets, score, cartera e IA. Yunius entra hoy por Excel, no por API.</aside>
+    </section>
+
+    <!-- 12 COSTOS INFRA -->
+    <section>
+      <span class="kicker">Costos de infraestructura</span>
+      <h2>Tiers actuales y si conviene subir</h2>
+      <p class="footnote" style="margin-top:0;">Tipo de cambio de referencia: <strong>1 USD &asymp; $17.50 MXN</strong> (promedio mayo&ndash;junio 2026, Banxico/mercado). Cifras en MXN redondeadas.</p>
+      <table>
+        <tr><th>Servicio</th><th>Tier hoy</th><th>MXN/mes</th><th>Cu&aacute;ndo subir</th></tr>
+        <tr><td>Vercel (app)</td><td>Free</td><td>$0</td><td>Tr&aacute;fico alto o funciones largas &rarr; Pro ~$350</td></tr>
+        <tr><td>Supabase (BD)</td><td>Free</td><td>$0</td><td>M&aacute;s storage, backups, concurrencia &rarr; Pro ~$440</td></tr>
+        <tr><td>Render (ETL)</td><td>Free</td><td>$0</td><td>Cold start molesto en demo/uso &rarr; Standard ~$120</td></tr>
+        <tr><td>Gemini (IA)</td><td>Pago por uso (Nivel 1)</td><td>~$23&ndash;46 (medido)</td><td>Escala lineal: ~$0.04 MXN/pregunta real</td></tr>
+      </table>
+      <div class="nota"><strong>Hoy:</strong> infra &asymp; $0 MXN/mes (Gemini ya en tier de pago, sin entrenamiento de datos). Subir el resto solo cuando el uso lo justifique, no por anticipaci&oacute;n.</div>
+      <aside class="notes">Costo Gemini medido con logs de tokens: ~$0.04 MXN/pregunta (&asymp;5,300 tokens). Proyecci&oacute;n: ~$23 MXN/mes a 25 preguntas/d&iacute;a, ~$46 a 50/d&iacute;a. Result&oacute; ~4x m&aacute;s barato que el estimado inicial.</aside>
+    </section>
+
+    <!-- 13 AWS ALTERNATIVA -->
+    <section>
+      <span class="kicker">Alternativa futura</span>
+      <h2>AWS / infra propia (solo si crece)</h2>
+      <table>
+        <tr><th>Enfoque</th><th>Orden de magnitud (MXN/mes)</th><th>Tradeoffs</th></tr>
+        <tr><td>Stack actual (Vercel + Supabase + Render)</td><td>$0 &ndash; ~$900</td><td>Poco mantenimiento; dependencia de terceros; l&iacute;mites en free tier</td></tr>
+        <tr><td>AWS (ECS o EC2 + RDS Postgres + S3 + monitoreo)</td><td>~$8,000 &ndash; $15,000+</td><td>Control, escala, residencia de datos; requiere DevOps dedicado, parches, backups, alertas</td></tr>
+        <tr><td>VPS Linux / servidor on-prem</td><td>~$3,500 &ndash; $14,000+ (seg&uacute;n tama&ntilde;o)</td><td>Costo predecible si ya hay personal; responsabilidad total de Sistemas</td></tr>
+      </table>
+      <div class="nota ambar"><strong>Recomendaci&oacute;n:</strong> mantener stack actual mientras se validan requerimientos y adopci&oacute;n. Migrar a AWS o servidor propio solo con volumen, compliance o costo recurrente que lo exijan.</div>
+      <aside class="notes">No cotizar AWS en detalle sin arquitectura definida; son rangos orientativos.</aside>
+    </section>
+
+    <!-- 14 BASE DE DATOS -->
+    <section>
+      <span class="kicker">Base de datos</span>
+      <h2>Modelo actual y relaci&oacute;n con Yunius</h2>
+      <div class="mermaid">
+erDiagram
+    AREAS ||--o{ PROFILES : area
+    AREAS ||--o{ PROBLEM_CATALOG : rutea
+    PROFILES ||--o{ TICKETS : participa
+    PROBLEM_CATALOG ||--o{ TICKETS : tipifica
+    TICKETS ||--o{ RESPUESTAS : hilo
+    CARTERA_UPLOADS ||--o{ STG_CARTERA : corte
+    LOGIN_PRESETS }o--|| AREAS : preasigna
+      </div>
+      <ul style="font-size:0.68em; margin-top:0.3em;">
+        <li><strong>Hoy:</strong> esquema ajustado a necesidades de la plataforma (tickets, score, cartera), no r&eacute;plica 1:1 del RP.</li>
+        <li><strong>Si hubiera acceso al RP Yunius:</strong> opci&oacute;n A) r&eacute;plica de esquema para paridad; opci&oacute;n B) seguir modelo actual + vistas/API que mapeen lo necesario (menor costo, m&aacute;s mantenimiento de mapeos).</li>
+        <li><strong>34 migraciones</strong> versionadas en git; cambios reproducibles con CLI.</li>
+      </ul>
+      <aside class="notes">Transparencia: hoy los datos de cartera vienen del Excel, no del RP en vivo.</aside>
+    </section>
+
+    <!-- 15 DISEÑO Y SEGURIDAD -->
+    <section>
+      <span class="kicker">Dise&ntilde;o y seguridad</span>
+      <h2>Interfaz preliminar; controles definidos</h2>
+      <div class="dos-col">
+        <div>
+          <h3>Dise&ntilde;o</h3>
+          <ul style="font-size:0.68em;">
+            <li>UI funcional, no dise&ntilde;o final de marca.</li>
+            <li>Se puede iterar por m&oacute;dulo seg&uacute;n feedback de usuarios.</li>
+            <li>Componentes reutilizables (tablas, filtros, formularios).</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Garant&iacute;as t&eacute;cnicas</h3>
+          <ul style="font-size:0.68em;">
+            <li>Login solo <strong>@financieracrediflexi.com</strong>.</li>
+            <li><strong>RLS</strong> en tablas sensibles; accesos por m&oacute;dulo.</li>
+            <li>IA: mora <strong>seudonimizada</strong> al modelo; mismos permisos que la app.</li>
+            <li>Pendiente endurecer adjuntos y perfiles antes de PII masiva en tickets.</li>
+          </ul>
+        </div>
+      </div>
+      <aside class="notes">Dise&ntilde;o evoluciona; seguridad tiene lista de brechas conocidas.</aside>
+    </section>
+
+    <!-- 16 COSTO-BENEFICIO -->
+    <section>
+      <span class="kicker">Costo-beneficio</span>
+      <h2>&iquest;Cu&aacute;ndo conviene la plataforma?</h2>
+      <table>
+        <tr><th>Situaci&oacute;n</th><th>Opci&oacute;n razonable</th><th>Por qu&eacute;</th></tr>
+        <tr><td>Reporte simple, pocos destinatarios, sin trazabilidad</td><td><strong>Excel / correo</strong></td><td>Menor costo y fricci&oacute;n; no justifica infra ni capacitaci&oacute;n</td></tr>
+        <tr><td>Incidencia con evidencia, responsable y cierre auditable</td><td><strong>Ticket</strong></td><td>Evita p&eacute;rdida en WhatsApp; KPI por &aacute;rea</td></tr>
+        <tr><td>Evaluaci&oacute;n crediticia estandarizada</td><td><strong>Score (ya en uso)</strong></td><td>Ya adoptado; valor demostrado</td></tr>
+        <tr><td>An&aacute;lisis recurrente de mora/PAR con filtros</td><td><strong>Dashboards cartera</strong></td><td>Solo si el ETL y m&eacute;tricas est&aacute;n validados por DS</td></tr>
+        <tr><td>Consultas ad hoc en lenguaje natural</td><td><strong>Asistente IA</strong></td><td>Costo por consulta; conviene con adopci&oacute;n real y datos confiables</td></tr>
+      </table>
+      <div class="nota"><strong>Criterio:</strong> no digitalizar por digitalizar. Cada m&oacute;dulo debe tener dolor medible y usuarios identificados.</div>
+      <aside class="notes">Mensaje clave para direcci&oacute;n: ROI por proceso, no por m&oacute;dulo completo.</aside>
+    </section>
+
+    <!-- 17 MANTENIMIENTO -->
+    <section>
+      <span class="kicker">Mantenimiento</span>
+      <h2>Operaci&oacute;n de Sistemas hoy</h2>
+      <ul style="font-size:0.78em;">
+        <li>Deploys autom&aacute;ticos por git (Vercel, Render).</li>
+        <li>Migraciones de BD versionadas; sin cambios manuales en producci&oacute;n.</li>
+        <li>Stack serverless: sin parches de SO ni servidores que vigilar.</li>
+        <li>Microservicio Free en Render: cold start ~20&ndash;30 s tras inactividad (mitigable ~$120 MXN/mes o cron de wake-up).</li>
+      </ul>
+      <aside class="notes">Carga operativa baja mientras se valida el piloto.</aside>
+    </section>
+
+    <!-- 18 ESTADO DETALLADO -->
+    <section>
+      <span class="kicker">Estado detallado</span>
+      <h2>Listo vs. por ajustar</h2>
+      <div class="dos-col">
+        <div>
+          <h3 style="color:var(--cf-verde); font-size:0.9em;">Listo o en uso</h3>
+          <ul style="font-size:0.62em;">
+            <li><strong>Score:</strong> producci&oacute;n, equipo comercial.</li>
+            <li><strong>Auth + admin:</strong> dominio corporativo, roles, presets (73 personas), cat&aacute;logo inicial.</li>
+            <li><strong>Tickets (base):</strong> formularios din&aacute;micos, 3 tipos sembrados, numeraci&oacute;n limpia para primer ticket real.</li>
+            <li><strong>Cartera (piloto):</strong> microservicio desplegado (llamada autenticada con token), 5 vistas, RPCs de consulta; carga trazable (qui&eacute;n sube / qui&eacute;n procesa) y fecha de corte autom&aacute;tica.</li>
+            <li><strong>IA (piloto):</strong> agente con 6 tools; demo en modo mock.</li>
+          </ul>
+        </div>
+        <div>
+          <h3 style="color:var(--cf-ambar); font-size:0.9em;">Por ajustar / validar</h3>
+          <ul style="font-size:0.62em;">
+            <li><strong>Tickets:</strong> entrevistas por &aacute;rea; cola por &aacute;rea; estados; RLS antes de PII masiva.</li>
+            <li><strong>Cartera:</strong> auditor&iacute;a y pruebas por <strong>equipo de Data Science</strong>; completar ETL; m&aacute;s dashboards solo si hay necesidad validada.</li>
+            <li><strong>IA:</strong> conectar datos reales (billing); ampliar tools seg&uacute;n prioridad de negocio.</li>
+            <li><strong>Datos:</strong> dependencia de Excel Yunius hasta API del RP.</li>
+            <li><strong>Storage:</strong> vaciar adjuntos de prueba en bucket de tickets.</li>
+          </ul>
+        </div>
+      </div>
+      <aside class="notes">No afirmar &quot;todo en producci&oacute;n&quot;. DS debe validar m&eacute;tricas de cartera.</aside>
+    </section>
+
+    <!-- 19 DECISIONES -->
+    <section>
+      <span class="kicker">Decisiones</span>
+      <h2>Qu&eacute; necesito de esta junta</h2>
+      <ul style="font-size:0.78em;">
+        <li>Confirmar si el enfoque <strong>piloto incremental</strong> (no big-bang) es el acordado.</li>
+        <li>Priorizar <strong>entrevistas / auditor&iacute;a de procesos</strong> para la mesa de tickets.</li>
+        <li>Validar asignaci&oacute;n de &aacute;reas del personal (presets cargados).</li>
+        <li>Acordar si <strong>Data Science</strong> revisa m&eacute;tricas y ETL de cartera antes de uso operativo.</li>
+        <li>Aprobar <strong>salir de modo mock</strong> a datos reales de cartera (billing de Gemini ya activo; costo ~$23&ndash;46 MXN/mes).</li>
+        <li>Retomar o cerrar el tema de <strong>API Yunius / RP</strong> como habilitador de datos.</li>
+      </ul>
+      <aside class="notes">Salir con prioridades, no con compromiso de construir todo.</aside>
+    </section>
+
+    <!-- 20 CIERRE -->
+    <section class="portada">
+      <h1>Gracias</h1>
+      <p class="sub">Plataforma demostrable, ajustable seg&uacute;n necesidades y prioridades de la empresa.</p>
+      <p class="meta">Preguntas y comentarios</p>
+      <aside class="notes">Cierre sobrio. Abrir a preguntas.</aside>
+    </section>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'neutral',
+    securityLevel: 'loose',
+    flowchart: { curve: 'basis', useMaxWidth: true },
+    sequence: { useMaxWidth: true },
+    er: { useMaxWidth: true }
+  });
+
+  function renderCurrentMermaid() {
+    var slide = document.querySelector('.reveal .slides section.present');
+    if (!slide) return;
+    var nodes = slide.querySelectorAll('.mermaid:not([data-processed])');
+    if (nodes.length) {
+      try { mermaid.run({ nodes: Array.prototype.slice.call(nodes) }); }
+      catch (e) { console.error('mermaid:', e); }
+    }
+  }
+
+  Reveal.initialize({
+    hash: true,
+    transition: 'slide',
+    controls: true,
+    progress: true,
+    slideNumber: 'c/t',
+    plugins: [RevealNotes]
+  }).then(renderCurrentMermaid);
+
+  Reveal.on('slidechanged', renderCurrentMermaid);
+</script>
+</body>
+</html>
