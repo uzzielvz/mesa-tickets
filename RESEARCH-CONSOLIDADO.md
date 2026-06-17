@@ -619,6 +619,20 @@ Una vez completados estos 5 pasos, el ecosistema Yunius input → Supabase → F
 - Criterio exacto para `Liquidación anticipada` (¿todos los vigentes? ¿solo con saldo adelantado?).
 - ¿Las 9 cols operativas de `Mora` siguen siendo Excel-manuales o migran a UI?
 
+##### 5.4.9.d Alineación del ETL al input real (sesión 2026-06-17, CART-016)
+
+Ajuste del ETL contra un export Yunius **real** (`docs/etl/bruto.xlsx`, 63 cols × 187 filas) para corregir desajustes de mapeo detectados al comparar headers efectivos vs. los nombres asumidos en sesiones previas. Verificado ejecutando `transformar()` + `df_a_registros()` sobre el archivo real (160 registros tras filtro de fraude).
+
+Cambios aplicados en `services/cartera_etl.py`:
+
+1. **Parcialidad fusionada** — Yunius exporta **una sola** columna `"Parcialidad + Parcialidad comisión"` (no dos columnas separadas como se asumía). Se mapea a `parcialidad`; `parcialidad_comision` queda en `NULL`. Verificado: `parcialidad` poblada 160/160.
+2. **Monto último pago** — el header real es `"$ Último pago"` (con `Ú` mayúscula y signo `$`), no `"Monto último pago"`. El lookup en `df_a_registros` es **exact-match** sobre el nombre de columna, así que la mayúscula importa. Verificado: `monto_ultimo_pago` poblado 133/160 (los 27 NULL son créditos sin pago aún — consistente con 157/187 no-nulos antes del filtro de fraude).
+3. **Robustez de encabezado** — `_detectar_fila_encabezado()` busca la fila ancla (`"Código acreditado"`) en las primeras 6 filas y `cargar_excel()` la usa como `header`, tolerando una fila de título arriba del encabezado. Default 0 si no la encuentra.
+
+Diferidos a la fase de export (CART-006), **no** al ETL de ingesta:
+- `Link de Geolocalización` — derivable de `geolocalizacion` (lat/long → URL de maps) al exportar; no se persiste en staging.
+- `Próximo Pago` — **requiere segunda fuente** (`REPORTE DE COBRANZA`); en el legacy es un `XLOOKUP(Código acreditado & Ciclo → 'REPORTE DE COBRANZA'!AO)`. No es derivable del reporte individual que ingerimos hoy.
+
 ### 5.5 Asistente IA
 
 **Alcance**: asistente conversacional con doble rol — experto en la empresa (cartera, PAR, reportes legacy) y experto en uso de la plataforma. Brainstorm completo en `docs/ideas-agente-ia-asistente.md`.
