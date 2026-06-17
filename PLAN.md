@@ -3,7 +3,7 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-06-15.
+> Última actualización: 2026-06-16.
 
 ---
 
@@ -369,7 +369,10 @@ Prefijos consistentes en `RESEARCH-CONSOLIDADO.md` §6/§7 y aquí:
 
 ## 7. Completados recientes
 
-- **2026-06-15** — AI-004: asistente como widget flotante en todas las páginas de cartera + modo pantalla completa (expandir/contraer, Esc, sin scroll de fondo).
+- **2026-06-16** — Admin: toggle de **acceso a Cartera** en el panel global `/admin/usuarios` (paridad con el de Score, en navy), conservando el panel individual `/admin/cartera`. Nota: el panel admin sigue repartido por módulo (catálogo/áreas en Tickets, métricas de score en Score, accesos cartera en Cartera) + transversales (usuarios/métricas) en el global.
+- **2026-06-16** — AI-004 (pulido): **pantalla completa** del widget del asistente (botón expandir/contraer, `Esc` sale de fullscreen y un 2º `Esc` cierra, sin scroll de fondo).
+- **2026-06-15** — AI-004: asistente IA como **widget flotante** (FAB + panel que reusa `AssistantChat`) en todas las páginas de cartera; `/cartera/chat` redirige a `/cartera`; item retirado del sidebar. Además: logging de tokens y costo estimado por pregunta del agente.
+- **2026-06-15** — Catálogo de tickets a producción: seed de áreas + **presets de login de 73 empleados** (`20260612160000`, `handle_new_user` aplica rol/área/nombre al primer login), catálogo de las **3 incidencias confirmadas en junta** (`20260612160500`: Ficha no reflejada / Crédito faltante → Tesorería, Error en mora → Data Science, con campos dinámicos y responsables default) y **borrado de los 4 tipos de prueba** del seed inicial (`20260615120000`, con guard anti-FK). Todas aplicadas en remoto.
 - **2026-06-12** — Limpieza pre go-live: borrados todos los tickets de prueba y reiniciada la numeración (`tickets_numero_seq` → 1) vía migración `20260612154500_tkt_limpieza_tickets_prueba.sql` (aplicada en remoto). El primer ticket real será #1. Pendiente: vaciar el bucket `ticket-attachments` (delete directo de `storage.objects` no permitido por SQL → vía Storage API). No toca `areas`/`problem_catalog`/`profiles`.
 - **2026-06-02** — C2-5 CART-014 + C3-5 DASH-005: cohortes por fecha de inicio de ciclo. RPC `cartera_cohort(fecha_corte, frontera)` parte la cartera en dos grupos (`antes`/`desde` la frontera) con el mismo contrato que `cartera_resumen`. Página `/cartera/cohort` con dos paneles comparativos + selector de fecha frontera (default 1-abr-2026, configurable). Hallazgo: la muestra actual no tiene ciclos 2026 (rango 2023-08 a 2025-11), por eso se adelantó la frontera configurable para que la demo muestre ambas cohortes pobladas. `sin_fecha=0` confirma `fecha_inicio_ciclo` 100% poblado.
 - **2026-06-02** — C2-4 CART-013 + C3-4 DASH-004: bandeja de mora operativa. RPC `cartera_mora_operativa` (lista de 120 morosos con datos de gestión) + página `/cartera/mora` con tabla interactiva (búsqueda, orden) y columnas de gestión Call Center/Campo **mockeadas** (editables sin persistir, banner modo demo). Decisión: la captura real (tabla `cartera_seguimiento` + escritura) queda como siguiente feature — es la que supera al Excel (histórico de gestión entre cortes).

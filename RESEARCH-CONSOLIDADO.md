@@ -244,8 +244,8 @@ middleware.ts
 | Métricas admin tickets | Parcial | Sin estado `rechazado` aparte; filtro por nombre de área |
 | Métricas admin score | Completo | A/B/C/D, promedio, pendientes |
 | Cartera: upload + Storage + ETL parcial | Parcial | Funciona end-to-end pero mapea solo 20 de ~55 cols |
-| Cartera: dashboards | Pendiente | `/cartera`, `/cartera/cobranza`, `/cartera/riesgo` placeholders |
-| Cartera: Chat IA (demo) | Parcial | `/cartera/chat` live con KB embebida determinística (sin LLM). Evolución a agente = PLAN §2.5 |
+| Cartera: dashboards | Completo | `/cartera` (resumen), `/cartera/coordinacion`, `/cartera/recuperador`, `/cartera/mora`, `/cartera/cohort` — sobre RPCs `cartera_*`. Placeholders `cobranza`/`riesgo` retirados. |
+| Cartera: Asistente IA | Completo (IA-A) | Agente real Gemini `gemini-2.5-flash` + 6 tools sobre RPCs (mora seudonimizada), modo mock (`AI_ASSISTANT_MOCK`), logging tokens/costo. **Widget flotante** (FAB + panel con pantalla completa) en todas las páginas de cartera; `/cartera/chat` → redirect. (AI-001..004, PLAN §2.5) |
 | Notificaciones email | Pendiente | — |
 | `error.tsx` global | Pendiente | 0 archivos en el proyecto |
 | Tests | Pendiente | No hay framework instalado |
@@ -832,6 +832,19 @@ Una vez completados estos 5 pasos, el ecosistema Yunius input → Supabase → F
 | 20 | `20260524000001_cartera_storage_path.sql` | `cartera_uploads.storage_path` |
 | 21 | `20260524000002_cartera_storage_policy.sql` | RLS Storage bucket `cartera` |
 | 22 | `20260524000003_stg_columnas_extra.sql` | `concepto_deposito`, `cuotas_sin_pagar`, `combinado` |
+| 23 | `20260528190511_cart_000d_cols_faltantes.sql` | Columnas faltantes staging cartera |
+| 24 | `20260531031407_cart_010_resumen_rpc.sql` | RPC `cartera_resumen` |
+| 25 | `20260531033054_cart_010b_resumen_saldo_total.sql` | Métrica `saldo_total` en resumen |
+| 26 | `20260531034435_cart_010c_resumen_filtros.sql` | Filtros en `cartera_resumen` |
+| 27 | `20260531035020_cart_010d_fix_filtros_recuperadores.sql` | Fix filtros recuperadores |
+| 28 | `20260602135452_cart_011_por_coordinacion_rpc.sql` | RPC `cartera_por_coordinacion` |
+| 29 | `20260602142131_cart_012_por_recuperador_rpc.sql` | RPC `cartera_por_recuperador` |
+| 30 | `20260602144732_cart_013_mora_operativa_rpc.sql` | RPC `cartera_mora_operativa` |
+| 31 | `20260602152000_cart_014_cohort_rpc.sql` | RPC `cartera_cohort` (frontera configurable) |
+| 32 | `20260612154500_tkt_limpieza_tickets_prueba.sql` | Borra tickets de prueba + reinicia `tickets_numero_seq` → 1 |
+| 33 | `20260612160000_alta_empleados_presets.sql` | Áreas + presets de login de 73 empleados |
+| 34 | `20260612160500_tkt_catalogo_incidencias_junta.sql` | Catálogo: 3 incidencias confirmadas en junta (campos dinámicos + responsables default) |
+| 35 | `20260615120000_tkt_borra_catalogo_prueba.sql` | Borra los 4 tipos de problema de prueba (guard anti-FK) |
 
 ---
 
