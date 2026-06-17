@@ -58,7 +58,7 @@
 | C1-3 | CART-005 | Validar `fecha_corte` contra el contenido del Excel al procesar. **No crítico para demo.** | C1-1 |
 | C1-4 | CART-006 | Módulo nuevo `cartera_export.py` que regenera el `.xlsx` FINAL TARGET (12 hojas, excluye `Recuperación`/`Cobranza`/`amortizaciones_test` en v1) + endpoint `GET /cartera/export/{fecha_corte}`. Crítico solo si la demo muestra descarga Excel. | C1-1 |
 | C1-5 | OPS-001 | ✅ **2026-05-30** — Microservicio LIVE en `https://crediflexi-services.onrender.com` (Render Free, region oregon, autoDeploy). PR #2 mergeado a master (5 commits, sin firma Claude). Smoke E2E productivo OK: 215 filas insertadas vía Vercel → Render → Supabase (`fecha_corte=2026-05-30`). Pendiente: cron-job.org wake-up cada 10 min para evitar cold start. Brief `docs/handoff/OPS-001-deploy-microservicio.md` v1.0. | C1-1 |
-| C1-6 | SEC-002 | HMAC entre `/api/cartera/procesar` y microservicio. **Post-aprobación** (no bloqueador de demo). | C1-5 |
+| C1-6 | SEC-002 | ✅ **2026-06-17** — Auth entre `/api/cartera/procesar` y microservicio vía **token compartido** (`INTERNAL_API_TOKEN`, mismo valor en Vercel y Render). Next.js manda `Authorization: Bearer <token>`; el micro valida con `secrets.compare_digest` y responde 401 si no coincide (fail-closed: sin token configurado rechaza todo). Se descartó HMAC por sobre-ingeniería para tráfico server-to-server interno sobre HTTPS. | C1-5 |
 | C1-7 | TYP-001 | ✅ **2026-05-28** — Tipos espejo generados en `lib/supabase/database.types.ts` (1112 líneas). Script `npm run db:types` para regenerar. `types.ts` (manual, dominio/UI) intacto. | C0-4 |
 
 #### Fase Cartera-2 — Capa de consulta (3-5 días)
@@ -291,10 +291,13 @@
 - **2026-05-28** — **Demo ejecutiva en ~7 días**: se prioriza deploy serio del microservicio (no ngrok) para mostrar todo el flujo desde el dominio Vercel productivo.
 - **2026-05-28** — Plataforma de deploy = **Render** (Free tier inicial; upgrade a Standard $7/mes solo si cold start arruina UX post-aprobación). Build = **Docker** (no nixpacks — más control y portabilidad). Wake-up via cron externo (cron-job.org) cada 10 min para evitar cold start.
 - **2026-05-28** — Brief operativo del deploy en `docs/handoff/OPS-001-deploy-microservicio.md` v1.0.
+- **2026-06-17** — Auth del endpoint `/cartera/procesar` con **token compartido** (`INTERNAL_API_TOKEN`), no HMAC. Razón: tráfico interno server-to-server sobre HTTPS; HMAC (firma de body + timestamp) era sobre-ingeniería para este caso. Comparación en tiempo constante y fail-closed en el micro (SEC-002).
 
 ### Datos
 
 - **2026-05-20** — `cartera_uploads` (ledger) y `stg_yunius_cartera_individual` (dato crudo) separadas. Permite re-procesar sin perder histórico.
+- **2026-06-17** — **Fecha de corte automática**: ya no la elige el usuario. El sistema la fija al **día anterior** (en horario `America/Mexico_City`), porque el reporte de Yunius refleja el cierre del día previo. Migración `20260617120000_cart_015_trazabilidad_procesado.sql`.
+- **2026-06-17** — **Trazabilidad de procesamiento**: `cartera_uploads` gana `procesado_por` + `procesado_at`. La UI de carga muestra "Subido por" y "Procesado por" (nombres resueltos desde `profiles`).
 - **2026-05-24** — Storage bucket `cartera` con políticas RLS por `acceso_cartera` o `rol=admin`.
 - **2026-05-28** — Migraciones se aplican con **Supabase CLI** (`npm run db:push`). Las 22 migraciones existentes quedaron baseline-marcadas. Workflow oficial documentado en RESEARCH §11.
 

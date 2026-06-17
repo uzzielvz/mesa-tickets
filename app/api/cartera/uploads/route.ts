@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { obtenerUploadsRecientes } from '@/lib/cartera/uploads'
 
 const TIMEOUT_MINUTOS = 10
 
@@ -16,11 +17,6 @@ export async function GET() {
     .eq('estado', 'procesando')
     .lt('created_at', timeoutISO)
 
-  const { data } = await supabase
-    .from('cartera_uploads')
-    .select('id, fecha_corte, nombre_archivo, estado, error_detalle, rows_inserted, created_at')
-    .order('created_at', { ascending: false })
-    .limit(10)
-
-  return NextResponse.json({ uploads: data ?? [] })
+  const uploads = await obtenerUploadsRecientes(supabase)
+  return NextResponse.json({ uploads })
 }

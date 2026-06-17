@@ -33,7 +33,6 @@ export default function UploadForm({ uploads: initial }: { uploads: CarteraUploa
   const [uploads, setUploads] = useState(initial)
   const [dragging, setDragging] = useState(false)
   const [archivo, setArchivo] = useState<File | null>(null)
-  const [fechaCorte, setFechaCorte] = useState('')
   const [uploading, setUploading] = useState(false)
   const [procesando, setProcesando] = useState<string | null>(null)
 
@@ -62,8 +61,8 @@ export default function UploadForm({ uploads: initial }: { uploads: CarteraUploa
   }
 
   async function handleUpload() {
-    if (!archivo || !fechaCorte) {
-      toast.error('Selecciona el archivo y la fecha de corte.')
+    if (!archivo) {
+      toast.error('Selecciona el archivo.')
       return
     }
     if (!archivo.name.endsWith('.xlsx')) {
@@ -74,7 +73,6 @@ export default function UploadForm({ uploads: initial }: { uploads: CarteraUploa
     setUploading(true)
     const form = new FormData()
     form.append('archivo', archivo)
-    form.append('fecha_corte', fechaCorte)
 
     const res = await fetch('/api/cartera/upload', { method: 'POST', body: form })
     const json = await res.json()
@@ -84,7 +82,6 @@ export default function UploadForm({ uploads: initial }: { uploads: CarteraUploa
 
     toast.success('Archivo registrado')
     setArchivo(null)
-    setFechaCorte('')
     if (fileRef.current) fileRef.current.value = ''
     await refrescarUploads()
     router.refresh()
@@ -141,20 +138,14 @@ export default function UploadForm({ uploads: initial }: { uploads: CarteraUploa
           )}
         </div>
 
-        {/* Fecha de corte */}
-        <div className="flex flex-col gap-1">
-          <label className="text-[12px] text-ink-500">Fecha de corte</label>
-          <input
-            type="date"
-            value={fechaCorte}
-            onChange={e => setFechaCorte(e.target.value)}
-            className="border border-[#ECECEC] rounded px-3 py-1.5 text-[13px] text-ink-900 outline-none focus:border-orange transition-all w-44"
-          />
-        </div>
+        {/* La fecha de corte la determina el sistema (día anterior); no se elige. */}
+        <p className="text-[11.5px] text-ink-400">
+          La fecha de corte se asigna automáticamente al día anterior (los datos reflejan el cierre del día previo).
+        </p>
 
         <button
           onClick={handleUpload}
-          disabled={uploading || !archivo || !fechaCorte}
+          disabled={uploading || !archivo}
           className="self-start bg-navy text-white text-[13px] font-medium px-4 py-2 rounded-md hover:bg-navy/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {uploading ? 'Subiendo…' : 'Subir reporte'}
@@ -175,6 +166,14 @@ export default function UploadForm({ uploads: initial }: { uploads: CarteraUploa
               <div className="flex flex-col gap-0.5 min-w-0">
                 <p className="text-[13px] font-medium text-ink-900 truncate">{u.nombre_archivo}</p>
                 <p className="text-[11.5px] text-ink-400">Corte: {u.fecha_corte}</p>
+                <p className="text-[11.5px] text-ink-400">
+                  Subido por: {u.subido_por_nombre ?? '—'}
+                </p>
+                {u.procesado_por_nombre && (
+                  <p className="text-[11.5px] text-ink-400">
+                    Procesado por: {u.procesado_por_nombre}
+                  </p>
+                )}
                 {u.estado === 'error' && u.error_detalle && (
                   <p className="text-[11.5px] text-red-600">{u.error_detalle}</p>
                 )}

@@ -5,6 +5,19 @@ const MAX_MB = 10
 const MAX_BYTES = MAX_MB * 1024 * 1024
 const BUCKET = 'cartera'
 
+/**
+ * Fecha de corte = el día anterior (en horario de México). El reporte de Yunius
+ * se descarga con el cierre del día previo, así que el corte nunca lo elige el
+ * usuario: si subes el 17, los datos reflejan el cierre del 16.
+ */
+function fechaCorteAutomatica(): string {
+  const hoyMx = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' })
+  const [y, m, d] = hoyMx.split('-').map(Number)
+  const corte = new Date(Date.UTC(y, m - 1, d))
+  corte.setUTCDate(corte.getUTCDate() - 1)
+  return corte.toISOString().slice(0, 10)
+}
+
 export async function POST(request: Request) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -27,10 +40,11 @@ export async function POST(request: Request) {
   }
 
   const archivo = formData.get('archivo') as File | null
-  const fechaCorte = formData.get('fecha_corte') as string | null
 
   if (!archivo) return NextResponse.json({ error: 'Falta el archivo' }, { status: 400 })
-  if (!fechaCorte) return NextResponse.json({ error: 'Falta la fecha de corte' }, { status: 400 })
+
+  // La fecha de corte la determina el sistema (día anterior), no el usuario.
+  const fechaCorte = fechaCorteAutomatica()
 
   if (!archivo.name.endsWith('.xlsx')) {
     return NextResponse.json({ error: 'Solo se aceptan archivos .xlsx' }, { status: 400 })

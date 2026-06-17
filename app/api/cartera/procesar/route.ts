@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
 const PYTHON_SERVICE_URL = process.env.PYTHON_SERVICE_URL ?? 'http://localhost:8001'
+// Token compartido para autenticar la llamada interna Next.js → microservicio.
+// Debe coincidir con el INTERNAL_API_TOKEN configurado en el micro (Render).
+const INTERNAL_API_TOKEN = process.env.INTERNAL_API_TOKEN ?? ''
 
 export async function POST(request: Request) {
   const supabase = createClient()
@@ -39,7 +42,10 @@ export async function POST(request: Request) {
   try {
     const resp = await fetch(`${PYTHON_SERVICE_URL}/cartera/procesar`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${INTERNAL_API_TOKEN}`,
+      },
       body: JSON.stringify({
         upload_id: uploadId,
         fecha_corte: upload.fecha_corte,
@@ -53,6 +59,13 @@ export async function POST(request: Request) {
     }
 
     const result = await resp.json()
+
+    // Trazabilidad: registrar quién procesó y cuándo (el micro ya marcó el estado).
+    await supabase
+      .from('cartera_uploads')
+      .update({ procesado_por: user.id, procesado_at: new Date().toISOString() })
+      .eq('id', uploadId)
+
     return NextResponse.json({ ok: true, registros: result.registros_insertados })
   } catch (err) {
     await supabase

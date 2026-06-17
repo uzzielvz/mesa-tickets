@@ -7,8 +7,13 @@ export interface CarteraUpload {
   drive_file_id: string | null
   storage_path: string | null
   subido_por: string | null
+  procesado_por: string | null
+  procesado_at: string | null
   estado: UploadEstado
   error_detalle: string | null
   rows_inserted: number | null
   created_at: string
+  // Nombres resueltos desde profiles (no son columnas; se rellenan al consultar).
+  subido_por_nombre?: string | null
+  procesado_por_nombre?: string | null
 }

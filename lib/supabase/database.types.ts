@@ -254,6 +254,8 @@ export type Database = {
           fecha_corte: string
           id: string
           nombre_archivo: string
+          procesado_at: string | null
+          procesado_por: string | null
           rows_inserted: number | null
           storage_path: string | null
           subido_por: string | null
@@ -266,6 +268,8 @@ export type Database = {
           fecha_corte: string
           id?: string
           nombre_archivo: string
+          procesado_at?: string | null
+          procesado_por?: string | null
           rows_inserted?: number | null
           storage_path?: string | null
           subido_por?: string | null
@@ -278,6 +282,8 @@ export type Database = {
           fecha_corte?: string
           id?: string
           nombre_archivo?: string
+          procesado_at?: string | null
+          procesado_por?: string | null
           rows_inserted?: number | null
           storage_path?: string | null
           subido_por?: string | null
