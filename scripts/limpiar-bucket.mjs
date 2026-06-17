@@ -1,16 +1,18 @@
-// Vacía el bucket 'ticket-attachments' (limpieza pre go-live).
+// Vacía un bucket de Storage (limpieza pre go-live).
 // Requiere el service_role_key porque borrar archivos de otros usuarios
 // no es posible con la anon key (lo bloquea RLS de Storage).
 //
 // Uso (PowerShell / bash):
-//   SUPABASE_SERVICE_ROLE_KEY=<tu_service_role_key> node scripts/limpiar-bucket-tickets.mjs
+//   SUPABASE_SERVICE_ROLE_KEY=<tu_service_role_key> node scripts/limpiar-bucket.mjs <bucket>
+//   ej: SUPABASE_SERVICE_ROLE_KEY=<key> node scripts/limpiar-bucket.mjs cartera
 //
+// El bucket se pasa como argumento (default 'ticket-attachments').
 // La URL se lee de .env.local (NEXT_PUBLIC_SUPABASE_URL).
 
 import { readFileSync } from 'node:fs'
 import { createClient } from '@supabase/supabase-js'
 
-const BUCKET = 'ticket-attachments'
+const BUCKET = process.argv[2] || 'ticket-attachments'
 
 // --- cargar NEXT_PUBLIC_SUPABASE_URL desde .env.local ---
 function envLocal() {
