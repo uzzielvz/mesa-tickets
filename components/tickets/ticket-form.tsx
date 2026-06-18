@@ -21,14 +21,27 @@ interface Props {
   areas: Area[]
   catalog: CatalogItem[]
   userId: string
+  /** Preselección vía deep-link (ej. desde el asistente: /tickets/nuevo?area=...&tipo=...). */
+  initialAreaId?: string
+  initialProblemId?: string
 }
 
 const inputClass = 'bg-white border border-[#ECECEC] rounded px-3 py-[7px] text-[13px] text-ink-900 placeholder:text-ink-400 outline-none focus:border-orange focus:ring-[3px] focus:ring-orange/15 transition-all'
 
-export default function TicketForm({ areas, catalog, userId }: Props) {
+export default function TicketForm({ areas, catalog, userId, initialAreaId, initialProblemId }: Props) {
   const router = useRouter()
-  const [selectedArea, setSelectedArea] = useState('')
-  const [selectedProblem, setSelectedProblem] = useState<CatalogItem | null>(null)
+
+  // Preselección desde deep-link: solo si el tipo existe, está activo y (si se dio área) le pertenece.
+  const initialProblem =
+    catalog.find(
+      c => c.id === initialProblemId && (!initialAreaId || c.area_id === initialAreaId),
+    ) ?? null
+  const initialArea =
+    initialProblem?.area_id ??
+    (initialAreaId && areas.some(a => a.id === initialAreaId) ? initialAreaId : '')
+
+  const [selectedArea, setSelectedArea] = useState(initialArea)
+  const [selectedProblem, setSelectedProblem] = useState<CatalogItem | null>(initialProblem)
   const [datos, setDatos] = useState<TicketDatos>({})
   const [comentario, setComentario] = useState('')
   const [files, setFiles] = useState<FileList | null>(null)

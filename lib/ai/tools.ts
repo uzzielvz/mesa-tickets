@@ -177,6 +177,42 @@ export function buildCarteraTools(supabase: SupabaseClient<any>) {
       },
     }),
 
+    sugerirTicket: tool({
+      description:
+        'Consulta el catálogo VIGENTE de tipos de incidencia (tickets) que se pueden levantar en la plataforma: por cada tipo devuelve el área responsable, cuándo usarlo, los datos que pedirá el formulario y un link directo para crearlo con el área y el tipo ya seleccionados. Úsala cuando el usuario describa un problema operativo que requiere acción de otra área (ej. "la mora de un cliente está mal", "un pago/ficha no se refleja", "falta un crédito dispersado") para recomendarle qué ticket levantar. El catálogo es dinámico (lo administra el equipo), por eso se consulta en vivo y nunca se inventan tipos.',
+      inputSchema: z.object({}),
+      execute: async () => {
+        const [{ data: catalog, error: ec }, { data: areas, error: ea }] = await Promise.all([
+          supabase
+            .from('problem_catalog')
+            .select('id, nombre, leyenda, requiere_evidencia, campos, area_id')
+            .eq('activo', true)
+            .order('nombre'),
+          supabase.from('areas').select('id, nombre').eq('activo', true),
+        ])
+        if (ec) return rpcError('Error consultando catálogo de tickets', ec.message)
+        if (ea) return rpcError('Error consultando áreas', ea.message)
+
+        const areaNombre = new Map((areas ?? []).map(a => [a.id as string, a.nombre as string]))
+        const tipos = (catalog ?? []).map(c => {
+          const campos = Array.isArray(c.campos) ? (c.campos as { label: string; required?: boolean }[]) : []
+          return {
+            nombre: c.nombre as string,
+            area: areaNombre.get(c.area_id as string) ?? '—',
+            cuando_usarlo: c.leyenda as string,
+            requiere_evidencia: c.requiere_evidencia as boolean,
+            datos_requeridos: campos.filter(f => f.required).map(f => f.label),
+            link_crear: `/tickets/nuevo?area=${c.area_id}&tipo=${c.id}`,
+          }
+        })
+
+        return {
+          tipos,
+          nota: 'Comparte el campo link_crear como enlace markdown (ej. [Levantar "Error en mora"](/tickets/nuevo?...)) para que el formulario abra con el área y el tipo ya seleccionados. No inventes tipos ni áreas: usa solo los de esta lista.',
+        }
+      },
+    }),
+
     obtenerCohort: tool({
       description:
         'Comparativo de 2 cohortes de la cartera partidas por fecha de inicio de ciclo (antes/desde la fecha frontera): cada una con totales, PAR 8 buckets y PAR>30/90. Equivale a las hojas mensuales del Excel legacy y al dashboard /cartera/cohort.',
