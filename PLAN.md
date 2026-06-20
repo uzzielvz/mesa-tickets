@@ -3,7 +3,7 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-06-16.
+> Última actualización: 2026-06-20.
 
 ---
 
@@ -174,7 +174,7 @@
 |---|--------|--------|-------------|
 | P-O1a | OPS-002a | ✅ **2026-05-28** | Supabase CLI local + `supabase link` + baseline 22 migraciones existentes + scripts npm (`db:push`, `db:status`, `db:new`, `db:diff`). |
 | P-O1b | OPS-002b | 🔲 *(post-v1.0)* | GitHub Action que corre `supabase db push` en cada merge a `main` (requiere `SUPABASE_ACCESS_TOKEN` + `SUPABASE_DB_PASSWORD` en repo secrets). |
-| P-O2 | OPS-003 | 🔲 | `.env.example` en raíz (incluyendo `SUPABASE_DB_PASSWORD`). |
+| P-O2 | OPS-003 | ✅ **2026-06-17** | `.env.example` creado en raíz con variables de cartera e `INTERNAL_API_TOKEN`. Pendiente: completar con `SUPABASE_DB_PASSWORD` y resto de vars del proyecto. |
 | P-O3 | API-001 | 🔲 *(post-v1.0)* | `/api/cartera/procesar` fire-and-forget (no espera al microservicio). |
 
 #### Fase Plataforma-Tests *(post-v1.0)*
@@ -202,6 +202,7 @@
 | IA-A2 | AI-002 | **Tools sobre los 5 RPCs existentes**: `getResumen`, `getPorCoordinacion`, `getPorRecuperador`, `getMora`, `getCohort`. Server-side con el cliente Supabase de la sesión del usuario (los checks `rol=admin OR acceso_cartera` de los RPCs aplican solos). `getMora` **seudonimizada**: código de acreditado + saldos + días, sin nombres ni teléfonos. | AI-001 |
 | IA-A3 | AI-003 | Guardrails + pulido: nunca inventar cifras (números solo vía tools, citados con su `fecha_corte`), actualizar copy del banner (deja de ser "demo embebida"), `GOOGLE_GENERATIVE_AI_API_KEY` documentada en `.env.example` y cargada en Vercel. | AI-001 |
 | IA-A4 | AI-004 | ✅ **2026-06-15** — **Asistente como widget flotante** en layout de cartera: FAB + panel que reusa `AssistantChat`; `/cartera/chat` redirige a `/cartera`; item del sidebar retirado. **Pantalla completa**: botón expandir/contraer en header del panel (`Maximize2`/`Minimize2`), `Esc` sale de fullscreen (segundo `Esc` cierra), `body` sin scroll al expandir. | AI-001 |
+| IA-A5 | AI-005 | ✅ **2026-06-18** — Tool `sugerirTicket` cross-módulo: lee `problem_catalog` + `areas` en tiempo real y devuelve, por tipo de incidencia, el área responsable, cuándo usarla, qué datos requiere y un **link directo** a `/tickets/nuevo?area=&tipo=` con área y tipo preseleccionados. System prompt del agente instruye a recomendar el ticket correcto ante un problema operativo y a compartir el enlace. | AI-001 |
 
 #### Fase IA-B — Memoria + RAG ligero
 
@@ -373,6 +374,11 @@ Prefijos consistentes en `RESEARCH-CONSOLIDADO.md` §6/§7 y aquí:
 
 ## 7. Completados recientes
 
+- **2026-06-18** — AI-005: tool `sugerirTicket` integrada al asistente IA. Lee `problem_catalog` + `areas` en tiempo real y devuelve, por tipo de incidencia, el área responsable, cuándo usarla, qué datos se requieren y un **link directo** (`/tickets/nuevo?area=&tipo=`) para abrir el formulario con área y tipo preseleccionados. El sistema prompt del agente instruye a recomendar el ticket correcto ante cualquier problema operativo.
+- **2026-06-17** — C1-8 CART-016: ETL alineado al insumo real de Yunius. Ver detalle en tabla §2.1 Cartera-1.
+- **2026-06-17** — Trazabilidad de procesamiento (migración `20260617120000_cart_015`): `cartera_uploads` gana `procesado_por` + `procesado_at`; la UI de carga muestra "Subido por" y "Procesado por" con nombres resueltos desde `profiles`. Fecha de corte ya no la elige el usuario — el sistema la fija al **día anterior** en `America/Mexico_City` (los datos de Yunius reflejan el cierre del día previo). SEC-002 cerrado: auth con token compartido `INTERNAL_API_TOKEN` entre Next.js y el micro. OPS-003 cerrado: `.env.example` creado en raíz.
+- **2026-06-17** — Limpieza pre-producción de datos de cartera (migración `20260617230820_cart_016`): `stg_yunius_cartera_individual` y `cartera_uploads` vaciados one-off antes de la primera carga real. Script `scripts/limpiar-bucket.mjs` generalizado para aceptar nombre de bucket como argumento.
+- **2026-06-17** — Documentación ejecutiva: `docs/presentacion-direccion.md/.html` (deck para dirección con costo real de Gemini medido y estado actual del sistema) + `docs/layout-recoleccion-incidencias.md` (molde para recabar info de cada área y construir formularios de tickets a la medida).
 - **2026-06-16** — Admin: toggle de **acceso a Cartera** en el panel global `/admin/usuarios` (paridad con el de Score, en navy), conservando el panel individual `/admin/cartera`. Nota: el panel admin sigue repartido por módulo (catálogo/áreas en Tickets, métricas de score en Score, accesos cartera en Cartera) + transversales (usuarios/métricas) en el global.
 - **2026-06-16** — AI-004 (pulido): **pantalla completa** del widget del asistente (botón expandir/contraer, `Esc` sale de fullscreen y un 2º `Esc` cierra, sin scroll de fondo).
 - **2026-06-15** — AI-004: asistente IA como **widget flotante** (FAB + panel que reusa `AssistantChat`) en todas las páginas de cartera; `/cartera/chat` redirige a `/cartera`; item retirado del sidebar. Además: logging de tokens y costo estimado por pregunta del agente.

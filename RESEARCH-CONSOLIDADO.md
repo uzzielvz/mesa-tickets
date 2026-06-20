@@ -1,7 +1,7 @@
 # RESEARCH CONSOLIDADO — mea-tickets (CrediFlexi Operaciones)
 
 > Documento vivo. Single source of truth del estado real del repo.
-> Última actualización: 2026-06-09.
+> Última actualización: 2026-06-20.
 > Para el plan de trabajo activo ver `PLAN.md`.
 
 ---
@@ -245,7 +245,7 @@ middleware.ts
 | Métricas admin score | Completo | A/B/C/D, promedio, pendientes |
 | Cartera: upload + Storage + ETL parcial | Parcial | Funciona end-to-end pero mapea solo 20 de ~55 cols |
 | Cartera: dashboards | Completo | `/cartera` (resumen), `/cartera/coordinacion`, `/cartera/recuperador`, `/cartera/mora`, `/cartera/cohort` — sobre RPCs `cartera_*`. Placeholders `cobranza`/`riesgo` retirados. |
-| Cartera: Asistente IA | Completo (IA-A) | Agente real Gemini `gemini-2.5-flash` + 6 tools sobre RPCs (mora seudonimizada), modo mock (`AI_ASSISTANT_MOCK`), logging tokens/costo. **Widget flotante** (FAB + panel con pantalla completa) en todas las páginas de cartera; `/cartera/chat` → redirect. (AI-001..004, PLAN §2.5) |
+| Cartera: Asistente IA | Completo (IA-A) | Agente real Gemini `gemini-2.5-flash` + 7 tools: 6 sobre RPCs de cartera (mora seudonimizada) + `sugerirTicket` (lee catálogo vigente y devuelve link directo para crear el ticket correcto). Modo mock (`AI_ASSISTANT_MOCK`), logging tokens/costo. **Widget flotante** (FAB + panel con pantalla completa) en todas las páginas de cartera; `/cartera/chat` → redirect. (AI-001..005, PLAN §2.5) |
 | Notificaciones email | Pendiente | — |
 | `error.tsx` global | Pendiente | 0 archivos en el proyecto |
 | Tests | Pendiente | No hay framework instalado |
@@ -267,6 +267,8 @@ middleware.ts
 **Pendientes**: SEC-001 (Server Actions), RLS-001/002/004/005, UI-003/004.
 
 **Plan de evolución (go-live producción)**: las limitaciones de §5.1.1–5.1.4 (responsable fijo, paridad forzada, estado derivado) se resuelven en la fase **Tickets-Producción** del `PLAN.md` (T-P1 cola por área, T-P2 estados explícitos, T-P3 seed de los 3 tipos, T-P4 seguridad full). Este §5.1 describe el **estado real actual**; el plan de cambio vive en `PLAN.md §2.2`.
+
+**Integración con Asistente IA (2026-06-18)**: la página `/tickets/nuevo` acepta `?area=&tipo=` para preseleccionar área y tipo de incidencia en el formulario. El asistente IA usa la tool `sugerirTicket` para recomendar el ticket correcto y compartir ese link directo al detectar un problema operativo.
 
 #### 5.1.1 Cómo funciona hoy (modelo de datos + máquina de estados)
 
@@ -637,12 +639,15 @@ Diferidos a la fase de export (CART-006), **no** al ETL de ingesta:
 
 **Alcance**: asistente conversacional con doble rol — experto en la empresa (cartera, PAR, reportes legacy) y experto en uso de la plataforma. Brainstorm completo en `docs/ideas-agente-ia-asistente.md`.
 
-**Estado actual (entregado 2026-06-04, PRO-004)**: demo **determinística sin LLM**:
+**Estado actual**: agente real Gemini `gemini-2.5-flash` con 7 tools en producción (AI-001..005, 2026-06-18):
 
-- `lib/ai/knowledge-base.ts` — KB embebida (13 chunks empresa + plataforma) + `retrieveRelevant` (keyword overlap) + `generateDemoResponse`.
-- `app/api/ai/assistant/route.ts` — endpoint que arma la respuesta con retrieval + templates.
-- `components/cartera/assistant-chat.tsx` + `app/(dashboard)/cartera/chat/page.tsx` — UI con empty-state, chips de sugerencias, citas y banner "modo demo".
-- `@ai-sdk/react` ya instalado (preparado para la migración).
+- `app/api/ai/assistant/route.ts` — `streamText` vía Vercel AI SDK + `maxDuration: 60`. Sistema de tools:
+  - 6 tools sobre RPCs de cartera: `getResumen`, `getPorCoordinacion`, `getPorRecuperador`, `getMora` (seudonimizada), `getCohort`, `getCarteraFiltros`.
+  - `sugerirTicket` (AI-005, 2026-06-18): lee `problem_catalog` + `areas` en tiempo real y devuelve, por tipo de incidencia, el área responsable, cuándo usarla, qué datos se requieren y un link directo a `/tickets/nuevo?area=&tipo=` con formulario preseleccionado. El system prompt instruye al agente a recomendar el ticket correcto ante cualquier problema operativo.
+- `components/cartera/assistant-chat.tsx` — UI con streaming (`useChat`), empty-state, chips de sugerencias. Widget flotante (FAB + panel con fullscreen) en todas las páginas de cartera; `/cartera/chat` redirige a `/cartera`.
+- Modo mock `AI_ASSISTANT_MOCK=true` para testing sin costo de API. Logging de tokens y costo estimado por pregunta.
+- `lib/ai/tools.ts` — definiciones de tools con Zod.
+- `lib/ai/knowledge-base.ts` — KB embebida (13 chunks empresa + plataforma) en el system prompt.
 
 **Decisiones 2026-06-09** (detalle en PLAN §4 "Asistente IA"):
 
@@ -669,7 +674,7 @@ Diferidos a la fase de export (CART-006), **no** al ETL de ingesta:
 - **RLS-003 (Media)** — `acreditado_referencias` / `acreditado_historial` INSERT solo validan `has_score_access()`; un operador puede contaminar registros ajenos. **Fix**: validar también que el `acreditado_id` es del capturador o via RPC.
 - **RLS-004 (Media)** — `ticket_responses_insert` no bloquea si `closed_at IS NOT NULL`. **Fix**: trigger `before insert` que rechace.
 - **RLS-005 (Media)** — Bucket Storage `ticket-attachments` no tiene políticas en el repo (sí en el dashboard). **Fix**: migración versionada análoga a `20260524000002_cartera_storage_policy.sql`.
-- **SEC-002 (Media)** — Cartera: el microservicio usa `service_role_key` (bypassa RLS). Es correcto para backend-to-DB, pero el endpoint `/cartera/procesar` del microservicio **no autentica** la llamada de Next.js. En localhost no hay riesgo; en producción cualquiera con la URL podría dispararlo. **Fix**: HMAC compartido o JWT entre Next.js y microservicio.
+- **SEC-002 (Media)** — ✅ **2026-06-17 resuelto**: auth entre Next.js y el microservicio implementada con **token compartido** (`INTERNAL_API_TOKEN`). Next.js manda `Authorization: Bearer <token>`; el micro valida con `secrets.compare_digest` y responde 401 si no coincide (fail-closed). Se descartó HMAC por sobre-ingeniería para tráfico server-to-server interno sobre HTTPS.
 
 ### Cartera (gaps de datos)
 
@@ -712,7 +717,7 @@ Diferidos a la fase de export (CART-006), **no** al ETL de ingesta:
 
 - **OPS-001 (Alta)** — Microservicio Python solo corre en localhost. Sin Dockerfile, sin deploy. Cartera en producción no funcionaría.
 - **OPS-002 (Media)** — Parte 1 ✅ resuelta (2026-05-28): Supabase CLI v2.101 linkeado al proyecto, baseline de 22 migraciones repareadas, scripts `npm run db:new`/`db:push`/`db:status` operativos. Parte 2 pendiente: workflow GitHub Actions con `supabase db push` en CI.
-- **OPS-003 (Baja)** — No hay `.env.example` en el repo raíz.
+- **OPS-003 (Baja)** — ✅ **2026-06-17 resuelto**: `.env.example` creado en raíz con variables de cartera e `INTERNAL_API_TOKEN`. Pendiente: completar con `SUPABASE_DB_PASSWORD` y resto de vars del proyecto.
 
 ---
 
@@ -727,7 +732,7 @@ Diferidos a la fase de export (CART-006), **no** al ETL de ingesta:
 | RLS-005 | Seguridad | Storage `ticket-attachments` | Alta | Migración con políticas versionadas |
 | OPS-001 | Operación | Microservicio Python | Alta | Dockerfile + deploy (Railway/Fly/Render) + `PYTHON_SERVICE_URL` en Vercel |
 | SEC-001 | Arquitectura | Mutaciones cliente en tickets/admin | Alta | Migrar a Server Actions |
-| SEC-002 | Seguridad | Microservicio sin auth | Media | HMAC entre Next.js y microservicio |
+| ~~SEC-002~~ | ~~Seguridad~~ | ~~Microservicio sin auth~~ | ~~Media~~ | ✅ **2026-06-17** resuelto con token compartido `INTERNAL_API_TOKEN` |
 | CART-002 | Datos | `fecha_inicio_ciclo` no llenada | Media | Parte de CART-001 |
 | CART-005 | Datos | `fecha_corte` no validada vs Excel | Baja | Validación al procesar |
 | RLS-002 | Seguridad | `profiles_select` open | Media | Vista pública o restringir |
@@ -859,6 +864,8 @@ Diferidos a la fase de export (CART-006), **no** al ETL de ingesta:
 | 33 | `20260612160000_alta_empleados_presets.sql` | Áreas + presets de login de 73 empleados |
 | 34 | `20260612160500_tkt_catalogo_incidencias_junta.sql` | Catálogo: 3 incidencias confirmadas en junta (campos dinámicos + responsables default) |
 | 35 | `20260615120000_tkt_borra_catalogo_prueba.sql` | Borra los 4 tipos de problema de prueba (guard anti-FK) |
+| 36 | `20260617120000_cart_015_trazabilidad_procesado.sql` | `procesado_por` + `procesado_at` en `cartera_uploads`; fecha de corte automática (día anterior en MX) |
+| 37 | `20260617230820_cart_016_limpieza_datos_prueba.sql` | Vacía `stg_yunius_cartera_individual` y `cartera_uploads` one-off pre-producción |
 
 ---
 
