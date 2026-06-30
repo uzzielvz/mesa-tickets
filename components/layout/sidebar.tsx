@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Ticket, Inbox, Tags, FolderTree,
   Users, UserPlus, Gauge,
   PieChart, Building2, UserSearch, AlertTriangle, Layers, Upload, KeyRound,
-  BarChart3,
+  BarChart3, Briefcase,
   type LucideIcon,
 } from 'lucide-react'
 import Wordmark from '@/components/brand/wordmark'
@@ -116,19 +116,23 @@ function NavContent({
   const isResponsable = profile.rol === 'responsable' || isAdmin
   const accesoScore = profile.acceso_score === true
   const accesoCartera = profile.acceso_cartera === true
+  const accesoReclutamiento = profile.acceso_reclutamiento === true
   const hasScoreAccess = accesoScore || isAdmin
   const hasCarteraAccess = accesoCartera || isAdmin
+  const hasReclutamientoAccess = accesoReclutamiento || isAdmin
   const soloScore = esSoloOperadorScore(profile.rol, accesoScore)
 
   // Secciones que contienen la ruta activa.
   const ticketsActive = pathname.startsWith('/tickets') || pathname.startsWith('/admin/catalogo') || pathname.startsWith('/admin/areas')
   const scoreActive = pathname.startsWith('/score') || pathname.startsWith('/admin/score')
   const carteraActive = pathname.startsWith('/cartera') || pathname.startsWith('/admin/cartera')
+  const reclutamientoActive = pathname.startsWith('/reclutamiento')
 
   // Auto-abre solo la sección activa según la ruta; las demás arrancan colapsadas.
   const [ticketsOpen, setTicketsOpen] = useState(() => ticketsActive)
   const [scoreOpen, setScoreOpen] = useState(() => scoreActive)
   const [carteraOpen, setCarteraOpen] = useState(() => carteraActive)
+  const [reclutamientoOpen, setReclutamientoOpen] = useState(() => reclutamientoActive)
 
   return (
     <div className="flex flex-col gap-3">
@@ -297,6 +301,31 @@ function NavContent({
               />
             </>
           )}
+        </NavSection>
+      )}
+
+      {/* ── Reclutamiento ── */}
+      {hasReclutamientoAccess && (
+        <NavSection
+          title="Reclutamiento"
+          open={reclutamientoOpen}
+          hasActive={reclutamientoActive}
+          onToggle={() => setReclutamientoOpen(v => !v)}
+        >
+          <NavItem
+            href="/reclutamiento"
+            label="Vacantes"
+            icon={Briefcase}
+            active={pathname === '/reclutamiento'}
+            onClick={onNav}
+          />
+          <NavItem
+            href="/reclutamiento/candidatos"
+            label="Candidatos"
+            icon={UserSearch}
+            active={pathname.startsWith('/reclutamiento/candidatos')}
+            onClick={onNav}
+          />
         </NavSection>
       )}
 
