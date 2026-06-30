@@ -8,6 +8,21 @@ export type TicketStatus = 'abierto' | 'contestado' | 'terminado' | 'cerrado' | 
 
 export type ProblemFieldType = 'text' | 'textarea' | 'number' | 'select' | 'date'
 
+// ── Reclutamiento (enums rec_*) ──
+export type RecEtapa =
+  | 'postulado' | 'en_revision' | 'viable' | 'entrevistas_agendadas'
+  | 'comite' | 'final_dg' | 'oferta' | 'contratado' | 'descartado'
+export type RecFuente = 'occ' | 'computrabajo' | 'linkedin' | 'factorial' | 'manual'
+export type RecRevisionCv = 'viable' | 'parcial' | 'no_viable'
+export type RecMotivoDescarte =
+  | 'no_perfil' | 'expectativa_salarial' | 'ubicacion'
+  | 'experiencia_insuficiente' | 'no_contesto' | 'declino' | 'otro'
+export type RecViabilidad = 'si' | 'no' | 'filtro_dg'
+export type RecEntrevistaEstado = 'programada' | 'realizada' | 'no_show' | 'cancelada'
+export type RecPlantillaCodigo =
+  | 'confirmacion_postulacion' | 'agendamiento_fase2' | 'notificacion_entrevistador'
+  | 'pase_fase3' | 'descarte' | 'oferta' | 'informativa'
+
 export interface ProblemField {
   key: string
   label: string
@@ -53,6 +68,7 @@ export interface Database {
           activo: boolean
           acceso_score: boolean
           acceso_cartera: boolean
+          acceso_reclutamiento: boolean
           created_at: string
         }
         Insert: {
@@ -64,6 +80,7 @@ export interface Database {
           activo?: boolean
           acceso_score?: boolean
           acceso_cartera?: boolean
+          acceso_reclutamiento?: boolean
         }
         Update: {
           id?: string
@@ -74,6 +91,7 @@ export interface Database {
           activo?: boolean
           acceso_score?: boolean
           acceso_cartera?: boolean
+          acceso_reclutamiento?: boolean
         }
         Relationships: []
       }
@@ -335,6 +353,251 @@ export interface Database {
         Update: never
         Relationships: []
       }
+      rec_vacantes: {
+        Row: {
+          id: string
+          titulo: string
+          area: string | null
+          descripcion: string | null
+          estado: 'abierta' | 'cerrada'
+          creada_por_id: string | null
+          created_at: string
+        }
+        Insert: {
+          titulo: string
+          area?: string | null
+          descripcion?: string | null
+          estado?: 'abierta' | 'cerrada'
+          creada_por_id?: string | null
+        }
+        Update: {
+          titulo?: string
+          area?: string | null
+          descripcion?: string | null
+          estado?: 'abierta' | 'cerrada'
+          creada_por_id?: string | null
+        }
+        Relationships: []
+      }
+      rec_candidatos: {
+        Row: {
+          id: string
+          vacante_id: string
+          nombre: string
+          email: string | null
+          telefono: string | null
+          fuente: RecFuente | null
+          etapa: RecEtapa
+          revision_cv: RecRevisionCv | null
+          viabilidad: RecViabilidad | null
+          motivo_descarte: RecMotivoDescarte | null
+          cv_storage_path: string | null
+          notas: string | null
+          created_at: string
+        }
+        Insert: {
+          vacante_id: string
+          nombre: string
+          email?: string | null
+          telefono?: string | null
+          fuente?: RecFuente | null
+          etapa?: RecEtapa
+          revision_cv?: RecRevisionCv | null
+          viabilidad?: RecViabilidad | null
+          motivo_descarte?: RecMotivoDescarte | null
+          cv_storage_path?: string | null
+          notas?: string | null
+        }
+        Update: {
+          vacante_id?: string
+          nombre?: string
+          email?: string | null
+          telefono?: string | null
+          fuente?: RecFuente | null
+          etapa?: RecEtapa
+          revision_cv?: RecRevisionCv | null
+          viabilidad?: RecViabilidad | null
+          motivo_descarte?: RecMotivoDescarte | null
+          cv_storage_path?: string | null
+          notas?: string | null
+        }
+        Relationships: []
+      }
+      rec_sesiones_entrevistas: {
+        Row: {
+          id: string
+          vacante_id: string
+          fase: number
+          fecha: string | null
+          descripcion: string | null
+          creada_por_id: string | null
+          created_at: string
+        }
+        Insert: {
+          vacante_id: string
+          fase?: number
+          fecha?: string | null
+          descripcion?: string | null
+          creada_por_id?: string | null
+        }
+        Update: {
+          vacante_id?: string
+          fase?: number
+          fecha?: string | null
+          descripcion?: string | null
+          creada_por_id?: string | null
+        }
+        Relationships: []
+      }
+      rec_entrevistas: {
+        Row: {
+          id: string
+          sesion_id: string
+          candidato_id: string
+          fecha_hora: string | null
+          estado: RecEntrevistaEstado
+          gcal_event_id: string | null
+          created_at: string
+        }
+        Insert: {
+          sesion_id: string
+          candidato_id: string
+          fecha_hora?: string | null
+          estado?: RecEntrevistaEstado
+          gcal_event_id?: string | null
+        }
+        Update: {
+          sesion_id?: string
+          candidato_id?: string
+          fecha_hora?: string | null
+          estado?: RecEntrevistaEstado
+          gcal_event_id?: string | null
+        }
+        Relationships: []
+      }
+      rec_evaluaciones: {
+        Row: {
+          id: string
+          entrevista_id: string
+          entrevistador_id: string
+          puntaje: number | null
+          comentarios: string | null
+          recomendacion: RecViabilidad | null
+          enviada_at: string | null
+          created_at: string
+        }
+        Insert: {
+          entrevista_id: string
+          entrevistador_id: string
+          puntaje?: number | null
+          comentarios?: string | null
+          recomendacion?: RecViabilidad | null
+          enviada_at?: string | null
+        }
+        Update: {
+          puntaje?: number | null
+          comentarios?: string | null
+          recomendacion?: RecViabilidad | null
+          enviada_at?: string | null
+        }
+        Relationships: []
+      }
+      rec_magic_links: {
+        Row: {
+          id: string
+          sesion_id: string
+          entrevistador_id: string
+          token: string
+          expira_at: string | null
+          usado_at: string | null
+          created_at: string
+        }
+        Insert: {
+          sesion_id: string
+          entrevistador_id: string
+          token: string
+          expira_at?: string | null
+          usado_at?: string | null
+        }
+        Update: {
+          expira_at?: string | null
+          usado_at?: string | null
+        }
+        Relationships: []
+      }
+      rec_plantillas_correo: {
+        Row: {
+          id: string
+          codigo: RecPlantillaCodigo
+          asunto: string
+          cuerpo: string
+          activa: boolean
+        }
+        Insert: {
+          codigo: RecPlantillaCodigo
+          asunto: string
+          cuerpo: string
+          activa?: boolean
+        }
+        Update: {
+          codigo?: RecPlantillaCodigo
+          asunto?: string
+          cuerpo?: string
+          activa?: boolean
+        }
+        Relationships: []
+      }
+      rec_correos_enviados: {
+        Row: {
+          id: string
+          candidato_id: string | null
+          plantilla_codigo: RecPlantillaCodigo | null
+          to_email: string
+          enviado_at: string
+          estado: 'enviado' | 'error'
+          error: string | null
+          gmail_message_id: string | null
+          gmail_thread_id: string | null
+        }
+        Insert: {
+          candidato_id?: string | null
+          plantilla_codigo?: RecPlantillaCodigo | null
+          to_email: string
+          enviado_at?: string
+          estado?: 'enviado' | 'error'
+          error?: string | null
+          gmail_message_id?: string | null
+          gmail_thread_id?: string | null
+        }
+        Update: {
+          estado?: 'enviado' | 'error'
+          error?: string | null
+          gmail_message_id?: string | null
+          gmail_thread_id?: string | null
+        }
+        Relationships: []
+      }
+      rec_credenciales_google: {
+        Row: {
+          id: string
+          profile_id: string
+          refresh_token: string
+          scope: string | null
+          actualizado_at: string
+        }
+        Insert: {
+          profile_id: string
+          refresh_token: string
+          scope?: string | null
+          actualizado_at?: string
+        }
+        Update: {
+          refresh_token?: string
+          scope?: string | null
+          actualizado_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       tickets_with_status: {
@@ -363,6 +626,10 @@ export interface Database {
     Functions: {
       is_admin: {
         Args: { user_id: string }
+        Returns: boolean
+      }
+      has_reclutamiento_access: {
+        Args: Record<string, never>
         Returns: boolean
       }
     }
