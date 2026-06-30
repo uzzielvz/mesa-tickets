@@ -3,7 +3,7 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-06-16.
+> Última actualización: 2026-06-17.
 
 ---
 

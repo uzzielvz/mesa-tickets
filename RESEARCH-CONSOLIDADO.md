@@ -1,7 +1,7 @@
 # RESEARCH CONSOLIDADO — mea-tickets (CrediFlexi Operaciones)
 
 > Documento vivo. Single source of truth del estado real del repo.
-> Última actualización: 2026-06-09.
+> Última actualización: 2026-06-17.
 > Para el plan de trabajo activo ver `PLAN.md`.
 
 ---
@@ -633,6 +633,14 @@ Diferidos a la fase de export (CART-006), **no** al ETL de ingesta:
 - `Link de Geolocalización` — derivable de `geolocalizacion` (lat/long → URL de maps) al exportar; no se persiste en staging.
 - `Próximo Pago` — **requiere segunda fuente** (`REPORTE DE COBRANZA`); en el legacy es un `XLOOKUP(Código acreditado & Ciclo → 'REPORTE DE COBRANZA'!AO)`. No es derivable del reporte individual que ingerimos hoy.
 
+##### 5.4.9.e Fecha de corte automática y trazabilidad de procesado (sesión 2026-06-17)
+
+Cierre del pipeline de cartera para producción (mismo día que SEC-002 y CART-016), con la **primera carga real** ejecutada OK:
+
+1. **Fecha de corte automática** — al procesar ya no se pide la fecha a mano; se asume el **día anterior** (el insumo Yunius es el corte del día previo). Elimina el error humano de teclear mal la fecha.
+2. **Trazabilidad de carga/proceso** — migración `20260617120000_cart_015_trazabilidad_procesado.sql`: se registra cuándo se cargó y procesó cada corte, para auditar qué insumo alimentó cada snapshot.
+3. **Limpieza pre-producción** — DB y buckets de cartera limpiados de datos de prueba antes de la primera carga real.
+
 ### 5.5 Asistente IA
 
 **Alcance**: asistente conversacional con doble rol — experto en la empresa (cartera, PAR, reportes legacy) y experto en uso de la plataforma. Brainstorm completo en `docs/ideas-agente-ia-asistente.md`.
@@ -669,7 +677,7 @@ Diferidos a la fase de export (CART-006), **no** al ETL de ingesta:
 - **RLS-003 (Media)** — `acreditado_referencias` / `acreditado_historial` INSERT solo validan `has_score_access()`; un operador puede contaminar registros ajenos. **Fix**: validar también que el `acreditado_id` es del capturador o via RPC.
 - **RLS-004 (Media)** — `ticket_responses_insert` no bloquea si `closed_at IS NOT NULL`. **Fix**: trigger `before insert` que rechace.
 - **RLS-005 (Media)** — Bucket Storage `ticket-attachments` no tiene políticas en el repo (sí en el dashboard). **Fix**: migración versionada análoga a `20260524000002_cartera_storage_policy.sql`.
-- **SEC-002 (Media)** — Cartera: el microservicio usa `service_role_key` (bypassa RLS). Es correcto para backend-to-DB, pero el endpoint `/cartera/procesar` del microservicio **no autentica** la llamada de Next.js. En localhost no hay riesgo; en producción cualquiera con la URL podría dispararlo. **Fix**: HMAC compartido o JWT entre Next.js y microservicio.
+- **SEC-002 (Media) ✅ 2026-06-17** — Cartera: el microservicio usa `service_role_key` (bypassa RLS, correcto para backend-to-DB). El endpoint `/cartera/procesar` del microservicio ya **autentica** la llamada de Next.js vía **token compartido** (`INTERNAL_API_TOKEN`, mismo valor en Vercel y Render): Next.js manda `Authorization: Bearer <token>` y el micro valida con `secrets.compare_digest`, respondiendo 401 si no coincide (fail-closed: sin token configurado rechaza todo). Se descartó HMAC por sobre-ingeniería para tráfico server-to-server interno sobre HTTPS.
 
 ### Cartera (gaps de datos)
 
@@ -727,7 +735,7 @@ Diferidos a la fase de export (CART-006), **no** al ETL de ingesta:
 | RLS-005 | Seguridad | Storage `ticket-attachments` | Alta | Migración con políticas versionadas |
 | OPS-001 | Operación | Microservicio Python | Alta | Dockerfile + deploy (Railway/Fly/Render) + `PYTHON_SERVICE_URL` en Vercel |
 | SEC-001 | Arquitectura | Mutaciones cliente en tickets/admin | Alta | Migrar a Server Actions |
-| SEC-002 | Seguridad | Microservicio sin auth | Media | HMAC entre Next.js y microservicio |
+| SEC-002 ✅ | Seguridad | Microservicio sin auth | Media | ✅ 2026-06-17 — token compartido `INTERNAL_API_TOKEN` (Bearer + `compare_digest`, fail-closed) |
 | CART-002 | Datos | `fecha_inicio_ciclo` no llenada | Media | Parte de CART-001 |
 | CART-005 | Datos | `fecha_corte` no validada vs Excel | Baja | Validación al procesar |
 | RLS-002 | Seguridad | `profiles_select` open | Media | Vista pública o restringir |
@@ -757,7 +765,7 @@ Diferidos a la fase de export (CART-006), **no** al ETL de ingesta:
 7. **DASH-004** — Vista de Mora operativa (equivalente a hoja `Mora` + columnas de seguimiento Call Center/Campo).
 8. **DASH-005** — Drill-down de crédito + Liquidación anticipada (bloqueado por CART-003).
 9. **OPS-001** — Deploy del microservicio.
-10. **SEC-002** — Auth entre Next.js y microservicio.
+10. **SEC-002** ✅ 2026-06-17 — Auth entre Next.js y microservicio (token compartido `INTERNAL_API_TOKEN`).
 
 ### Tickets (UX y seguridad)
 
