@@ -885,4 +885,104 @@ Cierre del pipeline de cartera para producción (mismo día que SEC-002 y CART-0
 
 ---
 
+## 13. Módulo Reclutamiento *(nuevo — en planeación, NO implementado)*
+
+> Documentación de research del 4º módulo. Aún no hay código ni migraciones.
+> El plan de trabajo (modelo de datos, sprints, integraciones) vive en `PLAN.md §8`.
+> Detalle operativo en `docs/reclutamiento/`.
+
+### 13.1 Resumen y alcance
+
+CrediFlexi necesita automatizar el tramo de reclutamiento que va de **"el candidato cumple requisitos"** hasta **"el candidato es contratado"**, hoy 100% manual a cargo de **Héctor Ramírez** (Gerente de Gente y Cultura). El cuello de botella medido: ~**6 horas** cada miércoles de ciclo creando ligas de Google Meet una por una, armando concentrados en Excel (con typos recurrentes) y enviando correos a candidatos y entrevistadores.
+
+**No reemplaza a Factorial** (SaaS ya en uso para vacante/postulación/expediente). Este módulo es **complemento**: orquesta agendamiento, entrevistas, evaluaciones y correos del tramo intermedio. Factorial se integra por API en v2.
+
+**Alcance del MVP**: una sola vacante — **Gerente/Ejecutivo de Inversiones**. Otras vacantes (ej. Subgerente de Crédito con *assessment center*) son v2.
+
+### 13.2 Stakeholders
+
+| Persona | Rol | En MVP | Acceso |
+|---------|-----|--------|--------|
+| **Héctor Ramírez** | Gerente de Gente y Cultura | ✅ único usuario | Admin (Supabase Auth + `acceso_reclutamiento`) |
+| Benigno (Benny) Cerdeira | Entrevistador técnico | ✅ | **Solo link mágico** (sin Supabase Auth) |
+| Maritere Ríos | Entrevistadora técnica | ✅ | **Solo link mágico** |
+| Sergio Soto | Entrevistador técnico | ✅ | **Solo link mágico** |
+| Jesús Montellano | Operativo de RH | ❌ v2 | — |
+| Brendoli Hernández | Comunicados | ❌ v2 | — |
+| Javier Vargas | Director General (entrevista final) | ❌ v2 | — |
+| Félix Linares | Gerente Data Science (sponsor técnico) | ❌ | — |
+| **Candidatos** | — | **NUNCA** entran a la app | Solo reciben correos + invitaciones de Calendar |
+
+### 13.3 Flujo as-is (ciclo típico de 5 días)
+
+| Día | Quién | Qué pasa hoy (manual) |
+|-----|-------|------------------------|
+| 0 (lun) | Héctor | Publica la vacante en OCC, Computrabajo, LinkedIn, Factorial |
+| 1-2 (mar-mié) | Héctor | Llegan correos de las plataformas (~73-80 postulados). Revisa CVs, **descarta ~85%** por juicio humano, llama a los viables y los cita |
+| 3 (mié, 4-10 PM) | Héctor | **6 h de dolor**: genera 8-13 ligas Meet a mano, invita candidato + 3 entrevistadores con horarios escalonados, arma el Excel "Entrevistas Fase II" y lo envía |
+| 4 (jue, 9 AM-3 PM) | Entrevistadores | Día de entrevistas. Cada candidato tiene **1 Meet de 60 min**; 3 entrevistadores rotan en bloques de 20 min: Benny (00-20) → Maritere (20-40) → Sergio (40-60). Llenan Excel "Análisis 1" con comentario + viabilidad (Sí / No / Filtro por DG) |
+| 5 (vie) | Comité | Héctor + entrevistadores deciden quién pasa a Javier (DG). Correo "Entrevista Final" a los que pasan. Javier entrevista por separado. Reunión final → carta oferta + carta informativa + alta vía Excel Yunius |
+
+**Embudo típico**: 73-80 postulados → 11 a Fase 2 → ~5 a Fase 3 (DG) → 3-4 contratados.
+
+### 13.4 Pain points cuantificados (lo que el MVP debe matar)
+
+1. **6 h del miércoles** creando 11 Meet links a mano + invitaciones escalonadas. → *Sprint 4 (feature estrella).*
+2. **Concentrado Excel duplicado** de la semana anterior con typos reales detectados ("Setgio", "DONGU" vs "DOLGU", tab mal nombrada). → *Datos estructurados + plantillas.*
+3. **Embudo del Excel "Centro Data" nunca se llena** (las 3 fases vacías). Héctor ya intentó una base de datos y la abandonó por costo de captura. → *Captura mínima + automática; la trazabilidad es subproducto, no carga extra.*
+4. **Plantillas de correo hardcoded en Gmail**; riesgo de mandar el nombre equivocado. → *`rec_plantillas_correo` + render con variables.*
+5. **Sin trazabilidad**: nadie sabe en qué etapa está cada candidato. → *Enum `rec_etapa` + dashboard.*
+
+### 13.5 Decisiones de producto cerradas
+
+- **Un solo usuario MVP** (Héctor, admin). Solo vacante de Gerente/Ejecutivo de Inversiones.
+- **El descarte del 85% NO se automatiza** — sigue siendo juicio humano. La plataforma solo asiste con un flujo rápido (ver CV, marcar **viable / parcial / no**, capturar motivo de descarte por *tags* + nota corta opcional).
+- **Entrevistadores entran SOLO por link mágico** (token custom en tabla, **no** Supabase Auth — chocaría con el filtro de dominio del middleware).
+- **Candidatos NO son usuarios** de la app.
+- **Agendamiento en cascada**: Héctor selecciona N candidatos viables, define día + rango horario + orden de entrevistadores (Benny → Maritere → Sergio); la plataforma calcula slots de 20 min en cascada y crea **todo** automáticamente (Calendar events + Meet + correos + magic links).
+- **No se consulta free/busy** de entrevistadores; se bloquea el día sí o sí.
+- **Sin reagendamiento en MVP**: si un candidato no puede en su slot, se cae del proceso.
+- **Submit explícito** de la evaluación del entrevistador (no autoguardado).
+- **"Filtro por DG"** = el entrevistador no votaría "sí" pero quiere que Javier vea al candidato. Se usa **solo como voto**, no como transición automática.
+- **Vacante = una entidad con N posiciones**; la **entidad geográfica** (Querétaro, Puebla, EdoMex, Tlaxcala…) es atributo del **candidato**, no de la vacante.
+- **Alcance Google = Opción A (full Workspace):** Gmail API (envío) + Calendar API (eventos con Meet links), OAuth de usuario `reclutamiento@financieracrediflexi.com` (scopes `gmail.send`, `gmail.readonly`, `calendar.events`), conectado una sola vez en `/reclutamiento/admin/conectar-google`. El **agendamiento masivo no entrega valor sin Google**, por eso en el plan el **Sprint G va antes del sprint de agendamiento** (ver `PLAN.md §8.4`).
+- **Pipeline 1↔1** candidato ↔ vacante en MVP (`rec_candidatos.vacante_id` FK directa). El modelo N↔N es v2.
+- **RLS MVP definitiva:** Héctor (admin) ve y escribe **todo**; nadie más entra a la app autenticada (`acceso_reclutamiento` queda en el schema para v2); los entrevistadores solo acceden por **magic link** a la sesión de su token.
+- **Vista de comité explícita:** pantalla del viernes donde Héctor consolida las 3 viabilidades por candidato y decide `final_dg` / `descartado` (con `notas_comite` opcional). Es un sprint propio (S6 en el plan).
+- **Plantilla `notificacion_entrevistador`** (con placeholder exclusivo `{{magic_link}}`) se suma al catálogo de plantillas para el correo que lleva la liga al entrevistador.
+
+### 13.6 Restricciones técnicas y conflictos con el codebase actual
+
+- **Magic link vs middleware** *(conflicto resuelto por diseño)*: `middleware.ts` protege todo excepto `/login` y `/auth`, y el callback exige dominio `@financieracrediflexi.com`. La ruta de evaluación del entrevistador **debe quedar fuera de ese guard**. Opciones: (a) excepción explícita en el `matcher`/lógica del middleware para `/reclutamiento/evaluar/*`; (b) route group separado fuera de `(dashboard)`. Se decide por **excepción en el middleware** (la app es un solo deploy; un route group nuevo igual pasa por el middleware salvo que se excluya en el matcher) — ver `PLAN.md §8`.
+- **`ignoreBuildErrors: true`**: el build no falla por tipos. Las tablas `rec_*` deben agregarse **a mano** a `lib/supabase/types.ts` o todo el módulo será `any` (mismo patrón que arrastra cartera). Ticket explícito en el plan.
+- **Patrón Server Actions** (`lib/actions/reclutamiento.ts`), como Score — **no** cliente directo como Tickets. Acciones críticas (transición de etapa, generación masiva de entrevistas) van por **RPC `security definer`** que valida `rol/acceso_reclutamiento` adentro.
+- **RLS activo en todas las tablas `rec_*` desde la primera migración**. Las tablas accedidas por magic link (`rec_evaluaciones`, lectura de `rec_candidatos`/`rec_entrevistas` del entrevistador) requieren un patrón de acceso por **token validado server-side**, no por `auth.uid()` — la escritura de la evaluación se hace vía **RPC `security definer` que recibe el token** y resuelve el `entrevistador_id`, nunca confiando en sesión.
+- **Secretos**: `rec_credenciales_google.refresh_token` debe ir **encriptado**, nunca en claro. Decisión condicional: **validar Supabase Vault al inicio del Sprint G**; si está disponible se usa Vault (opción correcta), si no, fallback a **`pgcrypto` (`pgp_sym_encrypt`)** con llave en `GOOGLE_TOKEN_ENCRYPTION_KEY` (Vercel). La `INTERNAL_API_TOKEN` y el patrón de no exponer secrets aplican igual.
+- **Design system de `context.md` inviolable** (naranja en 7 lugares, sin badges rellenos, tablas con divs+grid, Inter 400/500). El módulo reusa `components/ui/*`, `components/layout/sidebar.tsx` (nueva sección gateada) y `header.tsx`.
+- **Reuso de Gemini**: el parsing de correos entrantes usa `@ai-sdk/google` (ya integrado en `app/api/ai/assistant/route.ts`) con un *structured output* (Zod) — **no web scraping** (ToS de OCC/LinkedIn/Computrabajo lo prohíben).
+
+### 13.7 Integraciones externas (research)
+
+| Integración | Scope / método | Estado | Nota |
+|-------------|----------------|--------|------|
+| **Gmail API** | OAuth de usuario (no service account / no DWD). Scopes `gmail.send` + `gmail.readonly`. Cuenta `reclutamiento@financieracrediflexi.com` | Greenfield | Refresh token encriptado en `rec_credenciales_google`. Setup 1 vez vía `/reclutamiento/admin/conectar-google` |
+| **Calendar API** | Mismo proyecto OAuth, scope `calendar.events`. `attendees` = candidato + 3 entrevistadores; Meet vía `conferenceData.createRequest` | Greenfield | Eventos en el calendar personal de `reclutamiento@` por ahora; calendar compartido = v2 |
+| **Parsing correos plataformas** | Polling Gmail `readonly` cada N min; identificar por sender/asunto (OCC/LinkedIn/Computrabajo); extraer con Gemini Flash + Zod → `rec_candidatos` | Greenfield | **NO scraping.** Webhook Pub/Sub solo si el polling no alcanza |
+| **Factorial API** | — | ❌ v2 | Óscar Carlos (equipo Factorial) compartirá doc |
+| **Google Cloud Console** | Nuevo proyecto o ampliar el de Gemini: habilitar Gmail + Calendar API, consent screen interno | Greenfield | **Validar al inicio del Sprint G**: si el Workspace restringe OAuth a apps externas, Manuel debe *whitelistear* el `client_id` una vez |
+
+> **Hoy el repo NO tiene integración con Google Workspace** (solo Gemini vía AI SDK + el OAuth de *login* de Supabase). Gmail/Calendar son trabajo nuevo: el mayor riesgo/desconocido del módulo.
+
+### 13.8 Preguntas abiertas / TODOs (resolver con Héctor antes del sprint que las consume)
+
+1. **Plantillas de correo**: solo tenemos físicamente el copy de "Entrevista Final" (`pase_fase3`). Conseguir el literal del resto (confirmación postulación, agendamiento Fase 2, notificación entrevistador, descarte, oferta, informativa) **antes del Sprint G**.
+2. **"Filtro por DG"**: confirmar regla — ¿mayoría requerida? ¿un solo voto basta para que el candidato pase a Javier? ¿o solo cuenta como voto registrado y Héctor decide en comité?
+3. **Entrevistadores**: ¿siempre los mismos 3 en orden fijo Benny → Maritere → Sergio, o configurables por vacante/sesión? (afecta si `orden_entrevistadores` se fija por sesión).
+4. **Retención de datos** de candidatos descartados (compliance CNBV / LFPDPPP) — definir política de purga/anonimización.
+5. **Workspace OAuth**: validar al inicio del Sprint G si CrediFlexi restringe apps externas; si sí, whitelisting del `client_id` por Manuel (1 conversación, 3 clicks en su admin).
+
+> **Resueltos** (ya no son preguntas abiertas): alcance Gmail+Calendar = **Opción A** · cifrado del `refresh_token` = **Vault si está, `pgcrypto` si no** (§13.6) · pipeline = **1↔1** (N↔N v2) · RLS = **admin ve todo, nadie más entra** (§13.5) · Calendar = **personal de `reclutamiento@`** en MVP (compartido v2). El set de placeholders de plantillas y la caducidad/rotación de magic links se resuelven dentro del Sprint G y S5 respectivamente (no bloquean planeación).
+
+---
+
 *Fin del research consolidado.*

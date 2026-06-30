@@ -345,6 +345,7 @@ Prefijos consistentes en `RESEARCH-CONSOLIDADO.md` §6/§7 y aquí:
 - `DASH-` Cartera — dashboards / UI
 - `AI-` Asistente IA / agente
 - `TKT-` Tickets — funcionalidad / ciclo de vida
+- `REC-` Reclutamiento — datos / agendamiento / integraciones Google
 
 ### Migraciones
 
@@ -400,6 +401,112 @@ Prefijos consistentes en `RESEARCH-CONSOLIDADO.md` §6/§7 y aquí:
 - **2026-05-14** — Catálogo dinámico, rechazo, onboarding, presets login.
 - **2026-04-24** — Módulo Score Crediticio completo.
 - **2026-04-21** — Base: tickets, RLS, vistas, triggers.
+
+---
+
+## 8. Módulo Reclutamiento *(nuevo — en planeación)*
+
+> Detalle de contexto, stakeholders, flujo as-is y pain points en `RESEARCH-CONSOLIDADO.md §13`. Esta sección es el plan de ejecución (modelo de datos, arquitectura, sprints).
+
+### 8.1 Objetivo del MVP
+
+Digitalizar el flujo de entrevistas que hoy lleva el Gerente de RH en Excel/correo manual para vacantes de **Gerente de Inversiones**: desde la postulación del candidato hasta la oferta, con el **agendamiento masivo de entrevistas** (la fase que más duele hoy) como feature estrella. Mismo repo, 4º módulo, gated por flag `acceso_reclutamiento`.
+
+### 8.2 Modelo de datos refinado
+
+**Enums** (prefijo `rec_`):
+- `rec_etapa`: `postulado` → `en_revision` → `viable` → `entrevistas_agendadas` → `comite` → `final_dg` → `oferta` → `contratado`; `descartado` (terminal desde cualquier etapa).
+- `rec_fuente`: `occ` · `computrabajo` · `linkedin` · `factorial` · `manual`.
+- `rec_revision_cv`: `viable` · `parcial` · `no_viable`.
+- `rec_motivo_descarte`: `no_perfil` · `expectativa_salarial` · `ubicacion` · `experiencia_insuficiente` · `no_contesto` · `declino` · `otro`.
+- `rec_viabilidad`: `si` · `no` · `filtro_dg`.
+- `rec_entrevista_estado`: `programada` · `realizada` · `no_show` · `cancelada`.
+- `rec_plantilla_codigo`: `confirmacion_postulacion` · `agendamiento_fase2` · `notificacion_entrevistador` · `pase_fase3` · `descarte` · `oferta` · `informativa`. El placeholder `{{magic_link}}` es **exclusivo** de `notificacion_entrevistador` (correo con la liga del entrevistador a su evaluación).
+
+**Tablas** (prefijo `rec_`, todas con RLS desde la 1ª migración):
+
+| Tabla | Propósito | Columnas clave |
+|---|---|---|
+| `rec_vacantes` | Vacante a cubrir | `id`, `titulo`, `area`, `descripcion`, `estado` (abierta/cerrada), `creada_por_id`, `created_at` |
+| `rec_candidatos` | Postulante | `id`, `vacante_id`, `nombre`, `email`, `telefono`, `fuente` (`rec_fuente`), `etapa` (`rec_etapa`), `revision_cv` (`rec_revision_cv`), `viabilidad` (`rec_viabilidad`), `motivo_descarte` (`rec_motivo_descarte`), `cv_storage_path`, `notas`, `created_at` |
+| `rec_sesiones_entrevistas` | Bloque de entrevistas de una fase (ej. Fase 2 del día X) | `id`, `vacante_id`, `fase` (smallint), `fecha`, `descripcion`, `creada_por_id` |
+| `rec_entrevistas` | Cita candidato × sesión | `id`, `sesion_id`, `candidato_id`, `fecha_hora`, `estado` (`rec_entrevista_estado`), `gcal_event_id` (nullable) |
+| `rec_evaluaciones` | Resultado de un entrevistador sobre una entrevista | `id`, `entrevista_id`, `entrevistador_id` (→ `profiles.id`), `puntaje`, `comentarios`, `recomendacion`, `enviada_at` |
+| `rec_magic_links` | Token de acceso público del entrevistador a sus evaluaciones de una sesión | `id`, `sesion_id`, `entrevistador_id`, `token` (único), `expira_at`, `usado_at` |
+| `rec_plantillas_correo` | Plantillas editables | `id`, `codigo` (`rec_plantilla_codigo`), `asunto`, `cuerpo` (con placeholders), `activa` |
+| `rec_correos_enviados` | Bitácora de correos | `id`, `candidato_id`, `plantilla_codigo`, `to_email`, `enviado_at`, `estado`, `error`, `gmail_message_id` (nullable, id que devuelve Gmail API), `gmail_thread_id` (nullable, para enlazar respuestas del candidato en v2) |
+| `rec_credenciales_google` | Tokens OAuth Google del reclutador (Calendar + Gmail) | `id`, `profile_id`, `refresh_token` (cifrado), `scope`, `actualizado_at` |
+
+**Decisiones de modelado:**
+1. **No se crea `rec_entrevistadores` en el MVP.** Los entrevistadores son colaboradores con `profiles`; `rec_evaluaciones.entrevistador_id` y el orden de entrevistadores referencian `profiles.id` directo. Vista opcional `rec_entrevistadores_v` para listarlos. v2: tabla propia cuando aparezcan entrevistadores externos (sin `auth.users`).
+2. **Magic link consolidado por (sesión × entrevistador).** Un token da acceso a todas las evaluaciones de ese entrevistador en la sesión → **1 correo, no 13**. Se descarta un `magic_link_token` redundante por evaluación.
+
+### 8.3 Arquitectura del módulo
+
+- **Páginas internas:** `app/(dashboard)/reclutamiento/` (vacantes, candidatos, pipeline kanban por `rec_etapa`, sesiones/agendamiento, plantillas).
+- **Ruta pública del entrevistador:** `app/reclutamiento/evaluar/[token]/` — **fuera de `(dashboard)`** y **excluida del matcher de `middleware.ts`** (el filtro de dominio bloquearía a entrevistadores que entran por magic link). Valida el token contra `rec_magic_links`.
+- **Escritura:** Server Actions en `lib/actions/reclutamiento.ts` (patrón Score: `{ ok, error }` + `safeParse` + `revalidatePath`).
+- **Validación:** `lib/schemas/reclutamiento.ts` (zod).
+- **Componentes:** `components/reclutamiento/`.
+- **Google Workspace (Opción A — full):** helper `lib/google/client.ts` (OAuth de usuario + refresh + Calendar + Gmail). **Nueva integración** — hoy no existe Google Workspace en el repo.
+  - **Cuenta:** `reclutamiento@financieracrediflexi.com` hace login OAuth **una sola vez** en `/reclutamiento/admin/conectar-google`; el `refresh_token` se guarda cifrado en `rec_credenciales_google`.
+  - **Scopes:** `gmail.send`, `gmail.readonly`, `calendar.events`.
+  - **Gmail API:** envío de correos (plantillas + magic links). **Calendar API:** crea eventos con **Meet links** al agendar.
+- **RPCs `security definer`:** `rec_transicion_etapa`, `rec_generar_entrevistas` (agendamiento masivo), `rec_submit_evaluacion` (vía token público, resuelve `entrevistador_id` desde el token).
+- **Sidebar:** sección "Reclutamiento" gated por `rol==='admin' || acceso_reclutamiento`.
+- **Storage:** bucket `reclutamiento` (CVs), RLS por vacante/rol.
+- **Política RLS (MVP — definitiva):**
+  - **Admin (Héctor):** SELECT/INSERT/UPDATE/DELETE en **todas** las tablas `rec_*` y todas las vacantes (sin filtro por dueño).
+  - **Nadie más** entra a la app autenticada. El flag `acceso_reclutamiento` existe en el schema (para v2) pero en MVP solo Héctor lo tiene en `true`.
+  - **Magic link:** la ruta pública `/reclutamiento/evaluar/[token]` se valida por RPC `security definer` que resuelve `entrevistador_id` desde el token; el entrevistador solo lee/escribe evaluaciones de **la sesión asociada a SU token**.
+
+### 8.4 Roadmap de sprints
+
+> **Orden:** Sprint G (Google) va **antes** del agendamiento masivo (S4) porque el feature estrella no entrega valor sin Google conectado: es el que genera los Meet links y manda los correos. Se consolidó el antiguo S6 (Correos) + S7 (Calendar) en **Sprint G** (comparten OAuth y el mismo `lib/google/client.ts`).
+
+| Sprint | Foco | Tickets |
+|---|---|---|
+| **S1** | Fundaciones: flag `acceso_reclutamiento`, enums + tablas + RLS, tipos, sidebar | REC-001..REC-008 |
+| **S2** | Vacantes + candidatos (CRUD, carga de CV a Storage, fuente, revisión CV) | REC-009..REC-017 |
+| **S3** | Pipeline: kanban por etapa, transiciones (`rec_transicion_etapa`), descarte con motivo | REC-018..REC-025 |
+| **Sprint G** ⭐ | **Google Workspace: OAuth (`/admin/conectar-google`) + Calendar API + Gmail API + cifrado del `refresh_token` + plantillas + bitácora** | REC-026..REC-036 |
+| **S4** ⭐ | **Agendamiento masivo** (sesiones, `rec_generar_entrevistas`) — **depende de Sprint G** (Meet links + correos) | REC-037..REC-045 |
+| **S5** | Evaluaciones: magic links consolidados, ruta pública `/evaluar/[token]`, `rec_submit_evaluacion` | REC-046..REC-052 |
+| **S6** | Vista de comité (consolidación de las 3 viabilidades + decisión final) | REC-053..REC-056 |
+
+**S6 — Vista de comité** (después de S5): pantalla `/reclutamiento/sesiones/[id]/comite` que muestra, por candidato, las 3 viabilidades (`si`/`no`/`filtro_dg`) + comentarios de los 3 entrevistadores. Acción del comité: transición a `final_dg` o `descartado` con un campo `notas_comite` opcional. (REC-053..REC-056).
+
+### 8.5 Fuera del MVP
+
+- Entrevistadores externos (sin `profiles`) → tabla `rec_entrevistadores` v2.
+- **Modelo N↔N** (persona × postulación × vacante) → v2 cuando haya volumen real de candidatos repitiendo postulaciones. En MVP `rec_candidatos.vacante_id` es FK directa (1 candidato ↔ 1 vacante).
+- Portal de candidatos externos (el middleware/callback cierran todo a `@financieracrediflexi.com`).
+- Scoring/IA de CVs, parsing automático de currículums.
+- Multi-vacante genérico avanzado (el MVP se centra en Gerente de Inversiones).
+- Recordatorios automáticos / cron de no-show.
+- Parsing de respuestas entrantes del candidato vía `gmail_thread_id` (ej. confirmaciones de asistencia).
+
+### 8.6 Decisiones tomadas (2026-06-30)
+
+- Derivar entrevistadores de `profiles` (sin tabla propia en MVP).
+- Magic link consolidado por (sesión × entrevistador).
+- Ruta pública del evaluador fuera de `(dashboard)` y excluida del middleware.
+- Patrón de escritura = Server Actions (Score), no client-direct (Tickets).
+- **Alcance MVP = Opción A (full Google Workspace):** Gmail + Calendar API con OAuth de `reclutamiento@financieracrediflexi.com`.
+- **Sprint G antes de S4** (Google conectado es prerequisito del agendamiento masivo); S6+S7 consolidados en Sprint G.
+- **Pipeline 1↔1** candidato ↔ vacante; N↔N a v2.
+- **RLS MVP:** admin (Héctor) ve y escribe todo; nadie más entra; entrevistadores solo por magic link a su sesión.
+- **Cifrado `refresh_token`:** validar Supabase Vault al inicio del Sprint G; si no está disponible, fallback a `pgcrypto` (`pgp_sym_encrypt`) con llave en `GOOGLE_TOKEN_ENCRYPTION_KEY` (Vercel).
+
+### 8.7 TODOs / preguntas abiertas
+
+1. **Plantillas de correo:** conseguir el copy literal de Héctor para todas las plantillas antes del Sprint G (hoy solo tenemos "Entrevista Final" / `pase_fase3`).
+2. **"Filtro por DG":** confirmar con Héctor la regla de transición (¿un voto basta? ¿mayoría? ¿solo cuenta como voto registrado y Héctor decide en comité?).
+3. **Entrevistadores:** ¿siempre los mismos 3 en orden fijo Benny → Maritere → Sergio, o configurables por vacante/sesión?
+4. **Retención de datos** de candidatos descartados (compliance CNBV / LFPDPPP) — definir política de purga/anonimización.
+5. **Workspace OAuth:** validar al inicio del Sprint G si CrediFlexi restringe apps externas en su Workspace; si sí, Manuel debe whitelistear el `client_id` una vez.
+
+> Resueltos (ya no son preguntas abiertas): alcance Gmail+Calendar (= Opción A) · cifrado del `refresh_token` (= Vault si está, `pgcrypto` si no — ver §8.6) · pipeline (= 1↔1, N↔N v2) · RLS (= admin ve todo, nadie más entra). El set de placeholders de plantillas y la caducidad/rotación de magic links se resuelven como parte del trabajo del Sprint G y S5 respectivamente (no son bloqueantes de planeación).
 
 ---
 
