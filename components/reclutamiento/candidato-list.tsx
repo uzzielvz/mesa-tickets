@@ -6,9 +6,10 @@ import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { FileText, ExternalLink } from 'lucide-react'
 import { timeAgo } from '@/lib/utils/format'
-import { urlFirmadaCv } from '@/lib/actions/reclutamiento'
+import { urlFirmadaCv, actualizarRevisionCandidato } from '@/lib/actions/reclutamiento'
 import {
-  ETAPAS, ETAPA_LABEL, FUENTE_LABEL, REVISION_CV_LABEL,
+  ETAPAS, ETAPA_LABEL, FUENTE_LABEL, REVISIONES_CV, REVISION_CV_LABEL,
+  MOTIVOS_DESCARTE, MOTIVO_DESCARTE_LABEL,
 } from '@/lib/schemas/reclutamiento'
 import type { RecEtapa } from '@/lib/supabase/types'
 
@@ -39,6 +40,8 @@ const REVISION_BADGE: Record<string, string> = {
 
 const selectClass =
   'bg-white border border-[#ECECEC] rounded px-2.5 py-[7px] text-[12.5px] text-ink-900 outline-none focus:border-orange transition-all'
+const miniSelectClass =
+  'bg-white border border-[#ECECEC] rounded px-1.5 py-[3px] text-[11.5px] text-ink-900 outline-none focus:border-orange transition-all'
 
 export default function CandidatoList({
   vacantes,
@@ -53,6 +56,10 @@ export default function CandidatoList({
 }) {
   const router = useRouter()
   const [abriendoCv, setAbriendoCv] = useState<string | null>(null)
+  const [rows, setRows] = useState<Candidato[]>(candidatos)
+  const [savingRev, setSavingRev] = useState<string | null>(null)
+  // Candidato marcado no_viable en espera de que se elija el motivo.
+  const [motivoPendiente, setMotivoPendiente] = useState<string | null>(null)
 
   function navegar(vacante: string | null, etapa: string) {
     const params = new URLSearchParams()
@@ -62,9 +69,37 @@ export default function CandidatoList({
   }
 
   const filtrados = useMemo(() => {
-    if (!etapaFiltro) return candidatos
-    return candidatos.filter(c => c.etapa === etapaFiltro)
-  }, [candidatos, etapaFiltro])
+    if (!etapaFiltro) return rows
+    return rows.filter(c => c.etapa === etapaFiltro)
+  }, [rows, etapaFiltro])
+
+  async function guardarRevision(id: string, revision: string, motivo: string | null) {
+    setSavingRev(id)
+    const res = await actualizarRevisionCandidato(id, { revision_cv: revision, motivo_descarte: motivo })
+    setSavingRev(null)
+    if (res.ok) {
+      setRows(prev => prev.map(c => c.id === id
+        ? { ...c, revision_cv: revision, motivo_descarte: revision === 'no_viable' ? motivo : null }
+        : c))
+      setMotivoPendiente(null)
+      toast.success('Revisión guardada')
+      router.refresh()
+    } else {
+      toast.error(res.error)
+    }
+  }
+
+  function onCambioRevision(id: string, revision: string) {
+    if (!revision) return
+    if (revision === 'no_viable') {
+      // Requiere motivo: mostrar el selector inline antes de persistir.
+      setMotivoPendiente(id)
+      setRows(prev => prev.map(c => c.id === id ? { ...c, revision_cv: 'no_viable' } : c))
+    } else {
+      setMotivoPendiente(null)
+      guardarRevision(id, revision, null)
+    }
+  }
 
   async function abrirCv(c: Candidato) {
     if (!c.cv_storage_path) return
@@ -151,13 +186,30 @@ export default function CandidatoList({
                 {ETAPA_LABEL[c.etapa]}
               </span>
 
-              <div className="hidden md:block">
-                {c.revision_cv ? (
-                  <span className={`text-[11px] font-medium px-2 py-0.5 rounded ${REVISION_BADGE[c.revision_cv] ?? ''}`}>
-                    {REVISION_CV_LABEL[c.revision_cv as keyof typeof REVISION_CV_LABEL]}
-                  </span>
-                ) : (
-                  <span className="text-[11.5px] text-ink-400">Sin revisar</span>
+              <div className="hidden md:flex flex-col gap-1">
+                <select
+                  value={c.revision_cv ?? ''}
+                  disabled={savingRev === c.id}
+                  onChange={e => onCambioRevision(c.id, e.target.value)}
+                  className={`${miniSelectClass} ${c.revision_cv ? REVISION_BADGE[c.revision_cv] ?? '' : 'text-ink-400'}`}
+                >
+                  <option value="">Sin revisar</option>
+                  {REVISIONES_CV.map(r => <option key={r} value={r}>{REVISION_CV_LABEL[r]}</option>)}
+                </select>
+                {c.revision_cv === 'no_viable' && (motivoPendiente === c.id || !c.motivo_descarte) && (
+                  <select
+                    value={c.motivo_descarte ?? ''}
+                    disabled={savingRev === c.id}
+                    onChange={e => guardarRevision(c.id, 'no_viable', e.target.value || null)}
+                    className={miniSelectClass}
+                    autoFocus
+                  >
+                    <option value="">Motivo...</option>
+                    {MOTIVOS_DESCARTE.map(m => <option key={m} value={m}>{MOTIVO_DESCARTE_LABEL[m]}</option>)}
+                  </select>
+                )}
+                {c.revision_cv === 'no_viable' && c.motivo_descarte && motivoPendiente !== c.id && (
+                  <span className="text-[10.5px] text-ink-400">{MOTIVO_DESCARTE_LABEL[c.motivo_descarte as keyof typeof MOTIVO_DESCARTE_LABEL]}</span>
                 )}
               </div>
 
