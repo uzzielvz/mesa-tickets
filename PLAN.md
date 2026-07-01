@@ -3,7 +3,7 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-06-17.
+> Última actualización: 2026-07-01.
 
 ---
 
@@ -466,7 +466,7 @@ Digitalizar el flujo de entrevistas que hoy lleva el Gerente de RH en Excel/corr
 
 | Sprint | Foco | Tickets |
 |---|---|---|
-| **S1** | Fundaciones: flag `acceso_reclutamiento`, enums + tablas + RLS, tipos, sidebar | REC-001..REC-008 |
+| **S1** ✅ 2026-06-30 | Fundaciones: flag `acceso_reclutamiento`, enums + tablas + RLS, tipos, sidebar | REC-001..REC-008 ✅ |
 | **S2** | Vacantes + candidatos (CRUD, carga de CV a Storage, fuente, revisión CV) | REC-009..REC-017 |
 | **S3** | Pipeline: kanban por etapa, transiciones (`rec_transicion_etapa`), descarte con motivo | REC-018..REC-025 |
 | **Sprint G** ⭐ | **Google Workspace: OAuth (`/admin/conectar-google`) + Calendar API + Gmail API + cifrado del `refresh_token` + plantillas + bitácora** | REC-026..REC-036 |

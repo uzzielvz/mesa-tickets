@@ -1,7 +1,7 @@
 # RESEARCH CONSOLIDADO — mea-tickets (CrediFlexi Operaciones)
 
 > Documento vivo. Single source of truth del estado real del repo.
-> Última actualización: 2026-06-17.
+> Última actualización: 2026-07-01.
 > Para el plan de trabajo activo ver `PLAN.md`.
 
 ---
