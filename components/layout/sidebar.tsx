@@ -313,10 +313,10 @@ function NavContent({
           onToggle={() => setReclutamientoOpen(v => !v)}
         >
           <NavItem
-            href="/reclutamiento"
+            href="/reclutamiento/vacantes"
             label="Vacantes"
             icon={Briefcase}
-            active={pathname === '/reclutamiento'}
+            active={pathname === '/reclutamiento' || pathname.startsWith('/reclutamiento/vacantes')}
             onClick={onNav}
           />
           <NavItem
