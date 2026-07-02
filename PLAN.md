@@ -404,7 +404,7 @@ Prefijos consistentes en `RESEARCH-CONSOLIDADO.md` §6/§7 y aquí:
 
 ---
 
-## 8. Módulo Reclutamiento *(nuevo — en planeación)*
+## 8. Módulo Reclutamiento *(S1–S3 entregados — en desarrollo)*
 
 > Detalle de contexto, stakeholders, flujo as-is y pain points en `RESEARCH-CONSOLIDADO.md §13`. Esta sección es el plan de ejecución (modelo de datos, arquitectura, sprints).
 
@@ -467,14 +467,23 @@ Digitalizar el flujo de entrevistas que hoy lleva el Gerente de RH en Excel/corr
 | Sprint | Foco | Tickets |
 |---|---|---|
 | **S1** ✅ 2026-06-30 | Fundaciones: flag `acceso_reclutamiento`, enums + tablas + RLS, tipos, sidebar | REC-001..REC-008 ✅ |
-| **S2** | Vacantes + candidatos (CRUD, carga de CV a Storage, fuente, revisión CV) | REC-009..REC-017 |
-| **S3** | Pipeline: kanban por etapa, transiciones (`rec_transicion_etapa`), descarte con motivo | REC-018..REC-025 |
+| **S2** ✅ 2026-07-01 | Vacantes + candidatos (CRUD, carga de CV a Storage, fuente, revisión CV) | REC-009..REC-017 ✅ |
+| **S3** ✅ 2026-07-01 | Pipeline: kanban por etapa, transiciones (`rec_transicion_etapa`), descarte con motivo | REC-018..REC-025 ✅ |
 | **Sprint G** ⭐ | **Google Workspace: OAuth (`/admin/conectar-google`) + Calendar API + Gmail API + cifrado del `refresh_token` + plantillas + bitácora** | REC-026..REC-036 |
 | **S4** ⭐ | **Agendamiento masivo** (sesiones, `rec_generar_entrevistas`) — **depende de Sprint G** (Meet links + correos) | REC-037..REC-045 |
 | **S5** | Evaluaciones: magic links consolidados, ruta pública `/evaluar/[token]`, `rec_submit_evaluacion` | REC-046..REC-052 |
 | **S6** | Vista de comité (consolidación de las 3 viabilidades + decisión final) | REC-053..REC-056 |
 
 **S6 — Vista de comité** (después de S5): pantalla `/reclutamiento/sesiones/[id]/comite` que muestra, por candidato, las 3 viabilidades (`si`/`no`/`filtro_dg`) + comentarios de los 3 entrevistadores. Acción del comité: transición a `final_dg` o `descartado` con un campo `notas_comite` opcional. (REC-053..REC-056).
+
+**S3 — DAG de transiciones (entregado 2026-07-01):** la RPC `rec_transicion_etapa` (security definer, valida rol/acceso adentro) mueve un candidato **un paso hacia adelante** y registra cada cambio en `rec_candidato_historial`:
+
+```
+postulado → en_revision → viable → entrevistas_agendadas → comite → final_dg → oferta → contratado
+<cualquier etapa no terminal> → descartado   (motivo_descarte obligatorio)
+```
+
+No se permite saltar etapas, retroceder, ni salir de un estado terminal (`contratado` / `descartado`). El tablero (`/reclutamiento/pipeline`) es filtrable por vacante; cada card ofrece el avance forward y el descarte con motivo inline. **TODO S4:** la transición a `entrevistas_agendadas` hoy es manual y sin efectos secundarios; en S4 (agendamiento masivo, tras Sprint G) deberá disparar la creación de eventos de Calendar (Meet) y el envío de correos.
 
 ### 8.5 Fuera del MVP
 
