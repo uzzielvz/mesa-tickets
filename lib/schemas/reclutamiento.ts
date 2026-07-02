@@ -129,3 +129,23 @@ export const revisionCvSchema = z.object({
 })
 
 export type RevisionCvInput = z.infer<typeof revisionCvSchema>
+
+// ── Transición de etapa (pipeline) ──
+// El motivo es obligatorio solo al descartar; la RPC valida el DAG server-side.
+
+export const transicionEtapaSchema = z.object({
+  candidato_id: z.string().uuid('Candidato inválido'),
+  etapa_destino: z.enum(ETAPAS),
+  motivo_descarte: z.enum(MOTIVOS_DESCARTE).optional().nullable(),
+  notas: z.string().trim().max(2000, 'Máximo 2000 caracteres').optional().or(z.literal('')),
+}).superRefine((val, ctx) => {
+  if (val.etapa_destino === 'descartado' && !val.motivo_descarte) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['motivo_descarte'],
+      message: 'Indica el motivo del descarte',
+    })
+  }
+})
+
+export type TransicionEtapaInput = z.infer<typeof transicionEtapaSchema>

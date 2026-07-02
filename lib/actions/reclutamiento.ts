@@ -6,6 +6,7 @@ import {
   vacanteSchema,
   candidatoSchema,
   revisionCvSchema,
+  transicionEtapaSchema,
 } from '@/lib/schemas/reclutamiento'
 
 type Result<T = unknown> = ({ ok: true } & T) | { ok: false; error: string }
@@ -199,6 +200,44 @@ export async function eliminarCandidato(candidatoId: string): Promise<Result> {
   const path = (row as { cv_storage_path: string | null } | null)?.cv_storage_path
   if (path) await supabase.storage.from('reclutamiento').remove([path])
 
+  revalidatePath('/reclutamiento/candidatos')
+  return { ok: true }
+}
+
+// ─── Pipeline: transición de etapa ──────────────────────────────────────────────
+
+// Códigos de excepción que lanza la RPC rec_transicion_etapa → mensaje en español.
+const TRANSICION_ERRORES: Record<string, string> = {
+  no_auth: 'No autenticado',
+  sin_acceso: 'No tienes acceso al módulo de reclutamiento.',
+  no_existe: 'El candidato ya no existe.',
+  misma_etapa: 'El candidato ya está en esa etapa.',
+  motivo_requerido: 'Indica el motivo del descarte.',
+  transicion_invalida: 'Esa transición de etapa no está permitida.',
+}
+
+export async function transicionarCandidato(raw: unknown): Promise<Result> {
+  const parsed = transicionEtapaSchema.safeParse(raw)
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
+
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: 'No autenticado' }
+
+  const d = parsed.data
+  const { error } = await supabase.rpc('rec_transicion_etapa', {
+    p_candidato_id: d.candidato_id,
+    p_etapa_destino: d.etapa_destino,
+    p_motivo_descarte: d.etapa_destino === 'descartado' ? (d.motivo_descarte ?? null) : null,
+    p_notas: nn(d.notas),
+  })
+
+  if (error) {
+    const code = error.message.match(/[a-z_]+/)?.[0] ?? ''
+    return { ok: false, error: TRANSICION_ERRORES[code] ?? 'No se pudo mover el candidato.' }
+  }
+
+  revalidatePath('/reclutamiento/pipeline')
   revalidatePath('/reclutamiento/candidatos')
   return { ok: true }
 }
