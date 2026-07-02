@@ -20,7 +20,16 @@ export default async function DashboardLayout({
 
   if (!profile) redirect('/login')
 
-  if (!profile.area_id) redirect('/onboarding')
+  // Sin ningún acceso otorgado → sala de espera corporativa.
+  // El área y los accesos los asigna un admin desde /admin/usuarios.
+  const tieneAlgunAcceso =
+    profile.rol === 'admin' ||
+    profile.acceso_tickets === true ||
+    profile.acceso_score === true ||
+    profile.acceso_cartera === true ||
+    profile.acceso_reclutamiento === true
+
+  if (!tieneAlgunAcceso) redirect('/stand-by')
 
   // Contadores para el sidebar
   const [{ count: miosCount }, { count: asignadosCount }] = await Promise.all([

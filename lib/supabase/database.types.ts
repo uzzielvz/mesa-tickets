@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       acreditado_historial: {
@@ -375,6 +350,7 @@ export type Database = {
       }
       login_presets: {
         Row: {
+          acceso_reclutamiento: boolean
           acceso_score: boolean
           area_id: string | null
           email: string
@@ -382,6 +358,7 @@ export type Database = {
           rol: Database["public"]["Enums"]["user_role"]
         }
         Insert: {
+          acceso_reclutamiento?: boolean
           acceso_score?: boolean
           area_id?: string | null
           email: string
@@ -389,6 +366,7 @@ export type Database = {
           rol?: Database["public"]["Enums"]["user_role"]
         }
         Update: {
+          acceso_reclutamiento?: boolean
           acceso_score?: boolean
           area_id?: string | null
           email?: string
@@ -465,7 +443,9 @@ export type Database = {
       profiles: {
         Row: {
           acceso_cartera: boolean
+          acceso_reclutamiento: boolean
           acceso_score: boolean | null
+          acceso_tickets: boolean
           activo: boolean
           area_id: string | null
           created_at: string
@@ -476,7 +456,9 @@ export type Database = {
         }
         Insert: {
           acceso_cartera?: boolean
+          acceso_reclutamiento?: boolean
           acceso_score?: boolean | null
+          acceso_tickets?: boolean
           activo?: boolean
           area_id?: string | null
           created_at?: string
@@ -487,7 +469,9 @@ export type Database = {
         }
         Update: {
           acceso_cartera?: boolean
+          acceso_reclutamiento?: boolean
           acceso_score?: boolean | null
+          acceso_tickets?: boolean
           activo?: boolean
           area_id?: string | null
           created_at?: string
@@ -505,6 +489,447 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      rec_candidato_historial: {
+        Row: {
+          actor_id: string | null
+          candidato_id: string
+          created_at: string
+          etapa_anterior: Database["public"]["Enums"]["rec_etapa"] | null
+          etapa_nueva: Database["public"]["Enums"]["rec_etapa"]
+          id: string
+          motivo_descarte:
+            | Database["public"]["Enums"]["rec_motivo_descarte"]
+            | null
+          notas: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          candidato_id: string
+          created_at?: string
+          etapa_anterior?: Database["public"]["Enums"]["rec_etapa"] | null
+          etapa_nueva: Database["public"]["Enums"]["rec_etapa"]
+          id?: string
+          motivo_descarte?:
+            | Database["public"]["Enums"]["rec_motivo_descarte"]
+            | null
+          notas?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          candidato_id?: string
+          created_at?: string
+          etapa_anterior?: Database["public"]["Enums"]["rec_etapa"] | null
+          etapa_nueva?: Database["public"]["Enums"]["rec_etapa"]
+          id?: string
+          motivo_descarte?:
+            | Database["public"]["Enums"]["rec_motivo_descarte"]
+            | null
+          notas?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rec_candidato_historial_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rec_candidato_historial_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "rec_candidatos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rec_candidatos: {
+        Row: {
+          created_at: string
+          cv_storage_path: string | null
+          email: string | null
+          etapa: Database["public"]["Enums"]["rec_etapa"]
+          etapa_actualizada_at: string | null
+          etapa_actualizada_por: string | null
+          fuente: Database["public"]["Enums"]["rec_fuente"] | null
+          id: string
+          motivo_descarte:
+            | Database["public"]["Enums"]["rec_motivo_descarte"]
+            | null
+          nombre: string
+          notas: string | null
+          revision_cv: Database["public"]["Enums"]["rec_revision_cv"] | null
+          telefono: string | null
+          vacante_id: string
+          viabilidad: Database["public"]["Enums"]["rec_viabilidad"] | null
+        }
+        Insert: {
+          created_at?: string
+          cv_storage_path?: string | null
+          email?: string | null
+          etapa?: Database["public"]["Enums"]["rec_etapa"]
+          etapa_actualizada_at?: string | null
+          etapa_actualizada_por?: string | null
+          fuente?: Database["public"]["Enums"]["rec_fuente"] | null
+          id?: string
+          motivo_descarte?:
+            | Database["public"]["Enums"]["rec_motivo_descarte"]
+            | null
+          nombre: string
+          notas?: string | null
+          revision_cv?: Database["public"]["Enums"]["rec_revision_cv"] | null
+          telefono?: string | null
+          vacante_id: string
+          viabilidad?: Database["public"]["Enums"]["rec_viabilidad"] | null
+        }
+        Update: {
+          created_at?: string
+          cv_storage_path?: string | null
+          email?: string | null
+          etapa?: Database["public"]["Enums"]["rec_etapa"]
+          etapa_actualizada_at?: string | null
+          etapa_actualizada_por?: string | null
+          fuente?: Database["public"]["Enums"]["rec_fuente"] | null
+          id?: string
+          motivo_descarte?:
+            | Database["public"]["Enums"]["rec_motivo_descarte"]
+            | null
+          nombre?: string
+          notas?: string | null
+          revision_cv?: Database["public"]["Enums"]["rec_revision_cv"] | null
+          telefono?: string | null
+          vacante_id?: string
+          viabilidad?: Database["public"]["Enums"]["rec_viabilidad"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rec_candidatos_etapa_actualizada_por_fkey"
+            columns: ["etapa_actualizada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rec_candidatos_vacante_id_fkey"
+            columns: ["vacante_id"]
+            isOneToOne: false
+            referencedRelation: "rec_vacantes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rec_correos_enviados: {
+        Row: {
+          candidato_id: string | null
+          enviado_at: string
+          error: string | null
+          estado: string
+          gmail_message_id: string | null
+          gmail_thread_id: string | null
+          id: string
+          plantilla_codigo:
+            | Database["public"]["Enums"]["rec_plantilla_codigo"]
+            | null
+          to_email: string
+        }
+        Insert: {
+          candidato_id?: string | null
+          enviado_at?: string
+          error?: string | null
+          estado?: string
+          gmail_message_id?: string | null
+          gmail_thread_id?: string | null
+          id?: string
+          plantilla_codigo?:
+            | Database["public"]["Enums"]["rec_plantilla_codigo"]
+            | null
+          to_email: string
+        }
+        Update: {
+          candidato_id?: string | null
+          enviado_at?: string
+          error?: string | null
+          estado?: string
+          gmail_message_id?: string | null
+          gmail_thread_id?: string | null
+          id?: string
+          plantilla_codigo?:
+            | Database["public"]["Enums"]["rec_plantilla_codigo"]
+            | null
+          to_email?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rec_correos_enviados_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "rec_candidatos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rec_credenciales_google: {
+        Row: {
+          actualizado_at: string
+          id: string
+          profile_id: string
+          refresh_token: string
+          scope: string | null
+        }
+        Insert: {
+          actualizado_at?: string
+          id?: string
+          profile_id: string
+          refresh_token: string
+          scope?: string | null
+        }
+        Update: {
+          actualizado_at?: string
+          id?: string
+          profile_id?: string
+          refresh_token?: string
+          scope?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rec_credenciales_google_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rec_entrevistas: {
+        Row: {
+          candidato_id: string
+          created_at: string
+          estado: Database["public"]["Enums"]["rec_entrevista_estado"]
+          fecha_hora: string | null
+          gcal_event_id: string | null
+          id: string
+          sesion_id: string
+        }
+        Insert: {
+          candidato_id: string
+          created_at?: string
+          estado?: Database["public"]["Enums"]["rec_entrevista_estado"]
+          fecha_hora?: string | null
+          gcal_event_id?: string | null
+          id?: string
+          sesion_id: string
+        }
+        Update: {
+          candidato_id?: string
+          created_at?: string
+          estado?: Database["public"]["Enums"]["rec_entrevista_estado"]
+          fecha_hora?: string | null
+          gcal_event_id?: string | null
+          id?: string
+          sesion_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rec_entrevistas_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "rec_candidatos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rec_entrevistas_sesion_id_fkey"
+            columns: ["sesion_id"]
+            isOneToOne: false
+            referencedRelation: "rec_sesiones_entrevistas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rec_evaluaciones: {
+        Row: {
+          comentarios: string | null
+          created_at: string
+          entrevista_id: string
+          entrevistador_id: string
+          enviada_at: string | null
+          id: string
+          puntaje: number | null
+          recomendacion: Database["public"]["Enums"]["rec_viabilidad"] | null
+        }
+        Insert: {
+          comentarios?: string | null
+          created_at?: string
+          entrevista_id: string
+          entrevistador_id: string
+          enviada_at?: string | null
+          id?: string
+          puntaje?: number | null
+          recomendacion?: Database["public"]["Enums"]["rec_viabilidad"] | null
+        }
+        Update: {
+          comentarios?: string | null
+          created_at?: string
+          entrevista_id?: string
+          entrevistador_id?: string
+          enviada_at?: string | null
+          id?: string
+          puntaje?: number | null
+          recomendacion?: Database["public"]["Enums"]["rec_viabilidad"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rec_evaluaciones_entrevista_id_fkey"
+            columns: ["entrevista_id"]
+            isOneToOne: false
+            referencedRelation: "rec_entrevistas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rec_evaluaciones_entrevistador_id_fkey"
+            columns: ["entrevistador_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rec_magic_links: {
+        Row: {
+          created_at: string
+          entrevistador_id: string
+          expira_at: string | null
+          id: string
+          sesion_id: string
+          token: string
+          usado_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          entrevistador_id: string
+          expira_at?: string | null
+          id?: string
+          sesion_id: string
+          token: string
+          usado_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          entrevistador_id?: string
+          expira_at?: string | null
+          id?: string
+          sesion_id?: string
+          token?: string
+          usado_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rec_magic_links_entrevistador_id_fkey"
+            columns: ["entrevistador_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rec_magic_links_sesion_id_fkey"
+            columns: ["sesion_id"]
+            isOneToOne: false
+            referencedRelation: "rec_sesiones_entrevistas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rec_plantillas_correo: {
+        Row: {
+          activa: boolean
+          asunto: string
+          codigo: Database["public"]["Enums"]["rec_plantilla_codigo"]
+          cuerpo: string
+          id: string
+        }
+        Insert: {
+          activa?: boolean
+          asunto: string
+          codigo: Database["public"]["Enums"]["rec_plantilla_codigo"]
+          cuerpo: string
+          id?: string
+        }
+        Update: {
+          activa?: boolean
+          asunto?: string
+          codigo?: Database["public"]["Enums"]["rec_plantilla_codigo"]
+          cuerpo?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      rec_sesiones_entrevistas: {
+        Row: {
+          creada_por_id: string | null
+          created_at: string
+          descripcion: string | null
+          fase: number
+          fecha: string | null
+          id: string
+          vacante_id: string
+        }
+        Insert: {
+          creada_por_id?: string | null
+          created_at?: string
+          descripcion?: string | null
+          fase?: number
+          fecha?: string | null
+          id?: string
+          vacante_id: string
+        }
+        Update: {
+          creada_por_id?: string | null
+          created_at?: string
+          descripcion?: string | null
+          fase?: number
+          fecha?: string | null
+          id?: string
+          vacante_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rec_sesiones_entrevistas_vacante_id_fkey"
+            columns: ["vacante_id"]
+            isOneToOne: false
+            referencedRelation: "rec_vacantes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rec_vacantes: {
+        Row: {
+          area: string | null
+          creada_por_id: string | null
+          created_at: string
+          descripcion: string | null
+          estado: string
+          id: string
+          titulo: string
+        }
+        Insert: {
+          area?: string | null
+          creada_por_id?: string | null
+          created_at?: string
+          descripcion?: string | null
+          estado?: string
+          id?: string
+          titulo: string
+        }
+        Update: {
+          area?: string | null
+          creada_por_id?: string | null
+          created_at?: string
+          descripcion?: string | null
+          estado?: string
+          id?: string
+          titulo?: string
+        }
+        Relationships: []
       }
       stg_yunius_cartera_individual: {
         Row: {
@@ -1010,10 +1435,6 @@ export type Database = {
         }
         Returns: Json
       }
-      complete_onboarding: {
-        Args: { p_area_id: string; p_nombre: string }
-        Returns: undefined
-      }
       guardar_evaluacion_promotor: {
         Args: {
           p_acreditado_id: string
@@ -1023,11 +1444,55 @@ export type Database = {
         Returns: undefined
       }
       has_cartera_access: { Args: never; Returns: boolean }
+      has_reclutamiento_access: { Args: never; Returns: boolean }
       has_score_access: { Args: never; Returns: boolean }
       is_admin: { Args: { user_id: string }; Returns: boolean }
       next_response_order: { Args: { p_ticket_id: string }; Returns: number }
+      rec_transicion_etapa: {
+        Args: {
+          p_candidato_id: string
+          p_etapa_destino: Database["public"]["Enums"]["rec_etapa"]
+          p_motivo_descarte?: Database["public"]["Enums"]["rec_motivo_descarte"]
+          p_notas?: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
+      rec_entrevista_estado:
+        | "programada"
+        | "realizada"
+        | "no_show"
+        | "cancelada"
+      rec_etapa:
+        | "postulado"
+        | "en_revision"
+        | "viable"
+        | "entrevistas_agendadas"
+        | "comite"
+        | "final_dg"
+        | "oferta"
+        | "contratado"
+        | "descartado"
+      rec_fuente: "occ" | "computrabajo" | "linkedin" | "factorial" | "manual"
+      rec_motivo_descarte:
+        | "no_perfil"
+        | "expectativa_salarial"
+        | "ubicacion"
+        | "experiencia_insuficiente"
+        | "no_contesto"
+        | "declino"
+        | "otro"
+      rec_plantilla_codigo:
+        | "confirmacion_postulacion"
+        | "agendamiento_fase2"
+        | "notificacion_entrevistador"
+        | "pase_fase3"
+        | "descarte"
+        | "oferta"
+        | "informativa"
+      rec_revision_cv: "viable" | "parcial" | "no_viable"
+      rec_viabilidad: "si" | "no" | "filtro_dg"
       response_type:
         | "mensaje"
         | "terminado_responsable"
@@ -1159,11 +1624,46 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
+      rec_entrevista_estado: [
+        "programada",
+        "realizada",
+        "no_show",
+        "cancelada",
+      ],
+      rec_etapa: [
+        "postulado",
+        "en_revision",
+        "viable",
+        "entrevistas_agendadas",
+        "comite",
+        "final_dg",
+        "oferta",
+        "contratado",
+        "descartado",
+      ],
+      rec_fuente: ["occ", "computrabajo", "linkedin", "factorial", "manual"],
+      rec_motivo_descarte: [
+        "no_perfil",
+        "expectativa_salarial",
+        "ubicacion",
+        "experiencia_insuficiente",
+        "no_contesto",
+        "declino",
+        "otro",
+      ],
+      rec_plantilla_codigo: [
+        "confirmacion_postulacion",
+        "agendamiento_fase2",
+        "notificacion_entrevistador",
+        "pase_fase3",
+        "descarte",
+        "oferta",
+        "informativa",
+      ],
+      rec_revision_cv: ["viable", "parcial", "no_viable"],
+      rec_viabilidad: ["si", "no", "filtro_dg"],
       response_type: [
         "mensaje",
         "terminado_responsable",

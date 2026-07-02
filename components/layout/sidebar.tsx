@@ -14,7 +14,6 @@ import {
 import Wordmark from '@/components/brand/wordmark'
 import UserMenu from '@/components/layout/user-menu'
 import type { Database } from '@/lib/supabase/types'
-import { esSoloOperadorScore } from '@/lib/utils/score-permissions'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 
@@ -114,13 +113,14 @@ function NavContent({
 }) {
   const isAdmin = profile.rol === 'admin'
   const isResponsable = profile.rol === 'responsable' || isAdmin
+  const accesoTickets = profile.acceso_tickets === true
   const accesoScore = profile.acceso_score === true
   const accesoCartera = profile.acceso_cartera === true
   const accesoReclutamiento = profile.acceso_reclutamiento === true
+  const hasTicketsAccess = accesoTickets || isAdmin
   const hasScoreAccess = accesoScore || isAdmin
   const hasCarteraAccess = accesoCartera || isAdmin
   const hasReclutamientoAccess = accesoReclutamiento || isAdmin
-  const soloScore = esSoloOperadorScore(profile.rol, accesoScore)
 
   // Secciones que contienen la ruta activa.
   const ticketsActive = pathname.startsWith('/tickets') || pathname.startsWith('/admin/catalogo') || pathname.startsWith('/admin/areas')
@@ -146,7 +146,7 @@ function NavContent({
       />
 
       {/* ── Mesa de tickets ── */}
-      {!soloScore && (
+      {hasTicketsAccess && (
       <NavSection
         title="Mesa de tickets"
         open={ticketsOpen}

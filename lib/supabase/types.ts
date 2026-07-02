@@ -66,6 +66,7 @@ export interface Database {
           rol: UserRole
           area_id: string | null
           activo: boolean
+          acceso_tickets: boolean
           acceso_score: boolean
           acceso_cartera: boolean
           acceso_reclutamiento: boolean
@@ -78,6 +79,7 @@ export interface Database {
           rol: UserRole
           area_id?: string | null
           activo?: boolean
+          acceso_tickets?: boolean
           acceso_score?: boolean
           acceso_cartera?: boolean
           acceso_reclutamiento?: boolean
@@ -89,6 +91,7 @@ export interface Database {
           rol?: UserRole
           area_id?: string | null
           activo?: boolean
+          acceso_tickets?: boolean
           acceso_score?: boolean
           acceso_cartera?: boolean
           acceso_reclutamiento?: boolean
