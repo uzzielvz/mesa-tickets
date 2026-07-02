@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Ticket, Inbox, Tags, FolderTree,
   Users, UserPlus, Gauge,
   PieChart, Building2, UserSearch, AlertTriangle, Layers, Upload, KeyRound,
-  BarChart3, Briefcase,
+  BarChart3, Briefcase, Kanban,
   type LucideIcon,
 } from 'lucide-react'
 import Wordmark from '@/components/brand/wordmark'
@@ -324,6 +324,13 @@ function NavContent({
             label="Candidatos"
             icon={UserSearch}
             active={pathname.startsWith('/reclutamiento/candidatos')}
+            onClick={onNav}
+          />
+          <NavItem
+            href="/reclutamiento/pipeline"
+            label="Pipeline"
+            icon={Kanban}
+            active={pathname.startsWith('/reclutamiento/pipeline')}
             onClick={onNav}
           />
         </NavSection>
