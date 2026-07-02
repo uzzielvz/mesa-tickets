@@ -393,6 +393,8 @@ export interface Database {
           motivo_descarte: RecMotivoDescarte | null
           cv_storage_path: string | null
           notas: string | null
+          etapa_actualizada_at: string | null
+          etapa_actualizada_por: string | null
           created_at: string
         }
         Insert: {
@@ -407,6 +409,8 @@ export interface Database {
           motivo_descarte?: RecMotivoDescarte | null
           cv_storage_path?: string | null
           notas?: string | null
+          etapa_actualizada_at?: string | null
+          etapa_actualizada_por?: string | null
         }
         Update: {
           vacante_id?: string
@@ -420,6 +424,36 @@ export interface Database {
           motivo_descarte?: RecMotivoDescarte | null
           cv_storage_path?: string | null
           notas?: string | null
+          etapa_actualizada_at?: string | null
+          etapa_actualizada_por?: string | null
+        }
+        Relationships: []
+      }
+      rec_candidato_historial: {
+        Row: {
+          id: string
+          candidato_id: string
+          etapa_anterior: RecEtapa | null
+          etapa_nueva: RecEtapa
+          motivo_descarte: RecMotivoDescarte | null
+          notas: string | null
+          actor_id: string | null
+          created_at: string
+        }
+        Insert: {
+          candidato_id: string
+          etapa_anterior?: RecEtapa | null
+          etapa_nueva: RecEtapa
+          motivo_descarte?: RecMotivoDescarte | null
+          notas?: string | null
+          actor_id?: string | null
+        }
+        Update: {
+          etapa_anterior?: RecEtapa | null
+          etapa_nueva?: RecEtapa
+          motivo_descarte?: RecMotivoDescarte | null
+          notas?: string | null
+          actor_id?: string | null
         }
         Relationships: []
       }
@@ -631,6 +665,15 @@ export interface Database {
       has_reclutamiento_access: {
         Args: Record<string, never>
         Returns: boolean
+      }
+      rec_transicion_etapa: {
+        Args: {
+          p_candidato_id: string
+          p_etapa_destino: RecEtapa
+          p_motivo_descarte?: RecMotivoDescarte | null
+          p_notas?: string | null
+        }
+        Returns: undefined
       }
     }
     Enums: Record<string, never>
