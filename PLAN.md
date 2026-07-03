@@ -3,7 +3,7 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-07-01.
+> Última actualización: 2026-07-02.
 
 ---
 
@@ -154,6 +154,12 @@
 | S-R6 | DB-003 | Comparar refs antes de incrementar `contador_ediciones` |
 
 ### 2.4 Transversal (plataforma)
+
+#### Fase Plataforma-Auth
+
+| # | Ticket | Estado | Descripción |
+|---|--------|--------|-------------|
+| P-A1 | TKT-AUTH-001 | ✅ **2026-07-02** | **Tickets deja de ser universal + stand-by corporativo.** Nueva bandera `acceso_tickets` (default `false`), guard de módulo en `/tickets`. Usuarios sin ningún acceso → `/stand-by` con mensaje ("tu área y accesos los asigna administración"). Se elimina onboarding self-service (`complete_onboarding`); admin asigna área y accesos desde `/admin/usuarios`. Allowlist de correos externos vía `NEXT_PUBLIC_AUTH_EMAILS_EXTRA`. |
 
 #### Fase Plataforma-Tipos
 

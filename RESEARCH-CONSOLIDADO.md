@@ -1,7 +1,7 @@
 # RESEARCH CONSOLIDADO — mea-tickets (CrediFlexi Operaciones)
 
 > Documento vivo. Single source of truth del estado real del repo.
-> Última actualización: 2026-07-01.
+> Última actualización: 2026-07-02.
 > Para el plan de trabajo activo ver `PLAN.md`.
 
 ---
@@ -69,9 +69,9 @@
 app/
   layout.tsx, page.tsx, globals.css, not-found.tsx
   (auth)/login/, auth/callback/route.ts
-  onboarding/page.tsx
+  stand-by/page.tsx      ← usuarios sin accesos
   (dashboard)/
-    layout.tsx           ← guard sesión + redirect onboarding
+    layout.tsx           ← guard sesión + redirect stand-by si sin accesos
     dashboard/
     tickets/ (mios, asignados, nuevo, [numero])
     score/ (acreditados, nuevo, [numero], [numero]/editar)
@@ -82,7 +82,7 @@ app/
     cartera/procesar/route.ts        ← delega a microservicio Python
     cartera/uploads/route.ts         ← lista + auto-cleanup timeout 10min
 components/
-  admin/, brand/, cartera/, layout/, onboarding/, score/, tickets/, ui/
+  admin/, brand/, cartera/, layout/, score/, stand-by/, tickets/, ui/
 lib/
   actions/acreditados.ts             ← única archivo Server Actions
   cartera/types.ts
@@ -102,7 +102,7 @@ middleware.ts
 |---------|-----|
 | `middleware.ts` | Sesión Supabase, protege todo excepto `/login` y `/auth` |
 | `app/(auth)/auth/callback/route.ts` | OAuth code exchange + filtro de dominio |
-| `app/(dashboard)/layout.tsx` | Sidebar, redirect a `/onboarding` si `!area_id`, contadores de tickets |
+| `app/(dashboard)/layout.tsx` | Sidebar, redirect a `/stand-by` si sin accesos, contadores de tickets |
 | `app/(dashboard)/admin/layout.tsx` | Bloquea `/admin/*` si rol ≠ admin |
 | `lib/actions/acreditados.ts` | CRUD acreditados + evaluación promotor |
 | `lib/scoring/modelo.ts` | Algoritmo de score HM (réplica GAS) |
@@ -136,7 +136,7 @@ middleware.ts
 | Módulo | Estado | Tecnología |
 |--------|--------|------------|
 | Auth corporativa | Completo | Supabase + middleware + filtro dominio |
-| Onboarding (nombre + área) | Completo | RPC `complete_onboarding` security definer |
+| Stand-by corporativo | Completo | Usuarios sin accesos → `/stand-by`; admin asigna área/accesos |
 | Login presets (operadores Score) | Completo | `login_presets` + trigger `handle_new_user` |
 | Mesa de tickets (crear/responder/rechazar/cerrar) | Completo (con bugs UX) | Cliente Supabase + RLS + triggers |
 | Campos dinámicos por catálogo | Completo | `problem_catalog.campos` jsonb + `tickets.datos` jsonb |
@@ -198,8 +198,8 @@ middleware.ts
 ```
 [Anónimo]
   → /login (Google | magic link @financieracrediflexi.com)
-  → /auth/callback (valida dominio)
-  → si !area_id → /onboarding (RPC complete_onboarding)
+  → /auth/callback (valida dominio + allowlist extras)
+  → si sin accesos → /stand-by (admin asigna área/accesos)
   → /dashboard
 
 [Usuario estándar]
@@ -404,13 +404,13 @@ Si el objetivo es "sólido y que sume valor" como reemplazo operativo real: **1)
 
 **Pendientes**: DB-001/002 (transacción), SEC-003 (trigger recalcular), RLS-003 (validar capturador), DB-004 (mapear errores RPC).
 
-### 5.3 Auth + Onboarding + Presets
+### 5.3 Auth + Stand-by + Presets
 
-**Alcance**: Google OAuth + magic link, filtro de dominio, onboarding obligatorio (nombre + área), presets de área para operadores con dominio `operador*`.
+**Alcance**: Google OAuth + magic link, filtro de dominio `@financieracrediflexi.com` + allowlist de correos externos (`NEXT_PUBLIC_AUTH_EMAILS_EXTRA`), presets de acceso para operadores en `login_presets`. Usuarios nuevos sin accesos → `/stand-by` (mensaje: "tu área y accesos los asigna administración"); admin gestiona en `/admin/usuarios`. El onboarding self-service fue eliminado (2026-07-02); bandera `acceso_tickets` añadida para que Tickets deje de ser universal.
 
 **Estado**: producción.
 
-**Archivos clave**: `middleware.ts`, `app/(auth)/auth/callback/route.ts`, `app/onboarding/page.tsx`, migraciones 06, 14, 15.
+**Archivos clave**: `middleware.ts`, `app/(auth)/auth/callback/route.ts`, `app/stand-by/page.tsx`, `app/(dashboard)/layout.tsx`, `app/(dashboard)/tickets/layout.tsx`, migraciones 14, 15, 40 (TKT stand-by).
 
 **Pendientes**: UI-003 (copy `?error=auth`).
 
@@ -707,7 +707,7 @@ Cierre del pipeline de cartera para producción (mismo día que SEC-002 y CART-0
 
 - **TYP-001 (Baja)** — `lib/supabase/types.ts` se mantiene a mano. Falta tipar:
   - `cartera_uploads`, `stg_yunius_cartera_individual`, `loan_amortizacion_individual`
-  - RPCs: `complete_onboarding`, `guardar_evaluacion_promotor`, `has_score_access`, `has_cartera_access`
+  - RPCs: `guardar_evaluacion_promotor`, `has_score_access`, `has_cartera_access`
   - Enum `response_type` con `rechazo_responsable`
   - **Fix**: usar `supabase gen types typescript`.
 
@@ -837,7 +837,7 @@ Cierre del pipeline de cartera para producción (mismo día que SEC-002 y CART-0
 | 03 | `20260421000003_views_and_functions.sql` | Vista `tickets_with_status` |
 | 04 | `20260421000004_triggers.sql` | `validate_response_order`, `handle_ticket_closure`, `handle_new_user` |
 | 05 | `20260424000001_scoring_schema.sql` | acreditados, referencias, historial + RLS |
-| 06 | `20260514000001_onboarding.sql` | RPC `complete_onboarding` + handle_new_user nombre vacío |
+| 06 | `20260514000001_onboarding.sql` | ~~RPC `complete_onboarding`~~ (eliminada 2026-07-02) + handle_new_user nombre vacío |
 | 07 | `20260514000002_rechazo_enum.sql` | `alter type response_type add value 'rechazo_responsable'` |
 | 08 | `20260514000003_rechazo_logic.sql` | Trigger paridad excepción + vista con `rechazado` |
 | 09 | `20260514000004_dynamic_fields.sql` | `problem_catalog.campos` + `tickets.datos` + backfill |
