@@ -6,6 +6,12 @@ import { createClient } from '@/lib/supabase/client'
 
 const DOMAIN = '@financieracrediflexi.com'
 
+// Correos externos permitidos (pruebas/invitados), separados por coma.
+const EXTRA_EMAILS = (process.env.NEXT_PUBLIC_AUTH_EMAILS_EXTRA ?? '')
+  .split(',')
+  .map(e => e.trim().toLowerCase())
+  .filter(Boolean)
+
 function LoginForm() {
   const searchParams = useSearchParams()
   const domainError = searchParams.get('error') === 'domain'
@@ -45,7 +51,7 @@ function LoginForm() {
     e.preventDefault()
     setError('')
 
-    if (!email.endsWith(DOMAIN)) {
+    if (!email.endsWith(DOMAIN) && !EXTRA_EMAILS.includes(email.toLowerCase())) {
       setError(`Solo se permiten correos ${DOMAIN}`)
       return
     }
