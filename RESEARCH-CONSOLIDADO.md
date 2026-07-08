@@ -1,7 +1,7 @@
 # RESEARCH CONSOLIDADO — mea-tickets (CrediFlexi Operaciones)
 
 > Documento vivo. Single source of truth del estado real del repo.
-> Última actualización: 2026-07-02.
+> Última actualización: 2026-07-07.
 > Para el plan de trabajo activo ver `PLAN.md`.
 
 ---
@@ -885,11 +885,20 @@ Cierre del pipeline de cartera para producción (mismo día que SEC-002 y CART-0
 
 ---
 
-## 13. Módulo Reclutamiento *(nuevo — en planeación, NO implementado)*
+## 13. Módulo Reclutamiento *(S1..S4 + Sprint G implementados)*
 
-> Documentación de research del 4º módulo. Aún no hay código ni migraciones.
+> Documentación de research del 4º módulo. **Estado 2026-07-07:** S1 (fundaciones), S2 (vacantes+candidatos), S3 (pipeline/DAG), **Sprint G (Google Workspace)** y **S4 (agendamiento masivo en cascada)** entregados y en producción. Pendientes: S5 (evaluaciones vía magic link) y S6 (comité).
 > El plan de trabajo (modelo de datos, sprints, integraciones) vive en `PLAN.md §8`.
 > Detalle operativo en `docs/reclutamiento/`.
+
+### 13.0 Agendamiento en cascada — arquitectura entregada (Sprint G + S4, 2026-07-07)
+
+- **Integración Google sin `googleapis`:** `lib/google/client.ts` llama las APIs REST directo con `fetch` (token exchange/refresh, Calendar `events` con `conferenceDataVersion=1` + `sendUpdates=all` para Meet, Gmail `messages/send` con MIME base64url + asunto RFC 2047). Cero dependencias nuevas, apto para serverless.
+- **Cifrado del `refresh_token`:** se resolvió con **AES-256-GCM del módulo `crypto` de Node** (`lib/google/crypto.ts`, formato `iv.tag.enc` en base64), llave derivada por SHA-256 de `GOOGLE_TOKEN_ENCRYPTION_KEY`. Se descartó Vault/`pgcrypto`: más simple y sin acoplar el cifrado a Postgres. La llave vive en `.env.local` y Vercel.
+- **OAuth reconectable:** `/api/google/conectar` (genera `state` anti-CSRF en cookie httpOnly, `access_type=offline&prompt=consent`) + `/api/google/callback` (valida `state`, intercambia el code, cifra y hace upsert en `rec_credenciales_google` por `profile_id`). La cuenta emisora es la última conectada (`order by actualizado_at`); hoy `uzziel.valdez@`, mañana `reclutamiento@` **sin tocar código**.
+- **Cascada (`lib/actions/agendamiento.ts` + `calcularCascada` en el schema):** una liga de Meet de 60 min por candidato; 3 entrevistadores rotan en bloques de 20 min (default Benny→Maritere→Sergio, editables); arranques escalonados 20 min; pausa opcional tras el candidato N. Por candidato: evento Calendar (invita candidato + 3 entrevistadores) → guarda `gcal_event_id`/`meet_url` → correo `agendamiento_fase2` por Gmail → log en `rec_correos_enviados` → transición a `entrevistas_agendadas` vía `rec_transicion_etapa`. Cierra con correo `agenda_entrevistadores` (tabla HTML) a los 3.
+- **Resiliencia:** cada candidato se procesa de forma independiente; un fallo de Calendar/Gmail en uno no aborta la sesión (se reporta por candidato en la UI y en la bitácora con estado `error`).
+- **Deploy:** requiere en Vercel `GOOGLE_RECLUTAMIENTO_CLIENT_ID/SECRET` + `GOOGLE_TOKEN_ENCRYPTION_KEY` y el redirect URI de producción registrado en GCP. Consent screen sigue en modo *External/producción* compartido con el login (advertencia de app no verificada esperada hasta verificar la app).
 
 ### 13.1 Resumen y alcance
 

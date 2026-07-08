@@ -3,7 +3,7 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-07-02.
+> Última actualización: 2026-07-07.
 
 ---
 
@@ -475,8 +475,8 @@ Digitalizar el flujo de entrevistas que hoy lleva el Gerente de RH en Excel/corr
 | **S1** ✅ 2026-06-30 | Fundaciones: flag `acceso_reclutamiento`, enums + tablas + RLS, tipos, sidebar | REC-001..REC-008 ✅ |
 | **S2** ✅ 2026-07-01 | Vacantes + candidatos (CRUD, carga de CV a Storage, fuente, revisión CV) | REC-009..REC-017 ✅ |
 | **S3** ✅ 2026-07-01 | Pipeline: kanban por etapa, transiciones (`rec_transicion_etapa`), descarte con motivo | REC-018..REC-025 ✅ |
-| **Sprint G** ⭐ | **Google Workspace: OAuth (`/admin/conectar-google`) + Calendar API + Gmail API + cifrado del `refresh_token` + plantillas + bitácora** | REC-026..REC-036 |
-| **S4** ⭐ | **Agendamiento masivo** (sesiones, `rec_generar_entrevistas`) — **depende de Sprint G** (Meet links + correos) | REC-037..REC-045 |
+| **Sprint G** ✅ 2026-07-07 | **Google Workspace: OAuth (`/api/google/conectar` + `/callback`), Calendar API + Gmail API vía REST, cifrado AES-256-GCM del `refresh_token`, plantillas + bitácora** | REC-026..REC-029 ✅ |
+| **S4** ✅ 2026-07-07 | **Agendamiento masivo** (cascada de Meets + correos reales + transición) — server action `agendarSesion` + UI `/reclutamiento/agendar` | REC-030..REC-032 ✅ |
 | **S5** | Evaluaciones: magic links consolidados, ruta pública `/evaluar/[token]`, `rec_submit_evaluacion` | REC-046..REC-052 |
 | **S6** | Vista de comité (consolidación de las 3 viabilidades + decisión final) | REC-053..REC-056 |
 
@@ -489,7 +489,9 @@ postulado → en_revision → viable → entrevistas_agendadas → comite → fi
 <cualquier etapa no terminal> → descartado   (motivo_descarte obligatorio)
 ```
 
-No se permite saltar etapas, retroceder, ni salir de un estado terminal (`contratado` / `descartado`). El tablero (`/reclutamiento/pipeline`) es filtrable por vacante; cada card ofrece el avance forward y el descarte con motivo inline. **TODO S4:** la transición a `entrevistas_agendadas` hoy es manual y sin efectos secundarios; en S4 (agendamiento masivo, tras Sprint G) deberá disparar la creación de eventos de Calendar (Meet) y el envío de correos.
+No se permite saltar etapas, retroceder, ni salir de un estado terminal (`contratado` / `descartado`). El tablero (`/reclutamiento/pipeline`) es filtrable por vacante; cada card ofrece el avance forward y el descarte con motivo inline. **S4 (entregado 2026-07-07):** la transición a `entrevistas_agendadas` ya no es manual — `agendarSesion` la dispara automáticamente al agendar la sesión de Fase 2 (vía la RPC `rec_transicion_etapa`), junto con la creación de los eventos de Calendar con liga de Meet y el envío de los correos por Gmail.
+
+**Sprint G + S4 — Agendamiento en cascada (entregado 2026-07-07):** desde `/reclutamiento/agendar` el usuario elige vacante, candidatos en etapa `viable`, fecha/hora de inicio, pausa opcional y los 3 entrevistadores (editables, default Benny/Maritere/Sergio). El server action `agendarSesion` (`lib/actions/agendamiento.ts`) calcula la cascada (una liga de Meet de 60 min por candidato; los 3 entrevistadores rotan en bloques de 20 min; los arranques se escalonan 20 min), y por cada candidato: crea el evento de Calendar con Meet (`conferenceDataVersion=1`, invita candidato + 3 entrevistadores con `sendUpdates=all`), guarda `gcal_event_id`/`meet_url` en `rec_entrevistas`, envía el correo `agendamiento_fase2` por Gmail, registra en `rec_correos_enviados` y transiciona la etapa. Al final manda un correo `agenda_entrevistadores` con la tabla HTML de la sesión. La integración con Google es **REST directo sin `googleapis`** (`lib/google/client.ts`), y el `refresh_token` se cifra con AES-256-GCM (`lib/google/crypto.ts`, llave en `GOOGLE_TOKEN_ENCRYPTION_KEY`). La cuenta emisora es **reconectable** sin cambiar código (hoy `uzziel.valdez@`; mañana `reclutamiento@`).
 
 ### 8.5 Fuera del MVP
 
