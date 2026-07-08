@@ -22,6 +22,13 @@ export type RecEntrevistaEstado = 'programada' | 'realizada' | 'no_show' | 'canc
 export type RecPlantillaCodigo =
   | 'confirmacion_postulacion' | 'agendamiento_fase2' | 'notificacion_entrevistador'
   | 'pase_fase3' | 'descarte' | 'oferta' | 'informativa'
+  | 'agenda_entrevistadores'
+
+// Entrevistador de la cascada Fase 2 (se guarda como jsonb en la sesión).
+export interface RecEntrevistador {
+  nombre: string
+  email: string
+}
 
 export interface ProblemField {
   key: string
@@ -468,6 +475,11 @@ export interface Database {
           fecha: string | null
           descripcion: string | null
           creada_por_id: string | null
+          hora_inicio: string | null
+          duracion_bloque_min: number
+          pausa_despues_de: number | null
+          pausa_minutos: number | null
+          entrevistadores: RecEntrevistador[] | null
           created_at: string
         }
         Insert: {
@@ -476,6 +488,11 @@ export interface Database {
           fecha?: string | null
           descripcion?: string | null
           creada_por_id?: string | null
+          hora_inicio?: string | null
+          duracion_bloque_min?: number
+          pausa_despues_de?: number | null
+          pausa_minutos?: number | null
+          entrevistadores?: RecEntrevistador[] | null
         }
         Update: {
           vacante_id?: string
@@ -483,6 +500,11 @@ export interface Database {
           fecha?: string | null
           descripcion?: string | null
           creada_por_id?: string | null
+          hora_inicio?: string | null
+          duracion_bloque_min?: number
+          pausa_despues_de?: number | null
+          pausa_minutos?: number | null
+          entrevistadores?: RecEntrevistador[] | null
         }
         Relationships: []
       }
@@ -494,6 +516,7 @@ export interface Database {
           fecha_hora: string | null
           estado: RecEntrevistaEstado
           gcal_event_id: string | null
+          meet_url: string | null
           created_at: string
         }
         Insert: {
@@ -502,6 +525,7 @@ export interface Database {
           fecha_hora?: string | null
           estado?: RecEntrevistaEstado
           gcal_event_id?: string | null
+          meet_url?: string | null
         }
         Update: {
           sesion_id?: string
@@ -509,6 +533,7 @@ export interface Database {
           fecha_hora?: string | null
           estado?: RecEntrevistaEstado
           gcal_event_id?: string | null
+          meet_url?: string | null
         }
         Relationships: []
       }
