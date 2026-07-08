@@ -149,3 +149,91 @@ export const transicionEtapaSchema = z.object({
 })
 
 export type TransicionEtapaInput = z.infer<typeof transicionEtapaSchema>
+
+// ── Agendamiento masivo Fase 2 (cascada) ──
+// Cada candidato tiene UNA liga de Meet de 60 min; los 3 entrevistadores rotan
+// en bloques de 20 min y los arranques entre candidatos se escalonan 20 min.
+
+export const DURACION_BLOQUE_MIN = 20
+export const NUM_ENTREVISTADORES = 3
+
+export const ENTREVISTADORES_DEFAULT = [
+  { nombre: 'Benny Cerdeira', email: 'bcerdeira@financieracrediflexi.com' },
+  { nombre: 'Maritere Ríos', email: 'mrios@financieracrediflexi.com' },
+  { nombre: 'Sergio Soto', email: 'sergio.soto@financieracrediflexi.com' },
+] as const
+
+export const entrevistadorSchema = z.object({
+  nombre: z.string().trim().min(2, 'Nombre del entrevistador requerido'),
+  email: z.string().trim().email('Correo de entrevistador inválido'),
+})
+
+export const agendarSesionSchema = z.object({
+  vacante_id: z.string().uuid('Vacante inválida'),
+  candidato_ids: z.array(z.string().uuid()).min(1, 'Selecciona al menos un candidato'),
+  fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida'),
+  hora_inicio: z.string().regex(/^\d{2}:\d{2}$/, 'Hora de inicio inválida'),
+  pausa_despues_de: z.number().int().min(1).optional().nullable(),
+  pausa_minutos: z.number().int().min(5, 'Pausa mínima 5 min').max(120, 'Pausa máxima 120 min').optional().nullable(),
+  entrevistadores: z.array(entrevistadorSchema).length(NUM_ENTREVISTADORES, 'Se requieren 3 entrevistadores'),
+}).superRefine((val, ctx) => {
+  if (val.pausa_despues_de != null && val.pausa_minutos == null) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['pausa_minutos'],
+      message: 'Indica los minutos de pausa',
+    })
+  }
+})
+
+export type AgendarSesionInput = z.infer<typeof agendarSesionSchema>
+
+// ── Cálculo de la cascada (puro, compartido entre preview y server action) ──
+
+export interface BloqueCascada {
+  /** índice del candidato (0-based) */
+  indice: number
+  inicio: string // 'HH:MM'
+  fin: string
+  /** hora de arranque de cada bloque de 20 min (entrevistador 1, 2, 3) */
+  bloques: [string, string, string]
+}
+
+function aMinutos(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map(Number)
+  return h * 60 + m
+}
+
+export function formatoHora(totalMin: number): string {
+  const h = Math.floor(totalMin / 60) % 24
+  const m = totalMin % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
+export function calcularCascada(params: {
+  horaInicio: string
+  numCandidatos: number
+  pausaDespuesDe?: number | null
+  pausaMinutos?: number | null
+}): BloqueCascada[] {
+  const base = aMinutos(params.horaInicio)
+  const pausaTras = params.pausaDespuesDe ?? null
+  const pausaMin = params.pausaMinutos ?? 0
+  const out: BloqueCascada[] = []
+  for (let i = 0; i < params.numCandidatos; i++) {
+    // Escalonamiento de 20 min entre candidatos + pausa opcional tras el candidato N.
+    const pausa = pausaTras != null && i >= pausaTras ? pausaMin : 0
+    const inicio = base + i * DURACION_BLOQUE_MIN + pausa
+    out.push({
+      indice: i,
+      inicio: formatoHora(inicio),
+      fin: formatoHora(inicio + DURACION_BLOQUE_MIN * NUM_ENTREVISTADORES),
+      bloques: [
+        formatoHora(inicio),
+        formatoHora(inicio + DURACION_BLOQUE_MIN),
+        formatoHora(inicio + DURACION_BLOQUE_MIN * 2),
+      ],
+    })
+  }
+  return out
+}
