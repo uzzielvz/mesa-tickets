@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Ticket, Inbox, Tags, FolderTree,
   Users, UserPlus, Gauge,
   PieChart, Building2, UserSearch, AlertTriangle, Layers, Upload, KeyRound,
-  BarChart3, Briefcase, Kanban,
+  BarChart3, Briefcase, Kanban, CalendarClock,
   type LucideIcon,
 } from 'lucide-react'
 import Wordmark from '@/components/brand/wordmark'
@@ -331,6 +331,13 @@ function NavContent({
             label="Pipeline"
             icon={Kanban}
             active={pathname.startsWith('/reclutamiento/pipeline')}
+            onClick={onNav}
+          />
+          <NavItem
+            href="/reclutamiento/agendar"
+            label="Agendar entrevistas"
+            icon={CalendarClock}
+            active={pathname.startsWith('/reclutamiento/agendar')}
             onClick={onNav}
           />
         </NavSection>
