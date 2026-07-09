@@ -3,7 +3,7 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-07-07.
+> Última actualización: 2026-07-08.
 
 ---
 
@@ -491,7 +491,7 @@ postulado → en_revision → viable → entrevistas_agendadas → comite → fi
 
 No se permite saltar etapas, retroceder, ni salir de un estado terminal (`contratado` / `descartado`). El tablero (`/reclutamiento/pipeline`) es filtrable por vacante; cada card ofrece el avance forward y el descarte con motivo inline. **S4 (entregado 2026-07-07):** la transición a `entrevistas_agendadas` ya no es manual — `agendarSesion` la dispara automáticamente al agendar la sesión de Fase 2 (vía la RPC `rec_transicion_etapa`), junto con la creación de los eventos de Calendar con liga de Meet y el envío de los correos por Gmail.
 
-**Sprint G + S4 — Agendamiento en cascada (entregado 2026-07-07):** desde `/reclutamiento/agendar` el usuario elige vacante, candidatos en etapa `viable`, fecha/hora de inicio, pausa opcional y los 3 entrevistadores (editables, default Benny/Maritere/Sergio). El server action `agendarSesion` (`lib/actions/agendamiento.ts`) calcula la cascada (una liga de Meet de 60 min por candidato; los 3 entrevistadores rotan en bloques de 20 min; los arranques se escalonan 20 min), y por cada candidato: crea el evento de Calendar con Meet (`conferenceDataVersion=1`, invita candidato + 3 entrevistadores con `sendUpdates=all`), guarda `gcal_event_id`/`meet_url` en `rec_entrevistas`, envía el correo `agendamiento_fase2` por Gmail, registra en `rec_correos_enviados` y transiciona la etapa. Al final manda un correo `agenda_entrevistadores` con la tabla HTML de la sesión. La integración con Google es **REST directo sin `googleapis`** (`lib/google/client.ts`), y el `refresh_token` se cifra con AES-256-GCM (`lib/google/crypto.ts`, llave en `GOOGLE_TOKEN_ENCRYPTION_KEY`). La cuenta emisora es **reconectable** sin cambiar código (hoy `uzziel.valdez@`; mañana `reclutamiento@`).
+**Sprint G + S4 — Agendamiento en cascada (entregado 2026-07-07):** desde `/reclutamiento/agendar` el usuario elige vacante, candidatos en etapa `viable`, fecha/hora de inicio, pausa opcional y los 3 entrevistadores (editables, default Benny/Maritere/Sergio). El server action `agendarSesion` (`lib/actions/agendamiento.ts`) calcula la cascada (una liga de Meet de 60 min por candidato; los 3 entrevistadores rotan en bloques de 20 min; los arranques se escalonan 20 min), y por cada candidato: crea el evento de Calendar con Meet (`conferenceDataVersion=1`, invita candidato + 3 entrevistadores con `sendUpdates=all`), guarda `gcal_event_id`/`meet_url` en `rec_entrevistas`, envía el correo `agendamiento_fase2` por Gmail, registra en `rec_correos_enviados` y transiciona la etapa. Al final manda un correo `agenda_entrevistadores` con la tabla HTML de la sesión. La integración con Google es **REST directo sin `googleapis`** (`lib/google/client.ts`), y el `refresh_token` se cifra con AES-256-GCM (`lib/google/crypto.ts`, llave en `GOOGLE_TOKEN_ENCRYPTION_KEY`). La cuenta emisora es **reconectable** sin cambiar código (hoy `uzziel.valdez@`; mañana `reclutamiento@`). **REC-033 (2026-07-08):** el correo `agenda_entrevistadores` ahora adjunta el CV de cada candidato agendado (descargado del bucket `reclutamiento`); `enviarCorreo` soporta adjuntos vía MIME `multipart/mixed`.
 
 ### 8.5 Fuera del MVP
 
