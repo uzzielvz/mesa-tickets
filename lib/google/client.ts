@@ -126,10 +126,17 @@ export async function crearEventoMeet(accessToken: string, ev: EventoMeetInput):
 
 // ── Gmail ───────────────────────────────────────────────────────────────────
 
+export interface CorreoAdjunto {
+  filename: string
+  mimeType: string
+  contentBase64: string // contenido del archivo ya codificado en base64 estándar
+}
+
 export interface CorreoInput {
   to: string[]
   subject: string
   html: string
+  adjuntos?: CorreoAdjunto[]
 }
 
 export interface CorreoResult {
@@ -143,15 +150,49 @@ function encodeSubject(subject: string): string {
 }
 
 export async function enviarCorreo(accessToken: string, correo: CorreoInput): Promise<CorreoResult> {
-  const mime = [
-    `To: ${correo.to.join(', ')}`,
-    `Subject: ${encodeSubject(correo.subject)}`,
-    'MIME-Version: 1.0',
-    'Content-Type: text/html; charset=UTF-8',
-    'Content-Transfer-Encoding: base64',
-    '',
-    Buffer.from(correo.html, 'utf8').toString('base64'),
-  ].join('\r\n')
+  const adjuntos = correo.adjuntos ?? []
+  let mime: string
+
+  if (adjuntos.length === 0) {
+    // Correo simple: solo cuerpo HTML.
+    mime = [
+      `To: ${correo.to.join(', ')}`,
+      `Subject: ${encodeSubject(correo.subject)}`,
+      'MIME-Version: 1.0',
+      'Content-Type: text/html; charset=UTF-8',
+      'Content-Transfer-Encoding: base64',
+      '',
+      Buffer.from(correo.html, 'utf8').toString('base64'),
+    ].join('\r\n')
+  } else {
+    // multipart/mixed: cuerpo HTML + uno o más adjuntos (p.ej. los CV).
+    const boundary = `mea_${crypto.randomUUID()}`
+    const partes: string[] = [
+      `To: ${correo.to.join(', ')}`,
+      `Subject: ${encodeSubject(correo.subject)}`,
+      'MIME-Version: 1.0',
+      `Content-Type: multipart/mixed; boundary="${boundary}"`,
+      '',
+      `--${boundary}`,
+      'Content-Type: text/html; charset=UTF-8',
+      'Content-Transfer-Encoding: base64',
+      '',
+      Buffer.from(correo.html, 'utf8').toString('base64'),
+    ]
+    for (const a of adjuntos) {
+      partes.push(
+        `--${boundary}`,
+        `Content-Type: ${a.mimeType}; name="${a.filename}"`,
+        `Content-Disposition: attachment; filename="${a.filename}"`,
+        'Content-Transfer-Encoding: base64',
+        '',
+        // El base64 del adjunto se parte en líneas de 76 chars (MIME).
+        a.contentBase64.replace(/(.{76})/g, '$1\r\n'),
+      )
+    }
+    partes.push(`--${boundary}--`)
+    mime = partes.join('\r\n')
+  }
 
   const raw = Buffer.from(mime, 'utf8')
     .toString('base64')

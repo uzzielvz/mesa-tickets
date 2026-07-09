@@ -35,6 +35,7 @@ interface Candidato {
   nombre: string
   email: string | null
   etapa: string
+  cv_storage_path: string | null
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -54,6 +55,20 @@ function aHtml(texto: string): string {
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+// Content-Type del adjunto según la extensión del CV.
+function tipoPorNombre(path: string): string {
+  const ext = path.toLowerCase().split('.').pop()
+  if (ext === 'pdf') return 'application/pdf'
+  if (ext === 'doc') return 'application/msword'
+  if (ext === 'docx') return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  return 'application/octet-stream'
+}
+
+// Nombre de archivo seguro (sin acentos ni caracteres raros) para el header MIME.
+function nombreArchivoSeguro(s: string): string {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w.\- ]/g, '').trim()
 }
 
 // '2026-06-24' → 'miércoles 24 de junio de 2026' (sin sorpresas de zona horaria).
@@ -107,7 +122,7 @@ export async function agendarSesion(raw: unknown): Promise<Result<{
 
   const { data: candidatosData } = await supabase
     .from('rec_candidatos')
-    .select('id, nombre, email, etapa')
+    .select('id, nombre, email, etapa, cv_storage_path')
     .in('id', d.candidato_ids)
   const candidatos = (candidatosData ?? []) as Candidato[]
 
@@ -292,11 +307,34 @@ export async function agendarSesion(raw: unknown): Promise<Result<{
         `La primera entrevista inicia a las ${d.hora_inicio}.`,
       tabla_agenda: '__TABLA__',
     }
+
+    // Adjunta el CV de cada candidato agendado que tenga archivo en Storage.
+    const adjuntos = []
+    for (const r of conEvento) {
+      const cand = ordenados.find(c => c.id === r.candidatoId)
+      const path = cand?.cv_storage_path
+      if (!path) continue
+      try {
+        const { data: blob } = await supabase.storage.from('reclutamiento').download(path)
+        if (!blob) continue
+        const buf = Buffer.from(await blob.arrayBuffer())
+        const ext = path.toLowerCase().split('.').pop() ?? 'pdf'
+        adjuntos.push({
+          filename: `CV - ${nombreArchivoSeguro(r.nombre)}.${ext}`,
+          mimeType: tipoPorNombre(path),
+          contentBase64: buf.toString('base64'),
+        })
+      } catch {
+        // Si un CV no se puede descargar, se omite pero el correo se envía igual.
+      }
+    }
+
     try {
       const correo = await enviarCorreo(accessToken, {
         to: [e1.email, e2.email, e3.email],
         subject: render(tplAgenda.asunto, varsAgenda),
         html: aHtml(render(tplAgenda.cuerpo, varsAgenda)).replace('__TABLA__', tabla),
+        adjuntos,
       })
       agendaEnviada = true
       for (const e of [e1, e2, e3]) {
