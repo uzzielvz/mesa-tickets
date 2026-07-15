@@ -188,6 +188,21 @@ export const agendarSesionSchema = z.object({
 
 export type AgendarSesionInput = z.infer<typeof agendarSesionSchema>
 
+// ── Evaluación del entrevistador (ruta pública /evaluar/[token]) ──
+// La recomendación es obligatoria; comentarios y puntaje (1–10) opcionales.
+
+export const submitEvaluacionSchema = z.object({
+  token: z.string().min(1, 'Token requerido'),
+  entrevista_id: z.string().uuid('Entrevista inválida'),
+  recomendacion: z.enum(['si', 'no', 'filtro_dg'], {
+    errorMap: () => ({ message: 'Selecciona una valoración' }),
+  }),
+  comentarios: z.string().trim().max(2000, 'Máximo 2000 caracteres').optional().or(z.literal('')),
+  puntaje: z.number().int().min(1, 'Mínimo 1').max(10, 'Máximo 10').optional().nullable(),
+})
+
+export type SubmitEvaluacionInput = z.infer<typeof submitEvaluacionSchema>
+
 // ── Cálculo de la cascada (puro, compartido entre preview y server action) ──
 
 export interface BloqueCascada {

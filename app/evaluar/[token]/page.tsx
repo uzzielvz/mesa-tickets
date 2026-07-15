@@ -1,23 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
+import { EvaluacionForm } from '@/components/reclutamiento/evaluacion-form'
+import type { CandidatoEval } from './tipos'
 
 // Ruta pública del entrevistador (magic link). No requiere sesión: el acceso a
 // datos se resuelve por token vía la RPC security definer rec_sesion_por_token.
 // Nunca expone CVs, correos de candidatos ni evaluaciones de otros entrevistadores.
 
 export const dynamic = 'force-dynamic'
-
-export interface EvaluacionCandidato {
-  recomendacion: 'si' | 'no' | 'filtro_dg' | null
-  comentarios: string | null
-  puntaje: number | null
-}
-
-export interface CandidatoEval {
-  entrevista_id: string
-  nombre: string
-  horario: string
-  evaluacion: EvaluacionCandidato | null
-}
 
 interface SesionToken {
   valido: boolean
@@ -104,9 +93,9 @@ export default async function EvaluarPage({ params }: { params: { token: string 
                 <h2 className="font-medium text-slate-900">{c.nombre}</h2>
                 <span className="text-xs text-slate-500">{c.horario}</span>
               </div>
-              <p className="mt-3 text-sm text-slate-500">
-                {c.evaluacion?.recomendacion ? 'Evaluado.' : 'Pendiente de evaluar.'}
-              </p>
+              <div className="mt-4">
+                <EvaluacionForm token={params.token} candidato={c} />
+              </div>
             </li>
           ))}
         </ul>
