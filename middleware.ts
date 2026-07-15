@@ -27,6 +27,12 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
+  // Ruta pública del entrevistador (magic link): sin sesión, sin redirección.
+  // El acceso a datos se valida por token vía RPC security definer.
+  if (pathname.startsWith('/evaluar')) {
+    return supabaseResponse
+  }
+
   // Rutas públicas
   if (pathname.startsWith('/login') || pathname.startsWith('/auth')) {
     if (user) {
