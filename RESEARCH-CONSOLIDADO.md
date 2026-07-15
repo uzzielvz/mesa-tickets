@@ -1,7 +1,7 @@
 # RESEARCH CONSOLIDADO — mea-tickets (CrediFlexi Operaciones)
 
 > Documento vivo. Single source of truth del estado real del repo.
-> Última actualización: 2026-07-07.
+> Última actualización: 2026-07-15.
 > Para el plan de trabajo activo ver `PLAN.md`.
 
 ---
@@ -899,6 +899,13 @@ Cierre del pipeline de cartera para producción (mismo día que SEC-002 y CART-0
 - **Cascada (`lib/actions/agendamiento.ts` + `calcularCascada` en el schema):** una liga de Meet de 60 min por candidato; 3 entrevistadores rotan en bloques de 20 min (default Benny→Maritere→Sergio, editables); arranques escalonados 20 min; pausa opcional tras el candidato N. Por candidato: evento Calendar (invita candidato + 3 entrevistadores) → guarda `gcal_event_id`/`meet_url` → correo `agendamiento_fase2` por Gmail → log en `rec_correos_enviados` → transición a `entrevistas_agendadas` vía `rec_transicion_etapa`. Cierra con correo `agenda_entrevistadores` (tabla HTML) a los 3.
 - **Resiliencia:** cada candidato se procesa de forma independiente; un fallo de Calendar/Gmail en uno no aborta la sesión (se reporta por candidato en la UI y en la bitácora con estado `error`).
 - **Deploy:** requiere en Vercel `GOOGLE_RECLUTAMIENTO_CLIENT_ID/SECRET` + `GOOGLE_TOKEN_ENCRYPTION_KEY` y el redirect URI de producción registrado en GCP. Consent screen sigue en modo *External/producción* compartido con el login (advertencia de app no verificada esperada hasta verificar la app).
+
+#### 13.0.1 Evaluaciones vía magic link — decisiones entregadas (S5, 2026-07-15)
+
+- **Magic link = token propio, no Supabase Auth.** El "magic link" del entrevistador es un token aleatorio (`randomBytes(32).base64url`) guardado en la tabla `rec_magic_links`; **no** consume el sistema de emails/OTP de Supabase Auth ni crea usuarios/sesiones. El correo se manda por Gmail (Sprint G) y la validación es una RPC. Costo marginal: filas en una tabla propia.
+- **Identificación por email, no por `profiles.id`.** Los entrevistadores no son `profiles` (se modelan como jsonb `[{nombre,email}]` en la sesión desde S4). Por eso la migración `rec_011` relajó `entrevistador_id` a nullable y agregó `entrevistador_email`/`entrevistador_nombre` con uniques por email en `rec_magic_links` y `rec_evaluaciones`. Cuando aparezca la tabla `rec_entrevistadores` (v2) se podrá reconciliar por email.
+- **Superficie pública mínima = 2 RPC security definer.** `rec_sesion_por_token(token)` devuelve solo lo que el entrevistador debe ver (su nombre, vacante, fecha, y por candidato nombre+horario+su propia evaluación) y `rec_submit_evaluacion(...)` hace upsert validando que la entrevista pertenezca a la sesión del token. Ambas con `grant execute` a `anon`; las tablas `rec_*` siguen admin-only por RLS. La ruta `/evaluar/[token]` **nunca** expone CVs, correos de candidatos ni evaluaciones de otros entrevistadores.
+- **Token multi-uso, expira a 7 días.** El entrevistador entra las veces que necesite durante la jornada; `usado_at` es informativo (se refresca en cada submit), la vigencia la define `expira_at` (fecha de sesión + 7 días). La liga se arma con la URL base derivada de los headers de la petición en `agendarSesion` (sin variable de entorno nueva).
 
 ### 13.1 Resumen y alcance
 

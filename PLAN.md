@@ -477,7 +477,7 @@ Digitalizar el flujo de entrevistas que hoy lleva el Gerente de RH en Excel/corr
 | **S3** ✅ 2026-07-01 | Pipeline: kanban por etapa, transiciones (`rec_transicion_etapa`), descarte con motivo | REC-018..REC-025 ✅ |
 | **Sprint G** ✅ 2026-07-07 | **Google Workspace: OAuth (`/api/google/conectar` + `/callback`), Calendar API + Gmail API vía REST, cifrado AES-256-GCM del `refresh_token`, plantillas + bitácora** | REC-026..REC-029 ✅ |
 | **S4** ✅ 2026-07-07 | **Agendamiento masivo** (cascada de Meets + correos reales + transición) — server action `agendarSesion` + UI `/reclutamiento/agendar` | REC-030..REC-032 ✅ |
-| **S5** | Evaluaciones: magic links consolidados, ruta pública `/evaluar/[token]`, `rec_submit_evaluacion` — **plan detallado en §8.8** | REC-046..REC-052 |
+| **S5** ✅ 2026-07-15 | Evaluaciones: magic link por email (token propio, no Auth), ruta pública `/evaluar/[token]`, RPCs `rec_sesion_por_token` + `rec_submit_evaluacion` — ver §8.8 | REC-046..REC-052 ✅ |
 | **S6** | Vista de comité (consolidación de las 3 viabilidades + decisión final) | REC-053..REC-056 |
 
 **S6 — Vista de comité** (después de S5): pantalla `/reclutamiento/sesiones/[id]/comite` que muestra, por candidato, las 3 viabilidades (`si`/`no`/`filtro_dg`) + comentarios de los 3 entrevistadores. Acción del comité: transición a `final_dg` o `descartado` con un campo `notas_comite` opcional. (REC-053..REC-056).
@@ -525,7 +525,9 @@ No se permite saltar etapas, retroceder, ni salir de un estado terminal (`contra
 
 > Resueltos (ya no son preguntas abiertas): alcance Gmail+Calendar (= Opción A) · cifrado del `refresh_token` (= Vault si está, `pgcrypto` si no — ver §8.6) · pipeline (= 1↔1, N↔N v2) · RLS (= admin ve todo, nadie más entra). El set de placeholders de plantillas y la caducidad/rotación de magic links se resuelven como parte del trabajo del Sprint G y S5 respectivamente (no son bloqueantes de planeación).
 
-### 8.8 S5 — Evaluaciones vía magic link: plan de implementación detallado
+### 8.8 S5 — Evaluaciones vía magic link (entregado 2026-07-15)
+
+> **Entregado 2026-07-15** (REC-046..REC-052). Lo que sigue es el plan de implementación tal como se ejecutó; las notas de cierre están al final de la sección.
 
 > Plan listo para ejecutar (2026-07-15). Tickets REC-046..REC-052, un commit atómico por ticket, en este orden. Convenciones del repo: commits en español `feat(rec): ... (REC-0XX)`, **sin** `Co-Authored-By` ni firma de Claude; Server Actions con patrón `Result<T> = ({ ok: true } & T) | { ok: false; error: string }`; validación con zod `safeParse`; **nunca** commitear `sessions.md` ni `.env*`.
 
@@ -561,6 +563,8 @@ No se permite saltar etapas, retroceder, ni salir de un estado terminal (`contra
 | **REC-052** | Verificación + cierre | `npx tsc --noEmit` limpio, `npx next build` verde, `supabase db push` de la migración a remoto, smoke test manual del flujo (agendar → correo con liga → abrir `/evaluar/[token]` → guardar evaluación → editar → verificar fila en `rec_evaluaciones`). Commits atómicos por ticket. **Actualizar docs:** PLAN.md §8.4 (fila S5 → ✅ con fecha y tickets REC-046..052), este §8.8 marcar como entregado, bump de "Última actualización"; RESEARCH-CONSOLIDADO.md §13: agregar nota en 13.0 (o subsección nueva) con las decisiones entregadas de S5 (identificación por email en vez de profiles.id, RPCs security definer como única superficie pública, token multi-uso 7 días) y bump de fecha. Verificar consistencia final de ambos documentos contra lo implementado. |
 
 **Fuera de alcance de S5 (no hacer):** vista de comité (S6), correo `pase_fase3` automático, recordatorios, cancelar/reagendar sesiones, rate limiting de la ruta pública (v2).
+
+**Notas de cierre (2026-07-15):** entregado según plan. La migración `20260715120000_rec_011_evaluaciones_magic_link.sql` relaja `entrevistador_id` a nullable y agrega `entrevistador_email`/`entrevistador_nombre` con uniques por email en `rec_magic_links` y `rec_evaluaciones`; las RPC `rec_sesion_por_token` y `rec_submit_evaluacion` (security definer, grant a `anon`) son la única superficie pública. `agendarSesion` genera un token por entrevistador (`randomBytes(32).base64url`, expira a los 7 días) y envía la liga personal con la plantilla `notificacion_entrevistador`; la URL base se deriva de los headers de la petición (sin env nueva). La ruta `/evaluar/[token]` vive fuera de `(dashboard)` y está excluida del middleware; muestra solo nombre + horario + formulario por candidato (nunca CVs ni datos de otros). Pendiente operativo: `supabase db push` de la migración a remoto y smoke test end-to-end (requiere entorno con deps instaladas — el checkout local tenía node_modules incompleto).
 
 ---
 

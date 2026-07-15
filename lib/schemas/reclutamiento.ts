@@ -194,9 +194,7 @@ export type AgendarSesionInput = z.infer<typeof agendarSesionSchema>
 export const submitEvaluacionSchema = z.object({
   token: z.string().min(1, 'Token requerido'),
   entrevista_id: z.string().uuid('Entrevista inválida'),
-  recomendacion: z.enum(['si', 'no', 'filtro_dg'], {
-    errorMap: () => ({ message: 'Selecciona una valoración' }),
-  }),
+  recomendacion: z.enum(['si', 'no', 'filtro_dg']),
   comentarios: z.string().trim().max(2000, 'Máximo 2000 caracteres').optional().or(z.literal('')),
   puntaje: z.number().int().min(1, 'Mínimo 1').max(10, 'Máximo 10').optional().nullable(),
 })
