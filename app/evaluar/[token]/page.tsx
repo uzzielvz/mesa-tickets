@@ -56,6 +56,7 @@ export default async function EvaluarPage({ params }: { params: { token: string 
   }
 
   const candidatos = sesion.candidatos ?? []
+  const evaluados = candidatos.filter(c => c.evaluacion?.recomendacion).length
 
   return (
     <Marco>
@@ -65,6 +66,11 @@ export default async function EvaluarPage({ params }: { params: { token: string 
           Hola{sesion.entrevistador_nombre ? `, ${sesion.entrevistador_nombre}` : ''}. Registra tu
           valoración de cada candidato que entrevistaste.
         </p>
+        {candidatos.length > 0 && (
+          <p className="mt-2 text-sm font-medium text-slate-700">
+            {evaluados} de {candidatos.length} evaluados
+          </p>
+        )}
         <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm text-slate-700">
           {sesion.vacante && (
             <div className="flex gap-1">
@@ -89,9 +95,16 @@ export default async function EvaluarPage({ params }: { params: { token: string 
         <ul className="space-y-4">
           {candidatos.map(c => (
             <li key={c.entrevista_id} className="rounded-lg border bg-white p-5 shadow-sm">
-              <div className="flex items-baseline justify-between">
-                <h2 className="font-medium text-slate-900">{c.nombre}</h2>
-                <span className="text-xs text-slate-500">{c.horario}</span>
+              <div className="flex items-baseline justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <h2 className="font-medium text-slate-900">{c.nombre}</h2>
+                  {c.evaluacion?.recomendacion && (
+                    <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                      Evaluado ✓
+                    </span>
+                  )}
+                </div>
+                <span className="whitespace-nowrap text-xs text-slate-500">{c.horario}</span>
               </div>
               <div className="mt-4">
                 <EvaluacionForm token={params.token} candidato={c} />
