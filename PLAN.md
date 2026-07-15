@@ -3,7 +3,7 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-07-08.
+> Última actualización: 2026-07-15.
 
 ---
 
@@ -477,7 +477,7 @@ Digitalizar el flujo de entrevistas que hoy lleva el Gerente de RH en Excel/corr
 | **S3** ✅ 2026-07-01 | Pipeline: kanban por etapa, transiciones (`rec_transicion_etapa`), descarte con motivo | REC-018..REC-025 ✅ |
 | **Sprint G** ✅ 2026-07-07 | **Google Workspace: OAuth (`/api/google/conectar` + `/callback`), Calendar API + Gmail API vía REST, cifrado AES-256-GCM del `refresh_token`, plantillas + bitácora** | REC-026..REC-029 ✅ |
 | **S4** ✅ 2026-07-07 | **Agendamiento masivo** (cascada de Meets + correos reales + transición) — server action `agendarSesion` + UI `/reclutamiento/agendar` | REC-030..REC-032 ✅ |
-| **S5** | Evaluaciones: magic links consolidados, ruta pública `/evaluar/[token]`, `rec_submit_evaluacion` | REC-046..REC-052 |
+| **S5** | Evaluaciones: magic links consolidados, ruta pública `/evaluar/[token]`, `rec_submit_evaluacion` — **plan detallado en §8.8** | REC-046..REC-052 |
 | **S6** | Vista de comité (consolidación de las 3 viabilidades + decisión final) | REC-053..REC-056 |
 
 **S6 — Vista de comité** (después de S5): pantalla `/reclutamiento/sesiones/[id]/comite` que muestra, por candidato, las 3 viabilidades (`si`/`no`/`filtro_dg`) + comentarios de los 3 entrevistadores. Acción del comité: transición a `final_dg` o `descartado` con un campo `notas_comite` opcional. (REC-053..REC-056).
@@ -524,6 +524,43 @@ No se permite saltar etapas, retroceder, ni salir de un estado terminal (`contra
 5. **Workspace OAuth:** validar al inicio del Sprint G si CrediFlexi restringe apps externas en su Workspace; si sí, Manuel debe whitelistear el `client_id` una vez.
 
 > Resueltos (ya no son preguntas abiertas): alcance Gmail+Calendar (= Opción A) · cifrado del `refresh_token` (= Vault si está, `pgcrypto` si no — ver §8.6) · pipeline (= 1↔1, N↔N v2) · RLS (= admin ve todo, nadie más entra). El set de placeholders de plantillas y la caducidad/rotación de magic links se resuelven como parte del trabajo del Sprint G y S5 respectivamente (no son bloqueantes de planeación).
+
+### 8.8 S5 — Evaluaciones vía magic link: plan de implementación detallado
+
+> Plan listo para ejecutar (2026-07-15). Tickets REC-046..REC-052, un commit atómico por ticket, en este orden. Convenciones del repo: commits en español `feat(rec): ... (REC-0XX)`, **sin** `Co-Authored-By` ni firma de Claude; Server Actions con patrón `Result<T> = ({ ok: true } & T) | { ok: false; error: string }`; validación con zod `safeParse`; **nunca** commitear `sessions.md` ni `.env*`.
+
+**Contexto que el implementador debe leer antes de tocar código:**
+- `supabase/migrations/20260630120200_rec_003_tablas.sql` — ya existen `rec_magic_links` (token único, `expira_at`, `usado_at`, `unique(sesion_id, entrevistador_id)`) y `rec_evaluaciones` (`unique(entrevista_id, entrevistador_id)`, `entrevistador_id → profiles.id` NOT NULL).
+- `supabase/migrations/20260630120300_rec_004_rls.sql` — RLS actual (admin-only) de las tablas `rec_*`.
+- `supabase/migrations/20260707100100_rec_010_agendamiento.sql` — columnas de sesión (`entrevistadores` jsonb `[{nombre, email}]`) y seed de plantillas.
+- `lib/actions/agendamiento.ts` — server action `agendarSesion` (aquí se generan los magic links en REC-048).
+- `lib/google/client.ts` — `enviarCorreo` (ya soporta adjuntos; para estos correos NO se adjunta nada).
+- `middleware.ts` — hoy solo `/login` y `/auth` son públicas; hay que abrir `/evaluar`.
+- `lib/supabase/types.ts`, `lib/schemas/reclutamiento.ts` — patrones de tipos y schemas existentes.
+
+**Decisión de diseño clave (resuelve una inconsistencia del schema):** en S4 los entrevistadores quedaron modelados como jsonb `[{nombre, email}]` en `rec_sesiones_entrevistas.entrevistadores` — NO son `profiles` (Benny/Maritere/Sergio no tienen cuenta en la app). Por lo tanto S5 identifica al entrevistador **por email**, no por `profiles.id`: se relajan `rec_magic_links.entrevistador_id` y `rec_evaluaciones.entrevistador_id` a nullable y se agregan columnas `entrevistador_email` + `entrevistador_nombre` (text). Los uniques pasan a `(sesion_id, entrevistador_email)` y `(entrevista_id, entrevistador_email)`.
+
+**Parámetros de producto (ya decididos, no preguntar):**
+- Token: `crypto.randomBytes(32).toString('base64url')`, multi-uso hasta expirar (NO single-use; `usado_at` solo informativo, se actualiza en cada submit).
+- Expiración: `fecha` de la sesión + 7 días (`expira_at = (fecha + interval '8 days')::date` a medianoche, o equivalente).
+- URL pública: `/evaluar/[token]` (corta, va en correos). Carpeta `app/evaluar/[token]/page.tsx` — FUERA de `(dashboard)`.
+- Formulario por candidato: `recomendacion` (`rec_viabilidad`: `si`/`no`/`filtro_dg`) **obligatoria**, `comentarios` (text, opcional), `puntaje` (1–10, opcional). Editable mientras el token no expire (upsert).
+- La página pública muestra SOLO: nombre del entrevistador, vacante, fecha, y por candidato nombre + horario + su propio formulario. **Nunca** CVs, emails de candidatos ni evaluaciones de otros entrevistadores.
+- Un correo individual por entrevistador (plantilla `notificacion_entrevistador`, placeholder `{{magic_link}}`) — no se mete la liga en el correo de agenda compartido porque las ligas son personales.
+
+**Tickets:**
+
+| Ticket | Entregable | Detalle |
+|---|---|---|
+| **REC-046** | Migración `rec_011_evaluaciones_magic_link.sql` | (a) `alter table rec_magic_links`: `entrevistador_id` nullable, add `entrevistador_email text`, `entrevistador_nombre text`; drop constraint `rec_magic_links_sesion_id_entrevistador_id_key`, nuevo `unique (sesion_id, entrevistador_email)`. (b) Igual en `rec_evaluaciones`: `entrevistador_id` nullable, add `entrevistador_email`/`entrevistador_nombre`; drop `rec_evaluaciones_entrevista_id_entrevistador_id_key`, nuevo `unique (entrevista_id, entrevistador_email)`. (c) Seed de plantilla `notificacion_entrevistador` (`on conflict (codigo) do update`): asunto `'Tus evaluaciones — {{vacante}} / {{fecha}}'`, cuerpo corto con `{{nombre_entrevistador}}`, `{{vacante}}`, `{{fecha}}`, liga `{{magic_link}}` y nota de que expira en 7 días. (d) RPC `rec_sesion_por_token(p_token text) returns jsonb` — `security definer set search_path = public`; valida token existente y no expirado (si no: `{"valido": false, "motivo": "invalido"|"expirado"}`); si es válido devuelve `{"valido": true, "entrevistador_nombre", "vacante", "fecha", "candidatos": [{entrevista_id, nombre, horario, evaluacion: {recomendacion, comentarios, puntaje} | null}]}` — candidatos de las `rec_entrevistas` de la sesión del token, ordenados por `fecha_hora`, con la evaluación existente de ESE email si la hay. (e) RPC `rec_submit_evaluacion(p_token text, p_entrevista_id uuid, p_recomendacion rec_viabilidad, p_comentarios text, p_puntaje smallint) returns jsonb` — security definer; valida token vigente Y que `p_entrevista_id` pertenezca a la sesión del token (si no, error); upsert en `rec_evaluaciones` por `(entrevista_id, entrevistador_email)` con `enviada_at = now()`; actualiza `usado_at = now()` en el magic link; devuelve `{"ok": true}` o `{"ok": false, "error": ...}`. (f) `grant execute` de ambas RPCs a `anon` y `authenticated`; `revoke` de todo lo demás. Las tablas siguen admin-only por RLS (el acceso público es EXCLUSIVAMENTE vía estas RPCs). |
+| **REC-047** | Tipos TS | `lib/supabase/types.ts`: columnas nuevas de `rec_magic_links`/`rec_evaluaciones` y firmas de las dos RPCs (seguir el patrón de `rec_transicion_etapa`). |
+| **REC-048** | Generación + correos en `agendarSesion` | En `lib/actions/agendamiento.ts`, después del correo de agenda (paso 5): por cada entrevistador `e1/e2/e3` → generar token (`crypto.randomBytes(32).toString('base64url')`), insert en `rec_magic_links` (`sesion_id`, `entrevistador_email`, `entrevistador_nombre`, `token`, `expira_at`), construir liga `${baseUrl}/evaluar/${token}` (baseUrl: usar la env pública de URL que ya exista en el repo — buscar `NEXT_PUBLIC_` en `.env.example`/código; si no hay ninguna, crear `NEXT_PUBLIC_APP_URL` y documentarla), y enviar correo individual con plantilla `notificacion_entrevistador` (cargarla junto con las otras dos en el paso 2). Registrar cada envío en `rec_correos_enviados` (`plantilla_codigo: 'notificacion_entrevistador'`, estado enviado/error). Errores aquí NO abortan la acción (mismo patrón de resiliencia del resto). Extender el retorno con `linksGenerados: number` si es útil para la UI. |
+| **REC-049** | Ruta pública `/evaluar/[token]` | `middleware.ts`: agregar `pathname.startsWith('/evaluar')` a las rutas públicas (retornar `supabaseResponse` sin exigir user). `app/evaluar/[token]/page.tsx` (server component): llama `rec_sesion_por_token`; si `valido=false` renderiza pantalla amable ("liga inválida" / "liga expirada — pide una nueva a RH") sin filtrar información; si es válido renderiza encabezado (entrevistador, vacante, fecha) + lista de candidatos. Layout mínimo standalone (sin sidebar del dashboard), responsive (se usará desde celular). |
+| **REC-050** | Formulario + submit | `lib/schemas/reclutamiento.ts`: schema zod `submitEvaluacionSchema` (`token`, `entrevista_id` uuid, `recomendacion` enum, `comentarios` opcional, `puntaje` 1–10 opcional). Server action `submitEvaluacion` en `lib/actions/reclutamiento.ts` (o archivo nuevo `lib/actions/evaluaciones.ts`): `safeParse` → llama RPC `rec_submit_evaluacion` → `Result`. Componente client `components/reclutamiento/evaluacion-form.tsx`: radio/segmented para `si`/`no`/`filtro_dg` (labels: "Viable" / "No viable" / "Filtro DG"), textarea comentarios, puntaje opcional, botón guardar con estado pending y confirmación visual. Precarga la evaluación existente si la hay. |
+| **REC-051** | UX de progreso | En la página: badge "Evaluado ✓" por candidato ya evaluado, contador "N de M evaluados", los formularios siguen editables (re-guardar = actualizar). Orden de candidatos por horario. Estados vacíos correctos. |
+| **REC-052** | Verificación + cierre | `npx tsc --noEmit` limpio, `npx next build` verde, `supabase db push` de la migración a remoto, smoke test manual del flujo (agendar → correo con liga → abrir `/evaluar/[token]` → guardar evaluación → editar → verificar fila en `rec_evaluaciones`). Commits atómicos por ticket. **Actualizar docs:** PLAN.md §8.4 (fila S5 → ✅ con fecha y tickets REC-046..052), este §8.8 marcar como entregado, bump de "Última actualización"; RESEARCH-CONSOLIDADO.md §13: agregar nota en 13.0 (o subsección nueva) con las decisiones entregadas de S5 (identificación por email en vez de profiles.id, RPCs security definer como única superficie pública, token multi-uso 7 días) y bump de fecha. Verificar consistencia final de ambos documentos contra lo implementado. |
+
+**Fuera de alcance de S5 (no hacer):** vista de comité (S6), correo `pase_fase3` automático, recordatorios, cancelar/reagendar sesiones, rate limiting de la ruta pública (v2).
 
 ---
 
