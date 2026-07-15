@@ -1,6 +1,8 @@
 'use server'
 
+import { randomBytes } from 'crypto'
 import { revalidatePath } from 'next/cache'
+import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { descifrar } from '@/lib/google/crypto'
 import { accessTokenDesdeRefresh, crearEventoMeet, enviarCorreo } from '@/lib/google/client'
@@ -86,6 +88,7 @@ export async function agendarSesion(raw: unknown): Promise<Result<{
   resultados: ResultadoCandidato[]
   agendaEnviada: boolean
   agendaError: string | null
+  linksGenerados: number
 }>> {
   const parsed = agendarSesionSchema.safeParse(raw)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
@@ -139,11 +142,12 @@ export async function agendarSesion(raw: unknown): Promise<Result<{
   const { data: plantillasData } = await supabase
     .from('rec_plantillas_correo')
     .select('codigo, asunto, cuerpo')
-    .in('codigo', ['agendamiento_fase2', 'agenda_entrevistadores'])
+    .in('codigo', ['agendamiento_fase2', 'agenda_entrevistadores', 'notificacion_entrevistador'])
     .eq('activa', true)
   const plantillas = (plantillasData ?? []) as { codigo: RecPlantillaCodigo; asunto: string; cuerpo: string }[]
   const tplCandidato = plantillas.find(p => p.codigo === 'agendamiento_fase2')
   const tplAgenda = plantillas.find(p => p.codigo === 'agenda_entrevistadores')
+  const tplNotif = plantillas.find(p => p.codigo === 'notificacion_entrevistador')
   if (!tplCandidato || !tplAgenda) {
     return { ok: false, error: 'Faltan plantillas de correo (agendamiento_fase2 / agenda_entrevistadores).' }
   }
@@ -357,10 +361,76 @@ export async function agendarSesion(raw: unknown): Promise<Result<{
     }
   }
 
+  // 6) Magic links de evaluación: una liga personal por entrevistador.
+  // Van en un correo individual (la liga es personal, no puede ir en la agenda
+  // compartida). Un fallo aquí NO aborta la acción.
+  let linksGenerados = 0
+  if (conEvento.length > 0 && tplNotif) {
+    // Expira: fecha de la sesión + 7 días (medianoche del día 8, hora MX).
+    const expira = new Date(`${d.fecha}T00:00:00-06:00`)
+    expira.setDate(expira.getDate() + 8)
+    const expiraIso = expira.toISOString()
+    const baseUrl = urlBase()
+
+    for (const e of [e1, e2, e3]) {
+      try {
+        const token = randomBytes(32).toString('base64url')
+        const { error: errLink } = await supabase.from('rec_magic_links').insert({
+          sesion_id: sesionId,
+          entrevistador_email: e.email,
+          entrevistador_nombre: e.nombre,
+          token,
+          expira_at: expiraIso,
+        })
+        if (errLink) continue
+
+        const link = `${baseUrl}/evaluar/${token}`
+        const varsNotif = {
+          nombre_entrevistador: e.nombre,
+          vacante: tituloVacante,
+          fecha: fechaTxt,
+          magic_link: link,
+        }
+        const correo = await enviarCorreo(accessToken, {
+          to: [e.email],
+          subject: render(tplNotif.asunto, varsNotif),
+          html: aHtml(render(tplNotif.cuerpo, varsNotif)).replace(
+            escapeHtml(link),
+            `<a href="${link}">${link}</a>`,
+          ),
+        })
+        linksGenerados++
+        await supabase.from('rec_correos_enviados').insert({
+          plantilla_codigo: 'notificacion_entrevistador',
+          to_email: e.email,
+          estado: 'enviado',
+          gmail_message_id: correo.messageId,
+          gmail_thread_id: correo.threadId,
+        })
+      } catch (err) {
+        await supabase.from('rec_correos_enviados').insert({
+          plantilla_codigo: 'notificacion_entrevistador',
+          to_email: e.email,
+          estado: 'error',
+          error: err instanceof Error ? err.message : 'error desconocido',
+        })
+      }
+    }
+  }
+
   revalidatePath('/reclutamiento/pipeline')
   revalidatePath('/reclutamiento/candidatos')
   revalidatePath('/reclutamiento/agendar')
-  return { ok: true, sesionId, resultados, agendaEnviada, agendaError }
+  return { ok: true, sesionId, resultados, agendaEnviada, agendaError, linksGenerados }
+}
+
+// URL base pública del despliegue (para armar la liga /evaluar/[token]).
+// Se deriva de los headers de la petición; funciona en local, preview y prod.
+function urlBase(): string {
+  const h = headers()
+  const host = h.get('x-forwarded-host') ?? h.get('host') ?? 'localhost:3000'
+  const proto = h.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https')
+  return `${proto}://${host}`
 }
 
 // Texto de la pausa para la agenda (si se configuró).
