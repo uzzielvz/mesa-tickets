@@ -541,7 +541,9 @@ export interface Database {
         Row: {
           id: string
           entrevista_id: string
-          entrevistador_id: string
+          entrevistador_id: string | null
+          entrevistador_email: string | null
+          entrevistador_nombre: string | null
           puntaje: number | null
           comentarios: string | null
           recomendacion: RecViabilidad | null
@@ -550,7 +552,9 @@ export interface Database {
         }
         Insert: {
           entrevista_id: string
-          entrevistador_id: string
+          entrevistador_id?: string | null
+          entrevistador_email?: string | null
+          entrevistador_nombre?: string | null
           puntaje?: number | null
           comentarios?: string | null
           recomendacion?: RecViabilidad | null
@@ -568,7 +572,9 @@ export interface Database {
         Row: {
           id: string
           sesion_id: string
-          entrevistador_id: string
+          entrevistador_id: string | null
+          entrevistador_email: string | null
+          entrevistador_nombre: string | null
           token: string
           expira_at: string | null
           usado_at: string | null
@@ -576,7 +582,9 @@ export interface Database {
         }
         Insert: {
           sesion_id: string
-          entrevistador_id: string
+          entrevistador_id?: string | null
+          entrevistador_email?: string | null
+          entrevistador_nombre?: string | null
           token: string
           expira_at?: string | null
           usado_at?: string | null
@@ -702,6 +710,20 @@ export interface Database {
           p_notas?: string | null
         }
         Returns: undefined
+      }
+      rec_sesion_por_token: {
+        Args: { p_token: string }
+        Returns: unknown
+      }
+      rec_submit_evaluacion: {
+        Args: {
+          p_token: string
+          p_entrevista_id: string
+          p_recomendacion: RecViabilidad
+          p_comentarios?: string | null
+          p_puntaje?: number | null
+        }
+        Returns: unknown
       }
     }
     Enums: Record<string, never>
