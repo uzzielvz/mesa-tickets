@@ -1,7 +1,7 @@
 # RESEARCH CONSOLIDADO — mea-tickets (CrediFlexi Operaciones)
 
 > Documento vivo. Single source of truth del estado real del repo.
-> Última actualización: 2026-07-15.
+> Última actualización: 2026-07-27.
 > Para el plan de trabajo activo ver `PLAN.md`.
 
 ---
@@ -885,9 +885,9 @@ Cierre del pipeline de cartera para producción (mismo día que SEC-002 y CART-0
 
 ---
 
-## 13. Módulo Reclutamiento *(S1..S4 + Sprint G implementados)*
+## 13. Módulo Reclutamiento *(S1..S6 + Sprint G implementados)*
 
-> Documentación de research del 4º módulo. **Estado 2026-07-07:** S1 (fundaciones), S2 (vacantes+candidatos), S3 (pipeline/DAG), **Sprint G (Google Workspace)** y **S4 (agendamiento masivo en cascada)** entregados y en producción. Pendientes: S5 (evaluaciones vía magic link) y S6 (comité).
+> Documentación de research del 4º módulo. **Estado 2026-07-27:** S1 (fundaciones), S2 (vacantes+candidatos), S3 (pipeline/DAG), **Sprint G (Google Workspace)**, **S4 (agendamiento masivo en cascada)**, **S5 (evaluaciones vía magic link)** y **S6 (comité + entrevistadores dinámicos + contratación)** entregados. Todo el pipeline `postulado → … → contratado` está cubierto end-to-end.
 > El plan de trabajo (modelo de datos, sprints, integraciones) vive en `PLAN.md §8`.
 > Detalle operativo en `docs/reclutamiento/`.
 
@@ -906,6 +906,14 @@ Cierre del pipeline de cartera para producción (mismo día que SEC-002 y CART-0
 - **Identificación por email, no por `profiles.id`.** Los entrevistadores no son `profiles` (se modelan como jsonb `[{nombre,email}]` en la sesión desde S4). Por eso la migración `rec_011` relajó `entrevistador_id` a nullable y agregó `entrevistador_email`/`entrevistador_nombre` con uniques por email en `rec_magic_links` y `rec_evaluaciones`. Cuando aparezca la tabla `rec_entrevistadores` (v2) se podrá reconciliar por email.
 - **Superficie pública mínima = 2 RPC security definer.** `rec_sesion_por_token(token)` devuelve solo lo que el entrevistador debe ver (su nombre, vacante, fecha, y por candidato nombre+horario+su propia evaluación) y `rec_submit_evaluacion(...)` hace upsert validando que la entrevista pertenezca a la sesión del token. Ambas con `grant execute` a `anon`; las tablas `rec_*` siguen admin-only por RLS. La ruta `/evaluar/[token]` **nunca** expone CVs, correos de candidatos ni evaluaciones de otros entrevistadores.
 - **Token multi-uso, expira a 7 días.** El entrevistador entra las veces que necesite durante la jornada; `usado_at` es informativo (se refresca en cada submit), la vigencia la define `expira_at` (fecha de sesión + 7 días). La liga se arma con la URL base derivada de los headers de la petición en `agendarSesion` (sin variable de entorno nueva).
+
+#### 13.0.2 Comité, entrevistadores dinámicos y contratación — decisiones entregadas (S6, 2026-07-27)
+
+- **Entrevistadores dinámicos (N ≥ 1), no 3 fijos.** Se eliminó el hardcode de 3 entrevistadores/`ENTREVISTADORES_DEFAULT`. En `/reclutamiento/agendar` se inicia con una fila (nombre + email) y un botón "+" agrega más; captura manual libre, sin catálogo. La cascada se generalizó: cada entrevistador conserva su bloque de 20 min → duración del Meet por candidato = `N × 20`, arranques escalonados 20 min (la rotación i+j=k sigue sin empalmes para cualquier N). `calcularCascada`, `agendarSesion` (evento/attendees/tabla de agenda con N columnas/magic links) y la RPC `rec_sesion_por_token` (bloque dinámico `N×20` con `make_interval`) se ajustaron; la plantilla `agendamiento_fase2` pasó a un placeholder único `{{rotacion_entrevistadores}}` en lugar de `{{entrevistador_1..3}}`/`{{hora_1..3}}`.
+- **`en_revision` automática al abrir el perfil.** El server component del detalle del candidato dispara `rec_transicion_etapa → en_revision` si `etapa === 'postulado'` (idempotente, nota "Apertura de perfil"). No rompe si la RPC falla. Refleja el as-is: revisar el CV = abrir el perfil.
+- **Comité sin login para la DG.** Página `/reclutamiento/comite` (filtrable por vacante, etapas `comite/final_dg/oferta`). Por candidato muestra todas las evaluaciones de los entrevistadores (recomendación + comentarios + puntaje) y un campo nuevo `notas_comite` (decisión conjunta, capturada en la reunión). Javier (DG) no tiene cuenta: la pantalla se le muestra en la reunión y **el admin registra ahí mismo** la decisión ("Pasa con DG" → `final_dg`, o descarte con motivo), reutilizando `transicionarCandidato`; todo queda en `rec_candidato_historial`.
+- **Contratación como acción única que centraliza el "al contratar pasa X".** `contratarCandidato` valida prerequisitos (email del candidato, plantilla activa, credencial Google) **antes** de mutar; luego encadena las transiciones del DAG hasta `contratado`, fija `fecha_ingreso` y envía el correo `bienvenida_contratacion` (copy base = correo real de Héctor) con `fecha_ingreso`/`fecha_limite_docs` renderizadas en español largo. El envío es best-effort con bitácora en `rec_correos_enviados` (estado `enviado`/`error`). Es el único gancho para automatización post-contratación futura (por definir).
+- **CC configurable + adjuntos fijos.** Se agregó `cc_emails jsonb` a `rec_plantillas_correo` (default seed: Irvin Mora, Cynthia Aguilar, Jesús Montellano), editable al contratar; `enviarCorreo` ahora emite header `Cc`. Dos adjuntos fijos viven en el bucket `reclutamiento/plantillas/` (`layout-datos-personales.xlsx`, `lineamientos-fotografias.pdf`) y se adjuntan igual que en REC-033. El bucket restringía mime types a PDF/DOC/DOCX, así que `rec_015` agregó el mime de xlsx. **Subir los archivos es un paso manual por el dashboard** (no hay service-role key en el entorno para automatizarlo); sin ellos el correo se envía sin adjuntos.
 
 ### 13.1 Resumen y alcance
 
