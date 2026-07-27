@@ -157,13 +157,6 @@ export type TransicionEtapaInput = z.infer<typeof transicionEtapaSchema>
 
 export const DURACION_BLOQUE_MIN = 20
 
-// Sugerencia inicial del formulario de agendar (editable/removible en la UI).
-export const ENTREVISTADORES_DEFAULT = [
-  { nombre: 'Benny Cerdeira', email: 'bcerdeira@financieracrediflexi.com' },
-  { nombre: 'Maritere Ríos', email: 'mrios@financieracrediflexi.com' },
-  { nombre: 'Sergio Soto', email: 'sergio.soto@financieracrediflexi.com' },
-] as const
-
 export const entrevistadorSchema = z.object({
   nombre: z.string().trim().min(2, 'Nombre del entrevistador requerido'),
   email: z.string().trim().email('Correo de entrevistador inválido'),

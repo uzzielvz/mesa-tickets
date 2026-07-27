@@ -3,9 +3,9 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { CalendarClock, CheckCircle2, Link2, Mail, RefreshCw, XCircle } from 'lucide-react'
+import { CalendarClock, CheckCircle2, Link2, Mail, Plus, RefreshCw, X, XCircle } from 'lucide-react'
 import { agendarSesion, type ResultadoCandidato } from '@/lib/actions/agendamiento'
-import { calcularCascada, ENTREVISTADORES_DEFAULT } from '@/lib/schemas/reclutamiento'
+import { calcularCascada } from '@/lib/schemas/reclutamiento'
 import type { CandidatoViable } from '@/app/(dashboard)/reclutamiento/agendar/page'
 
 interface Vacante {
@@ -48,9 +48,8 @@ export default function AgendarForm({
   const [conPausa, setConPausa] = useState(false)
   const [pausaDespuesDe, setPausaDespuesDe] = useState(2)
   const [pausaMinutos, setPausaMinutos] = useState(20)
-  const [entrevistadores, setEntrevistadores] = useState(
-    ENTREVISTADORES_DEFAULT.map(e => ({ ...e })),
-  )
+  // Se inicia con un entrevistador; el botón "+" agrega más (captura libre).
+  const [entrevistadores, setEntrevistadores] = useState([{ nombre: '', email: '' }])
   const [enviando, setEnviando] = useState(false)
   const [resultados, setResultados] = useState<ResultadoCandidato[] | null>(null)
   const [agendaEnviada, setAgendaEnviada] = useState(false)
@@ -72,6 +71,14 @@ export default function AgendarForm({
 
   function setEntrevistador(i: number, campo: 'nombre' | 'email', valor: string) {
     setEntrevistadores(prev => prev.map((e, idx) => idx === i ? { ...e, [campo]: valor } : e))
+  }
+
+  function agregarEntrevistador() {
+    setEntrevistadores(prev => [...prev, { nombre: '', email: '' }])
+  }
+
+  function quitarEntrevistador(i: number) {
+    setEntrevistadores(prev => (prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev))
   }
 
   async function enviar() {
@@ -274,11 +281,13 @@ export default function AgendarForm({
         )}
       </div>
 
-      {/* ── Entrevistadores (rotación en ese orden) ── */}
+      {/* ── Entrevistadores (rotación en ese orden, dinámicos) ── */}
       <div className="bg-white border border-[#ECECEC] rounded-md p-4 flex flex-col gap-3">
-        <label className={labelClass}>Entrevistadores (rotan en este orden, bloques de 20 min)</label>
+        <label className={labelClass}>
+          Entrevistadores (rotan en este orden, bloques de 20 min — {entrevistadores.length * 20} min por candidato)
+        </label>
         {entrevistadores.map((e, i) => (
-          <div key={i} className="grid grid-cols-[24px_1fr_1.4fr] gap-2 items-center">
+          <div key={i} className="grid grid-cols-[24px_1fr_1.4fr_28px] gap-2 items-center">
             <span className="text-[11.5px] text-ink-400">{i + 1}.</span>
             <input
               value={e.nombre}
@@ -292,8 +301,24 @@ export default function AgendarForm({
               placeholder="correo@financieracrediflexi.com"
               className={inputClass}
             />
+            <button
+              type="button"
+              onClick={() => quitarEntrevistador(i)}
+              disabled={entrevistadores.length === 1}
+              title="Quitar entrevistador"
+              className="justify-self-center text-ink-400 hover:text-[#b91c1c] disabled:opacity-30 disabled:hover:text-ink-400 transition-colors"
+            >
+              <X size={14} />
+            </button>
           </div>
         ))}
+        <button
+          type="button"
+          onClick={agregarEntrevistador}
+          className="self-start inline-flex items-center gap-1.5 text-[12px] font-medium text-navy border border-[#ECECEC] rounded px-3 py-[5px] hover:bg-surface-hover transition-colors"
+        >
+          <Plus size={12} /> Agregar entrevistador
+        </button>
       </div>
 
       {/* ── Preview de la cascada ── */}
@@ -306,9 +331,9 @@ export default function AgendarForm({
                 <tr className="text-left text-ink-400">
                   <th className="py-1.5 pr-3 font-medium">Candidato</th>
                   <th className="py-1.5 pr-3 font-medium">Horario</th>
-                  <th className="py-1.5 pr-3 font-medium">{entrevistadores[0].nombre || 'Entrevistador 1'}</th>
-                  <th className="py-1.5 pr-3 font-medium">{entrevistadores[1].nombre || 'Entrevistador 2'}</th>
-                  <th className="py-1.5 font-medium">{entrevistadores[2].nombre || 'Entrevistador 3'}</th>
+                  {entrevistadores.map((e, j) => (
+                    <th key={j} className="py-1.5 pr-3 font-medium">{e.nombre || `Entrevistador ${j + 1}`}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -316,9 +341,9 @@ export default function AgendarForm({
                   <tr key={i} className="border-t border-border-subtle text-ink-700">
                     <td className="py-1.5 pr-3">{nombrePorId.get(seleccion[i]) ?? `#${i + 1}`}</td>
                     <td className="py-1.5 pr-3 font-medium text-ink-900">{b.inicio}–{b.fin}</td>
-                    <td className="py-1.5 pr-3">{b.bloques[0]}</td>
-                    <td className="py-1.5 pr-3">{b.bloques[1]}</td>
-                    <td className="py-1.5">{b.bloques[2]}</td>
+                    {b.bloques.map((h, j) => (
+                      <td key={j} className="py-1.5 pr-3">{h}</td>
+                    ))}
                   </tr>
                 ))}
               </tbody>
