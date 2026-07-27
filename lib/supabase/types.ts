@@ -22,7 +22,7 @@ export type RecEntrevistaEstado = 'programada' | 'realizada' | 'no_show' | 'canc
 export type RecPlantillaCodigo =
   | 'confirmacion_postulacion' | 'agendamiento_fase2' | 'notificacion_entrevistador'
   | 'pase_fase3' | 'descarte' | 'oferta' | 'informativa'
-  | 'agenda_entrevistadores'
+  | 'agenda_entrevistadores' | 'bienvenida_contratacion'
 
 // Entrevistador de la cascada Fase 2 (se guarda como jsonb en la sesión).
 export interface RecEntrevistador {
@@ -403,6 +403,8 @@ export interface Database {
           motivo_descarte: RecMotivoDescarte | null
           cv_storage_path: string | null
           notas: string | null
+          notas_comite: string | null
+          fecha_ingreso: string | null
           etapa_actualizada_at: string | null
           etapa_actualizada_por: string | null
           created_at: string
@@ -419,6 +421,8 @@ export interface Database {
           motivo_descarte?: RecMotivoDescarte | null
           cv_storage_path?: string | null
           notas?: string | null
+          notas_comite?: string | null
+          fecha_ingreso?: string | null
           etapa_actualizada_at?: string | null
           etapa_actualizada_por?: string | null
         }
@@ -434,6 +438,8 @@ export interface Database {
           motivo_descarte?: RecMotivoDescarte | null
           cv_storage_path?: string | null
           notas?: string | null
+          notas_comite?: string | null
+          fecha_ingreso?: string | null
           etapa_actualizada_at?: string | null
           etapa_actualizada_por?: string | null
         }
@@ -602,18 +608,21 @@ export interface Database {
           asunto: string
           cuerpo: string
           activa: boolean
+          cc_emails: string[]
         }
         Insert: {
           codigo: RecPlantillaCodigo
           asunto: string
           cuerpo: string
           activa?: boolean
+          cc_emails?: string[]
         }
         Update: {
           codigo?: RecPlantillaCodigo
           asunto?: string
           cuerpo?: string
           activa?: boolean
+          cc_emails?: string[]
         }
         Relationships: []
       }
