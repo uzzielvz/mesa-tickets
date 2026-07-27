@@ -156,6 +156,7 @@ export async function agendarSesion(raw: unknown): Promise<Result<{
   const cascada = calcularCascada({
     horaInicio: d.hora_inicio,
     numCandidatos: ordenados.length,
+    numEntrevistadores: d.entrevistadores.length,
     pausaDespuesDe: d.pausa_despues_de,
     pausaMinutos: d.pausa_minutos,
   })
@@ -179,7 +180,7 @@ export async function agendarSesion(raw: unknown): Promise<Result<{
   if (errSesion || !sesion) return { ok: false, error: 'No se pudo crear la sesión de entrevistas.' }
   const sesionId = (sesion as { id: string }).id
 
-  const [e1, e2, e3] = d.entrevistadores
+  const entrevistadores = d.entrevistadores
   const resultados: ResultadoCandidato[] = []
 
   // 4) Por candidato: evento Meet → entrevista → correo → transición.
@@ -206,16 +207,15 @@ export async function agendarSesion(raw: unknown): Promise<Result<{
         `Candidato: ${c.nombre}`,
         '',
         'Rotación de entrevistadores (misma videollamada):',
-        `• ${e1.nombre}: ${b.bloques[0]} – ${b.bloques[1]}`,
-        `• ${e2.nombre}: ${b.bloques[1]} – ${b.bloques[2]}`,
-        `• ${e3.nombre}: ${b.bloques[2]} – ${b.fin}`,
+        ...entrevistadores.map((e, j) =>
+          `• ${e.nombre}: ${b.bloques[j]} – ${b.bloques[j + 1] ?? b.fin}`),
       ].join('\n')
       const ev = await crearEventoMeet(accessToken, {
         titulo: `Entrevista ${tituloVacante} — ${c.nombre}`,
         descripcion,
         inicioIso: `${d.fecha}T${b.inicio}:00`,
         finIso: `${d.fecha}T${b.fin}:00`,
-        attendees: [c.email!, e1.email, e2.email, e3.email],
+        attendees: [c.email!, ...entrevistadores.map(e => e.email)],
       })
       meetUrl = ev.meetUrl
       eventId = ev.eventId
@@ -242,9 +242,9 @@ export async function agendarSesion(raw: unknown): Promise<Result<{
       hora_inicio: b.inicio,
       hora_fin: b.fin,
       link_meet: meetUrl,
-      entrevistador_1: e1.nombre, hora_1: b.bloques[0],
-      entrevistador_2: e2.nombre, hora_2: b.bloques[1],
-      entrevistador_3: e3.nombre, hora_3: b.bloques[2],
+      rotacion_entrevistadores: entrevistadores
+        .map((e, j) => `* ${e.nombre} — ${b.bloques[j]}`)
+        .join('\n'),
     }
     try {
       const correo = await enviarCorreo(accessToken, {
@@ -289,25 +289,27 @@ export async function agendarSesion(raw: unknown): Promise<Result<{
   const conEvento = resultados.filter(r => r.evento)
   if (conEvento.length > 0) {
     const td = 'style="border:1px solid #ccc;padding:6px 10px;text-align:center"'
-    const filas = conEvento.map((r, idx) => {
+    const filas = conEvento.map(r => {
       const b = cascada[resultados.indexOf(r)]
       return `<tr><td ${td}>${escapeHtml(r.nombre)}</td>` +
-        `<td ${td}>${b.bloques[0]}</td><td ${td}>${b.bloques[1]}</td><td ${td}>${b.bloques[2]}</td>` +
+        b.bloques.map(h => `<td ${td}>${h}</td>`).join('') +
         `<td ${td}>${r.meetUrl ? `<a href="${r.meetUrl}">${r.meetUrl}</a>` : '—'}</td></tr>`
     }).join('')
     const tabla =
       `<table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:13px">` +
-      `<tr><th ${td}>Candidato</th><th ${td}>${escapeHtml(e1.nombre)}</th><th ${td}>${escapeHtml(e2.nombre)}</th>` +
-      `<th ${td}>${escapeHtml(e3.nombre)}</th><th ${td}>Liga Meet</th></tr>${filas}</table>` +
+      `<tr><th ${td}>Candidato</th>` +
+      entrevistadores.map(e => `<th ${td}>${escapeHtml(e.nombre)}</th>`).join('') +
+      `<th ${td}>Liga Meet</th></tr>${filas}</table>` +
       (idxPausa(d) ? `<p>${escapeHtml(idxPausa(d)!)}</p>` : '')
 
+    const duracionMeet = entrevistadores.length * 20
     const varsAgenda = {
-      nombres_entrevistadores: [e1, e2, e3].map(e => e.nombre).join(', '),
+      nombres_entrevistadores: entrevistadores.map(e => e.nombre).join(', '),
       fecha: fechaTxt,
       vacante: tituloVacante,
       descripcion_sesion:
-        `Cada candidato tiene una liga única de Google Meet de 60 minutos y ustedes rotan en la misma ` +
-        `videollamada en bloques de 20 minutos, en el orden ${e1.nombre} → ${e2.nombre} → ${e3.nombre}. ` +
+        `Cada candidato tiene una liga única de Google Meet de ${duracionMeet} minutos y ustedes rotan en la misma ` +
+        `videollamada en bloques de 20 minutos, en el orden ${entrevistadores.map(e => e.nombre).join(' → ')}. ` +
         `La primera entrevista inicia a las ${d.hora_inicio}.`,
       tabla_agenda: '__TABLA__',
     }
@@ -335,13 +337,13 @@ export async function agendarSesion(raw: unknown): Promise<Result<{
 
     try {
       const correo = await enviarCorreo(accessToken, {
-        to: [e1.email, e2.email, e3.email],
+        to: entrevistadores.map(e => e.email),
         subject: render(tplAgenda.asunto, varsAgenda),
         html: aHtml(render(tplAgenda.cuerpo, varsAgenda)).replace('__TABLA__', tabla),
         adjuntos,
       })
       agendaEnviada = true
-      for (const e of [e1, e2, e3]) {
+      for (const e of entrevistadores) {
         await supabase.from('rec_correos_enviados').insert({
           plantilla_codigo: 'agenda_entrevistadores',
           to_email: e.email,
@@ -354,7 +356,7 @@ export async function agendarSesion(raw: unknown): Promise<Result<{
       agendaError = err instanceof Error ? err.message : 'error desconocido'
       await supabase.from('rec_correos_enviados').insert({
         plantilla_codigo: 'agenda_entrevistadores',
-        to_email: [e1, e2, e3].map(e => e.email).join(', '),
+        to_email: entrevistadores.map(e => e.email).join(', '),
         estado: 'error',
         error: agendaError,
       })
@@ -372,7 +374,7 @@ export async function agendarSesion(raw: unknown): Promise<Result<{
     const expiraIso = expira.toISOString()
     const baseUrl = urlBase()
 
-    for (const e of [e1, e2, e3]) {
+    for (const e of entrevistadores) {
       try {
         const token = randomBytes(32).toString('base64url')
         const { error: errLink } = await supabase.from('rec_magic_links').insert({

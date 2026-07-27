@@ -60,10 +60,11 @@ export default function AgendarForm({
     return calcularCascada({
       horaInicio,
       numCandidatos: seleccion.length,
+      numEntrevistadores: entrevistadores.length,
       pausaDespuesDe: conPausa ? pausaDespuesDe : null,
       pausaMinutos: conPausa ? pausaMinutos : null,
     })
-  }, [horaInicio, seleccion.length, conPausa, pausaDespuesDe, pausaMinutos])
+  }, [horaInicio, seleccion.length, entrevistadores.length, conPausa, pausaDespuesDe, pausaMinutos])
 
   function toggle(id: string) {
     setSeleccion(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
