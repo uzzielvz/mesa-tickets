@@ -3,7 +3,7 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-07-15.
+> Última actualización: 2026-07-27.
 
 ---
 
@@ -478,9 +478,9 @@ Digitalizar el flujo de entrevistas que hoy lleva el Gerente de RH en Excel/corr
 | **Sprint G** ✅ 2026-07-07 | **Google Workspace: OAuth (`/api/google/conectar` + `/callback`), Calendar API + Gmail API vía REST, cifrado AES-256-GCM del `refresh_token`, plantillas + bitácora** | REC-026..REC-029 ✅ |
 | **S4** ✅ 2026-07-07 | **Agendamiento masivo** (cascada de Meets + correos reales + transición) — server action `agendarSesion` + UI `/reclutamiento/agendar` | REC-030..REC-032 ✅ |
 | **S5** ✅ 2026-07-15 | Evaluaciones: magic link por email (token propio, no Auth), ruta pública `/evaluar/[token]`, RPCs `rec_sesion_por_token` + `rec_submit_evaluacion` — ver §8.8 | REC-046..REC-052 ✅ |
-| **S6** | Vista de comité (consolidación de las 3 viabilidades + decisión final) | REC-053..REC-056 |
+| **S6** | Comité + entrevistadores dinámicos + contratación (correo de bienvenida) — ver §8.9 | REC-053..REC-060 |
 
-**S6 — Vista de comité** (después de S5): pantalla `/reclutamiento/sesiones/[id]/comite` que muestra, por candidato, las 3 viabilidades (`si`/`no`/`filtro_dg`) + comentarios de los 3 entrevistadores. Acción del comité: transición a `final_dg` o `descartado` con un campo `notas_comite` opcional. (REC-053..REC-056).
+**S6 — alcance ampliado (2026-07-27):** además de la vista de comité original, S6 incluye entrevistadores dinámicos (N, no 3 fijos), transición automática a `en_revision` al abrir el perfil, campo de comentarios del comité, registro de la decisión de la DG (Javier) y la automatización del correo de bienvenida al contratar (con adjuntos fijos y CC configurable). Detalle completo en §8.9.
 
 **S3 — DAG de transiciones (entregado 2026-07-01):** la RPC `rec_transicion_etapa` (security definer, valida rol/acceso adentro) mueve un candidato **un paso hacia adelante** y registra cada cambio en `rec_candidato_historial`:
 
@@ -565,6 +565,45 @@ No se permite saltar etapas, retroceder, ni salir de un estado terminal (`contra
 **Fuera de alcance de S5 (no hacer):** vista de comité (S6), correo `pase_fase3` automático, recordatorios, cancelar/reagendar sesiones, rate limiting de la ruta pública (v2).
 
 **Notas de cierre (2026-07-15):** entregado según plan. La migración `20260715120000_rec_011_evaluaciones_magic_link.sql` relaja `entrevistador_id` a nullable y agrega `entrevistador_email`/`entrevistador_nombre` con uniques por email en `rec_magic_links` y `rec_evaluaciones`; las RPC `rec_sesion_por_token` y `rec_submit_evaluacion` (security definer, grant a `anon`) son la única superficie pública. `agendarSesion` genera un token por entrevistador (`randomBytes(32).base64url`, expira a los 7 días) y envía la liga personal con la plantilla `notificacion_entrevistador`; la URL base se deriva de los headers de la petición (sin env nueva). La ruta `/evaluar/[token]` vive fuera de `(dashboard)` y está excluida del middleware; muestra solo nombre + horario + formulario por candidato (nunca CVs ni datos de otros). Pendiente operativo: `supabase db push` de la migración a remoto y smoke test end-to-end (requiere entorno con deps instaladas — el checkout local tenía node_modules incompleto).
+
+### 8.9 S6 — Comité, entrevistadores dinámicos y contratación (plan 2026-07-27)
+
+> Plan listo para ejecutar. Tickets REC-053..REC-060, un commit atómico por ticket, en este orden. Convenciones del repo: commits en español `feat(rec): ... (REC-0XX)`, **sin** `Co-Authored-By` ni firma de Claude; Server Actions con patrón `Result<T>`; zod `safeParse`; **nunca** commitear `sessions.md` ni `.env*`.
+
+**Contexto que el implementador debe leer antes de tocar código:**
+- `lib/actions/agendamiento.ts` — `agendarSesion` hoy asume exactamente 3 entrevistadores (`[e1, e2, e3]`, cascada de bloques de 20 min, tabla de agenda con 3 columnas, magic links por entrevistador).
+- `lib/schemas/reclutamiento.ts` — `agendarSesionSchema` + `calcularCascada` + `ENTREVISTADORES_DEFAULT` (hoy Benny/Maritere/Sergio hardcodeados).
+- `lib/actions/reclutamiento.ts` — `transicionarCandidato` y patrón de acciones existente; RPC `rec_transicion_etapa` (DAG §8.4).
+- `app/(dashboard)/reclutamiento/` — páginas existentes (candidatos, pipeline, agendar) para respetar composición y componentes.
+- `supabase/migrations/20260715120000_rec_011_evaluaciones_magic_link.sql` — patrón de RPCs security definer y seeds de plantilla.
+- `lib/google/client.ts` — `enviarCorreo` ya soporta adjuntos MIME (`multipart/mixed`, patrón REC-033).
+
+**Decisiones de producto (ya tomadas, no preguntar):**
+1. **Entrevistadores dinámicos:** en `/reclutamiento/agendar` se inicia con **un** entrevistador (nombre + email) y un botón **"+"** agrega más filas; captura manual libre, sin catálogo. `ENTREVISTADORES_DEFAULT` deja de ser obligatorio (puede quedar como sugerencia inicial de la primera fila o eliminarse). N ≥ 1.
+2. **Cascada generalizada:** cada entrevistador conserva su bloque de **20 min** por candidato → duración del Meet por candidato = `N × 20` min; los arranques se siguen escalonando 20 min (la rotación funciona para cualquier N: en el slot k coinciden los pares i+j=k, nadie se empalma).
+3. **`en_revision` automática:** al abrir el admin el perfil/detalle de un candidato en etapa `postulado`, el server component dispara `rec_transicion_etapa` → `en_revision` (nota: "Apertura de perfil"). Idempotente: solo si `etapa === 'postulado'`.
+4. **Comité:** página `/reclutamiento/comite` (filtrable por vacante) con los candidatos en etapa `comite`. Por candidato: todas las evaluaciones de los entrevistadores (recomendación + comentarios + puntaje, desde `rec_evaluaciones`), un campo nuevo **`notas_comite`** (text en `rec_candidatos`, capturado en la reunión de comité) y las acciones de decisión.
+5. **Decisión de la DG (Javier):** Javier NO tiene login; la pantalla de comité se le muestra en la reunión y **el admin registra ahí mismo** la decisión: "Pasa con DG" (→ `final_dg`) o "Descartar" (motivo obligatorio). Todo queda en `rec_candidato_historial` (ya existente) — sí se documenta.
+6. **Contratación:** acción `contratarCandidato` desde el comité/pipeline para candidatos en `final_dg` u `oferta`; captura `fecha_ingreso` y `fecha_limite_docs`, permite editar los CC (prellenados desde la plantilla) y al confirmar: encadena las transiciones del DAG hasta `contratado` y envía el correo **`bienvenida_contratacion`** al candidato con CC.
+7. **Correo de bienvenida** (copy base = correo real de Héctor 2026-07-07 "Bienvenido / Documentos para contratación"): lista de documentos (acta de nacimiento, INE, CURP, constancia fiscal SAT, NSS/IMSS, comprobante de domicilio, estado de cuenta bancario, constancia laboral, constancia de estudios, layout de datos personales), liga del Google Form de Gente y Cultura (fija en el cuerpo), y **2 adjuntos fijos**: `FORMATO LAYOUT DATOS.xlsx` + `Lineamientos para fotografias.pdf`. Placeholders: `{{nombre_candidato}}`, `{{fecha_ingreso}}`, `{{fecha_limite_docs}}`.
+8. **Adjuntos fijos desde Storage:** bucket `reclutamiento`, carpeta `plantillas/` (`plantillas/layout-datos-personales.xlsx`, `plantillas/lineamientos-fotografias.pdf`). **Paso operativo manual:** subirlos una vez por el dashboard de Supabase (los originales están en las Descargas de Uzziel, 2026-07-27). La acción los descarga y adjunta igual que REC-033.
+9. **CC configurable:** columna `cc_emails jsonb` en `rec_plantillas_correo` (default seed: Irvin Mora, Cynthia Aguilar, Jesús Montellano); editable al momento de contratar (prellenado, se puede quitar/agregar).
+10. **Automatización post-contratación adicional:** POR DEFINIR — S6 solo deja el gancho (la acción `contratarCandidato` centraliza el "al contratar pasa X"); no construir nada más ahí.
+
+**Tickets:**
+
+| Ticket | Entregable | Detalle |
+|---|---|---|
+| **REC-053** | Migración `rec_012_enum_bienvenida.sql` | `alter type rec_plantilla_codigo add value if not exists 'bienvenida_contratacion';` — **sola en su migración** (Postgres no permite usar un valor de enum nuevo en la misma transacción). |
+| **REC-054** | Migración `rec_013_comite_contratacion.sql` | (a) `rec_candidatos`: add `notas_comite text`, `fecha_ingreso date`. (b) `rec_plantillas_correo`: add `cc_emails jsonb not null default '[]'`. (c) Seed plantilla `bienvenida_contratacion` (`on conflict (codigo) do update`) con el copy de la decisión 7 y `cc_emails` con los 3 defaults de la decisión 9. |
+| **REC-055** | Tipos TS | `lib/supabase/types.ts`: columnas nuevas + valor de enum de plantilla. |
+| **REC-056** | Entrevistadores dinámicos (lógica) | `lib/schemas/reclutamiento.ts`: `entrevistadores` pasa de 3 fijos a `z.array(...).min(1)`; `calcularCascada` recibe `numEntrevistadores` (bloque candidato = N×20 min, stagger 20 min). `lib/actions/agendamiento.ts`: reemplazar `[e1,e2,e3]` por loops sobre el array (descripción del evento, attendees, tabla HTML de agenda con N columnas, magic links y correos por N entrevistadores). |
+| **REC-057** | Entrevistadores dinámicos (UI) | `/reclutamiento/agendar`: una fila de entrevistador (nombre + email) inicial + botón "+" para agregar y "×" para quitar (mín. 1); preview de cascada refleja N; validación inline de emails. |
+| **REC-058** | `en_revision` automática | En el detalle/perfil del candidato: si `etapa === 'postulado'`, disparar `rec_transicion_etapa` → `en_revision` server-side al renderizar (con `revalidatePath`). No romper si la RPC falla. |
+| **REC-059** | Comité + contratación | Página `/reclutamiento/comite` (decisiones 4–5) + sidebar. Server actions: `guardarNotasComite`, decisión (→ `final_dg` / descarte) reutilizando `transicionarCandidato`, y `contratarCandidato` (decisión 6: schema zod con `fecha_ingreso`, `fecha_limite_docs`, `cc_emails`; encadena transiciones; render de plantilla; descarga adjuntos de `plantillas/`; `enviarCorreo` con CC + adjuntos; bitácora en `rec_correos_enviados`). |
+| **REC-060** | Verificación + cierre | `tsc`/`build` verdes, `supabase db push`, subir los 2 adjuntos al bucket (paso manual documentado), smoke test **con datos de prueba y correos propios — NUNCA los reales** (lección 2026-07-15), actualizar PLAN §8.4/§8.9 y RESEARCH §13, bump de fechas. |
+
+**Fuera de alcance de S6 (no hacer):** resto de la automatización post-contratación (decisión 10), correo `pase_fase3` automático, recordatorios, cancelar/reagendar, portal del candidato, catálogo de entrevistadores.
 
 ---
 
