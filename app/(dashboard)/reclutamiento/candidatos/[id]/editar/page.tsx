@@ -32,6 +32,18 @@ export default async function EditarCandidatoPage({ params }: { params: { id: st
     notas: string | null
   }
 
+  // S6 (REC-058): abrir el perfil de un postulado lo mueve automáticamente a
+  // "En revisión" (la RPC valida el DAG y registra el cambio en el historial).
+  if (candidato.etapa === 'postulado') {
+    const { error } = await supabase.rpc('rec_transicion_etapa', {
+      p_candidato_id: candidato.id,
+      p_etapa_destino: 'en_revision',
+      p_motivo_descarte: null,
+      p_notas: 'Apertura de perfil',
+    })
+    if (!error) candidato.etapa = 'en_revision'
+  }
+
   const { data: vacData } = await supabase
     .from('rec_vacantes')
     .select('id, titulo, estado')
