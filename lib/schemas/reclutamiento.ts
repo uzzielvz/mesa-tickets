@@ -195,6 +195,24 @@ export const submitEvaluacionSchema = z.object({
 
 export type SubmitEvaluacionInput = z.infer<typeof submitEvaluacionSchema>
 
+// ── Comité y contratación (S6) ──
+
+export const notasComiteSchema = z.object({
+  candidato_id: z.string().uuid('Candidato inválido'),
+  notas_comite: z.string().trim().max(4000, 'Máximo 4000 caracteres').optional().or(z.literal('')),
+})
+
+export type NotasComiteInput = z.infer<typeof notasComiteSchema>
+
+export const contratarSchema = z.object({
+  candidato_id: z.string().uuid('Candidato inválido'),
+  fecha_ingreso: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha de ingreso inválida'),
+  fecha_limite_docs: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha límite de documentos inválida'),
+  cc_emails: z.array(z.string().trim().email('Correo de copia inválido')),
+})
+
+export type ContratarInput = z.infer<typeof contratarSchema>
+
 // ── Cálculo de la cascada (puro, compartido entre preview y server action) ──
 
 export interface BloqueCascada {

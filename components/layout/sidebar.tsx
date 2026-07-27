@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Ticket, Inbox, Tags, FolderTree,
   Users, UserPlus, Gauge,
   PieChart, Building2, UserSearch, AlertTriangle, Layers, Upload, KeyRound,
-  BarChart3, Briefcase, Kanban, CalendarClock,
+  BarChart3, Briefcase, Kanban, CalendarClock, ClipboardCheck,
   type LucideIcon,
 } from 'lucide-react'
 import Wordmark from '@/components/brand/wordmark'
@@ -338,6 +338,13 @@ function NavContent({
             label="Agendar entrevistas"
             icon={CalendarClock}
             active={pathname.startsWith('/reclutamiento/agendar')}
+            onClick={onNav}
+          />
+          <NavItem
+            href="/reclutamiento/comite"
+            label="Comité"
+            icon={ClipboardCheck}
+            active={pathname.startsWith('/reclutamiento/comite')}
             onClick={onNav}
           />
         </NavSection>

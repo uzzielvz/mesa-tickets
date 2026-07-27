@@ -1,0 +1,200 @@
+'use server'
+
+import { revalidatePath } from 'next/cache'
+import { createClient } from '@/lib/supabase/server'
+import { descifrar } from '@/lib/google/crypto'
+import { accessTokenDesdeRefresh, enviarCorreo } from '@/lib/google/client'
+import { notasComiteSchema, contratarSchema } from '@/lib/schemas/reclutamiento'
+import type { RecEtapa } from '@/lib/supabase/types'
+
+type Result<T = unknown> = ({ ok: true } & T) | { ok: false; error: string }
+
+// Orden del DAG de etapas (para encadenar transiciones hacia adelante).
+const FORWARD: RecEtapa[] = [
+  'postulado', 'en_revision', 'viable', 'entrevistas_agendadas',
+  'comite', 'final_dg', 'oferta', 'contratado',
+]
+
+const TRANSICION_ERRORES: Record<string, string> = {
+  no_auth: 'No autenticado',
+  sin_acceso: 'No tienes acceso al módulo de reclutamiento.',
+  no_existe: 'El candidato ya no existe.',
+  misma_etapa: 'El candidato ya está en esa etapa.',
+  motivo_requerido: 'Indica el motivo del descarte.',
+  transicion_invalida: 'Esa transición de etapa no está permitida.',
+}
+
+// Adjuntos fijos del correo de bienvenida (subidos una vez al bucket).
+const ADJUNTOS_BIENVENIDA = [
+  { path: 'plantillas/layout-datos-personales.xlsx', filename: 'Layout Datos Personales.xlsx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
+  { path: 'plantillas/lineamientos-fotografias.pdf', filename: 'Lineamientos para fotografias.pdf',
+    mimeType: 'application/pdf' },
+]
+
+function render(tpl: string, vars: Record<string, string>): string {
+  return tpl.replace(/\{\{(\w+)\}\}/g, (_, k: string) => vars[k] ?? `{{${k}}}`)
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+function aHtml(texto: string): string {
+  return texto
+    .split('\n')
+    .map(l => (l.trim().startsWith('*') ? `&bull;${escapeHtml(l.trim().slice(1))}` : escapeHtml(l)))
+    .join('<br>')
+}
+
+// '2026-07-09' → 'jueves 9 de julio de 2026' (sin sorpresas de zona horaria).
+function fechaLarga(fecha: string): string {
+  const d = new Date(`${fecha}T12:00:00Z`)
+  return new Intl.DateTimeFormat('es-MX', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
+  }).format(d)
+}
+
+// ── Notas del comité ─────────────────────────────────────────────────────────
+
+export async function guardarNotasComite(raw: unknown): Promise<Result> {
+  const parsed = notasComiteSchema.safeParse(raw)
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
+
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: 'No autenticado' }
+
+  const notas = (parsed.data.notas_comite ?? '').trim() || null
+  const { error } = await supabase
+    .from('rec_candidatos')
+    .update({ notas_comite: notas })
+    .eq('id', parsed.data.candidato_id)
+
+  if (error) return { ok: false, error: 'No se pudieron guardar las notas del comité.' }
+
+  revalidatePath('/reclutamiento/comite')
+  return { ok: true }
+}
+
+// ── Contratación: encadena transiciones a "contratado" y manda la bienvenida ──
+
+export async function contratarCandidato(raw: unknown): Promise<Result<{ correoEnviado: boolean }>> {
+  const parsed = contratarSchema.safeParse(raw)
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
+  const d = parsed.data
+
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: 'No autenticado' }
+
+  // 1) Candidato + validaciones (antes de mutar nada).
+  const { data: candData } = await supabase
+    .from('rec_candidatos')
+    .select('id, nombre, email, etapa')
+    .eq('id', d.candidato_id)
+    .single()
+  const cand = candData as { id: string; nombre: string; email: string | null; etapa: RecEtapa } | null
+  if (!cand) return { ok: false, error: 'El candidato ya no existe.' }
+  if (!cand.email) return { ok: false, error: 'El candidato no tiene correo registrado.' }
+
+  const idx = FORWARD.indexOf(cand.etapa)
+  const target = FORWARD.indexOf('contratado')
+  if (idx < 0 || cand.etapa === 'contratado' || cand.etapa === 'descartado') {
+    return { ok: false, error: 'El candidato no está en una etapa desde la que se pueda contratar.' }
+  }
+
+  // 2) Plantilla del correo.
+  const { data: tplData } = await supabase
+    .from('rec_plantillas_correo')
+    .select('asunto, cuerpo')
+    .eq('codigo', 'bienvenida_contratacion')
+    .eq('activa', true)
+    .maybeSingle()
+  const tpl = tplData as { asunto: string; cuerpo: string } | null
+  if (!tpl) return { ok: false, error: 'Falta la plantilla de bienvenida (bienvenida_contratacion).' }
+
+  // 3) Credencial de Google (cuenta emisora más reciente).
+  const { data: cred } = await supabase
+    .from('rec_credenciales_google')
+    .select('refresh_token')
+    .order('actualizado_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (!cred) return { ok: false, error: 'Conecta una cuenta de Google antes de contratar.' }
+
+  let accessToken: string
+  try {
+    accessToken = await accessTokenDesdeRefresh(descifrar((cred as { refresh_token: string }).refresh_token))
+  } catch {
+    return { ok: false, error: 'La conexión con Google expiró. Reconecta la cuenta e intenta de nuevo.' }
+  }
+
+  // 4) Encadena las transiciones del DAG hasta "contratado".
+  for (let i = idx + 1; i <= target; i++) {
+    const { error } = await supabase.rpc('rec_transicion_etapa', {
+      p_candidato_id: cand.id,
+      p_etapa_destino: FORWARD[i],
+      p_motivo_descarte: null,
+      p_notas: 'Contratación',
+    })
+    if (error) {
+      const code = error.message.match(/[a-z_]+/)?.[0] ?? ''
+      return { ok: false, error: TRANSICION_ERRORES[code] ?? 'No se pudo completar la contratación.' }
+    }
+  }
+
+  // 5) Fecha de ingreso.
+  await supabase.from('rec_candidatos').update({ fecha_ingreso: d.fecha_ingreso }).eq('id', cand.id)
+
+  // 6) Adjuntos fijos (best-effort: si alguno falla, el correo se manda igual).
+  const adjuntos = []
+  for (const a of ADJUNTOS_BIENVENIDA) {
+    try {
+      const { data: blob } = await supabase.storage.from('reclutamiento').download(a.path)
+      if (!blob) continue
+      const buf = Buffer.from(await blob.arrayBuffer())
+      adjuntos.push({ filename: a.filename, mimeType: a.mimeType, contentBase64: buf.toString('base64') })
+    } catch {
+      // Adjunto no disponible en Storage; se omite.
+    }
+  }
+
+  // 7) Envía el correo de bienvenida (CC configurable).
+  const vars = {
+    nombre_candidato: cand.nombre,
+    fecha_ingreso: fechaLarga(d.fecha_ingreso),
+    fecha_limite_docs: fechaLarga(d.fecha_limite_docs),
+  }
+  let correoEnviado = false
+  try {
+    const correo = await enviarCorreo(accessToken, {
+      to: [cand.email],
+      cc: d.cc_emails,
+      subject: render(tpl.asunto, vars),
+      html: aHtml(render(tpl.cuerpo, vars)),
+      adjuntos,
+    })
+    correoEnviado = true
+    await supabase.from('rec_correos_enviados').insert({
+      candidato_id: cand.id,
+      plantilla_codigo: 'bienvenida_contratacion',
+      to_email: cand.email,
+      estado: 'enviado',
+      gmail_message_id: correo.messageId,
+      gmail_thread_id: correo.threadId,
+    })
+  } catch (err) {
+    await supabase.from('rec_correos_enviados').insert({
+      candidato_id: cand.id,
+      plantilla_codigo: 'bienvenida_contratacion',
+      to_email: cand.email,
+      estado: 'error',
+      error: err instanceof Error ? err.message : 'error desconocido',
+    })
+  }
+
+  revalidatePath('/reclutamiento/comite')
+  revalidatePath('/reclutamiento/pipeline')
+  return { ok: true, correoEnviado }
+}

@@ -134,6 +134,7 @@ export interface CorreoAdjunto {
 
 export interface CorreoInput {
   to: string[]
+  cc?: string[]
   subject: string
   html: string
   adjuntos?: CorreoAdjunto[]
@@ -151,12 +152,15 @@ function encodeSubject(subject: string): string {
 
 export async function enviarCorreo(accessToken: string, correo: CorreoInput): Promise<CorreoResult> {
   const adjuntos = correo.adjuntos ?? []
+  const cc = correo.cc?.filter(Boolean) ?? []
+  const ccHeader = cc.length > 0 ? [`Cc: ${cc.join(', ')}`] : []
   let mime: string
 
   if (adjuntos.length === 0) {
     // Correo simple: solo cuerpo HTML.
     mime = [
       `To: ${correo.to.join(', ')}`,
+      ...ccHeader,
       `Subject: ${encodeSubject(correo.subject)}`,
       'MIME-Version: 1.0',
       'Content-Type: text/html; charset=UTF-8',
@@ -169,6 +173,7 @@ export async function enviarCorreo(accessToken: string, correo: CorreoInput): Pr
     const boundary = `mea_${crypto.randomUUID()}`
     const partes: string[] = [
       `To: ${correo.to.join(', ')}`,
+      ...ccHeader,
       `Subject: ${encodeSubject(correo.subject)}`,
       'MIME-Version: 1.0',
       `Content-Type: multipart/mixed; boundary="${boundary}"`,
