@@ -3,9 +3,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { cn } from '@/lib/utils'
 import { submitEvaluacion } from '@/lib/actions/evaluaciones'
 import type { CandidatoEval } from '@/app/evaluar/[token]/tipos'
 
@@ -56,23 +53,23 @@ export function EvaluacionForm({ token, candidato }: { token: string; candidato:
             key={o.value}
             type="button"
             onClick={() => setRecomendacion(o.value)}
-            className={cn(
-              'rounded-full border px-4 py-1.5 text-sm font-medium transition-colors',
+            className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
               recomendacion === o.value
                 ? o.activo
-                : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
-            )}
+                : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+            }`}
           >
             {o.label}
           </button>
         ))}
       </div>
 
-      <Textarea
+      <textarea
         value={comentarios}
         onChange={e => setComentarios(e.target.value)}
         placeholder="Comentarios (opcional)"
         rows={3}
+        className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
       />
 
       <div className="flex items-center gap-3">
@@ -87,9 +84,14 @@ export function EvaluacionForm({ token, candidato }: { token: string; candidato:
             className="h-9 w-20 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         </label>
-        <Button onClick={guardar} disabled={saving} className="ml-auto">
+        <button
+          type="button"
+          onClick={guardar}
+          disabled={saving}
+          className="ml-auto inline-flex h-10 items-center justify-center rounded-md bg-orange px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-orange/90 disabled:pointer-events-none disabled:opacity-50"
+        >
           {saving ? 'Guardando…' : 'Guardar'}
-        </Button>
+        </button>
       </div>
     </div>
   )
