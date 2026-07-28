@@ -140,6 +140,35 @@
 |---|--------|-------------|
 | T-A1 | SEC-001 | Migrar `crearTicket` y `responderTicket` a Server Actions con Zod servidor. **Elevado a bloqueante de go-live (2026-06-06)** por PII real — ver T-P4. |
 
+#### Fase Tickets-Catálogo Sistemas/TI *(plan 2026-07-28 · expansión incremental de tipos)*
+
+> **Contexto**: el go-live arrancó con 3 tipos (Tesorería / Data Science). Ahora se suma el catálogo del área **Sistemas/TI** (6 incidencias reales de la mesa de TI). Trae 3 atributos por tipo que hoy el modelo NO guarda: **prioridad fija**, **SLA (min)** y **modalidad** (Remoto/Presencial/Ambas). Esto aterriza a nivel de catálogo los gaps **TKT-004** (prioridad) y **TKT-005** (SLA), pero **acotado**: el `sla_min` se guarda solo como **referencia** (tiempo estimado visible); sin alertas de vencimiento/escalación todavía (eso sigue pendiente en TKT-005, coherente con "SLA no urge aún" de §2.2).
+>
+> **Modelo**: se mantiene el actual (`responsable_default_id` **por persona**, no cola por área). Cuando se implemente T-P1/TKT-020 (cola por área), este catálogo migra junto con los otros tipos.
+
+Las 6 incidencias (columna "¿Qué engloba?" → campo `select` guiado dentro de cada tipo):
+
+| Tipo | Prioridad | SLA | Modalidad |
+|------|-----------|-----|-----------|
+| Soporte a equipo de cómputo | Media | 30 min | Ambas |
+| Problemas de red | Alta | 30 min | Ambas |
+| Impresoras y escáneres | Media | 30 min | Ambas |
+| Usuarios y accesos | Media | 20 min | Remoto |
+| Cámaras y alarmas (Hikvision) | Alta | 60 min | Presencial |
+| Solicitud de servicio de TI | Baja | Variable | Ambas |
+
+| # | Ticket | Descripción | Tipo | Estado |
+|---|--------|-------------|------|--------|
+| T-C1 | TKT-023 | **Metadata de catálogo**: columnas `prioridad` (enum `alta`/`media`/`baja`), `sla_min` (int, `null`=variable) y `modalidad` (enum `remoto`/`presencial`/`ambas`) en `problem_catalog`; expuestas en la vista `tickets_with_status`. Aterriza TKT-004 y parte de TKT-005 (prioridad = orden visual; SLA solo referencia). Mig. `20260728130000_tkt_catalogo_metadata.sql` + tipos en `lib/supabase/types.ts`. | Estructural | ✅ código (pend. `db:push`) |
+| T-C2 | TKT-024 | **Seed Sistemas/TI**: reusa área `Sistemas` + 6 incidencias con `campos` (`select` "¿Qué necesitas?" con las viñetas del "¿Qué engloba?" + `ubicacion` incluida solo en tipos presencial/ambas), `prioridad`/`sla_min`/`modalidad`. Ruteo a `uzziel.valdez@financieracrediflexi.com`. Mig. idempotente `20260728130100_tkt_catalogo_sistemas_ti.sql` (patrón de `20260612160500`). | Datos | ✅ código (pend. `db:push`) |
+| T-C3 | TKT-025 | **Editor de catálogo** (`components/admin/catalogo-admin.tsx`): inputs de prioridad, SLA (min) y modalidad al crear/editar tipos. | UI | ✅ 2026-07-28 |
+| T-C4 | TKT-026 | **Form de creación** (`components/tickets/ticket-form.tsx`): badge de prioridad (color) + SLA estimado + chip de modalidad al elegir tipo. `ubicacion` resuelto vía seed (campo incluido por tipo según modalidad), no lógica condicional en el form. | UI | ✅ 2026-07-28 |
+| T-C5 | TKT-027 | *(opcional · usabilidad)* Selector de área con **tarjetas + ícono** en `/tickets/nuevo`, en vez del `<select>` plano. | UI | 🔲 |
+
+> **Decisiones (2026-07-28)**: área = reusar **`Sistemas`** (misma área). Responsable default = **`uzziel.valdez@financieracrediflexi.com`** (rol `usuario` en presets; recibe tickets igual — considerar subirlo a `responsable`). Si aún no ha hecho su primer login, el seed deja `responsable_default_id` en `null` (se configura luego en `/admin/catalogo`). `ubicacion` = **texto libre** (no `select` de sucursales) por ahora.
+>
+> **Pendiente de aplicar**: `npm run db:push` (aplica las 2 migraciones al remoto). Los 3 tipos previos (Tesorería/DS) quedan con defaults `prioridad=media`, `modalidad=ambas`, `sla_min=null`; ajustar su prioridad real en `/admin/catalogo` si se desea.
+
 ### 2.3 Módulo Score
 
 #### Fase Score-Robustez
