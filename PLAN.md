@@ -3,7 +3,7 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-07-27.
+> Última actualización: 2026-07-28.
 
 ---
 
@@ -479,6 +479,7 @@ Digitalizar el flujo de entrevistas que hoy lleva el Gerente de RH en Excel/corr
 | **S4** ✅ 2026-07-07 | **Agendamiento masivo** (cascada de Meets + correos reales + transición) — server action `agendarSesion` + UI `/reclutamiento/agendar` | REC-030..REC-032 ✅ |
 | **S5** ✅ 2026-07-15 | Evaluaciones: magic link por email (token propio, no Auth), ruta pública `/evaluar/[token]`, RPCs `rec_sesion_por_token` + `rec_submit_evaluacion` — ver §8.8 | REC-046..REC-052 ✅ |
 | **S6** ✅ 2026-07-27 | Comité + entrevistadores dinámicos + contratación (correo de bienvenida) — ver §8.9 | REC-053..REC-060 ✅ |
+| **S7** | Onboarding en plataforma: captura de datos de contratación vía magic link (sustituye Google Form + layout xlsx) — ver §8.10 | REC-061..REC-065 |
 
 **S6 — alcance ampliado (2026-07-27):** además de la vista de comité original, S6 incluye entrevistadores dinámicos (N, no 3 fijos), transición automática a `en_revision` al abrir el perfil, campo de comentarios del comité, registro de la decisión de la DG (Javier) y la automatización del correo de bienvenida al contratar (con adjuntos fijos y CC configurable). Detalle completo en §8.9.
 
@@ -606,6 +607,38 @@ No se permite saltar etapas, retroceder, ni salir de un estado terminal (`contra
 **Fuera de alcance de S6 (no hacer):** resto de la automatización post-contratación (decisión 10), correo `pase_fase3` automático, recordatorios, cancelar/reagendar, portal del candidato, catálogo de entrevistadores.
 
 **Notas de cierre (2026-07-27):** entregado según plan. Migraciones aplicadas a remoto: `rec_012` (enum `bienvenida_contratacion`), `rec_013` (columnas `notas_comite`/`fecha_ingreso` en `rec_candidatos`, `cc_emails jsonb` en `rec_plantillas_correo`, seed de la plantilla y bloque dinámico N×20 en `rec_sesion_por_token`), `rec_014` (plantilla `agendamiento_fase2` con placeholder único `{{rotacion_entrevistadores}}`) y `rec_015` (se agrega el mime type xlsx al bucket `reclutamiento` para poder subir el layout). Entrevistadores dinámicos (N ≥ 1) en schema, cascada, `agendarSesion` (eventos/attendees/tabla/magic links) y UI de `/reclutamiento/agendar`. `en_revision` automática al abrir el perfil de un `postulado`. Nueva página `/reclutamiento/comite` (con item en el sidebar) que muestra las evaluaciones por entrevistador, captura `notas_comite`, registra la decisión de la DG (`final_dg`/descarte reutilizando `transicionarCandidato`) y ejecuta `contratarCandidato` (encadena el DAG hasta `contratado`, actualiza `fecha_ingreso`, envía `bienvenida_contratacion` con CC configurable y los 2 adjuntos fijos, bitácora en `rec_correos_enviados`). `enviarCorreo` ahora soporta header `Cc`. `tsc` limpio para los archivos de S6 (persiste el ruido baseline de `cartera_*` ajeno a rec). **Paso operativo pendiente (manual, requiere sesión autenticada — no hay service-role key en env):** subir por el dashboard de Supabase `FORMATO LAYOUT DATOS.xlsx` → `plantillas/layout-datos-personales.xlsx` y `Lineamientos para fotografias.pdf` → `plantillas/lineamientos-fotografias.pdf` en el bucket `reclutamiento`. Sin ellos, la contratación funciona pero el correo sale sin adjuntos (best-effort). Smoke test end-to-end pendiente de ejecutar solo con datos de prueba y correos propios.
+
+### 8.10 S7 — Onboarding en plataforma (plan 2026-07-28)
+
+> **Plan, aún sin implementar.** Sustituye el envío del Google Form + layout xlsx por la captura de los datos de contratación directamente en la plataforma vía magic link. El correo de bienvenida actual (S6) sigue como fallback hasta que S7 esté listo.
+
+**Origen:** ajuste solicitado por Uzziel (2026-07-28). El pain point que mata: hoy el candidato llena un Excel (`FORMATO LAYOUT DATOS.xlsx`) y un Google Form de Gente y Cultura, y alguien retranscribe eso a otro lado. Capturándolo estructurado en plataforma se elimina la transcripción y se valida en el punto de captura.
+
+**Decisiones de producto (ya tomadas, no preguntar):**
+1. **El xlsx y el Google Form quedan fuera del flujo.** Se asume que el layout **no** se importa a ningún otro sistema por ahora. Si más adelante RH lo necesita, se agrega un botón "Descargar layout" que arme ese Excel exacto desde los datos capturados — **gancho documentado, NO se construye en S7.**
+2. **Captura sin login para el candidato:** magic link tras contratar → ruta pública `/onboarding/[token]` (mismo patrón que evaluaciones S5: token propio `randomBytes(32).base64url`, RPC security definer, tabla `rec_magic_links` o una análoga; expira a N días). El candidato entra desde su celular y llena el formulario.
+3. **Visibilidad estricta:** los datos de contratación (incluye PII sensible: CURP, RFC, NSS, cuenta bancaria, CLABE, tarjeta) solo los ven **RH/admin**. RLS admin-only, como el resto de `rec_*`; la superficie pública es únicamente la RPC de captura por token.
+4. **Modelo:** tabla `rec_datos_contratacion` 1:1 con `rec_candidatos` (`candidato_id` unique). Campos = layout completo (ver abajo). `empresa`, `ubicacion` y `fecha_inicio` (= `fecha_ingreso`) se prellenan del sistema; `edad` y el "nombre completo formato" (Paterno Materno Nombre) son derivados, no se capturan.
+
+**Campos del layout (fuente: `FORMATO LAYOUT DATOS.xlsx`, hoja `Layout`, 1 fila por persona):**
+- *Empresa/ubicación (sistema):* Empresa (fija `CREDIFLEXI SAPI DE CV`), Ubicación/plaza, Fecha de inicio (= `fecha_ingreso`).
+- *Personales:* Nombre(s), Apellido paterno, Apellido materno, Sexo, Estado civil, Fecha de nacimiento, Edad *(derivada)*, Lugar de nacimiento, Nacionalidad, Profesión, ¿Eres Papá o Mamá? (SI/NO), Talla de blusa/camisa (CH/M/G/XG).
+- *Fiscales (validar longitud/regex):* RFC (13), CURP (18), IMSS/NSS (11).
+- *Domicilio:* Calle, No. exterior, No. interior, Colonia, Delegación/Municipio, Estado, Código postal.
+- *Contacto:* Teléfono particular, Teléfono móvil, Correo personal *(distinto al correo del candidato que ya guardamos)*.
+- *Bancarios (PII sensible):* Banco, Cuenta bancaria, CLABE (18), No. de tarjeta.
+
+**Tickets (borrador, refinar al arrancar S7):**
+
+| Ticket | Entregable | Detalle |
+|---|---|---|
+| **REC-061** | Migración `rec_datos_contratacion` | Tabla 1:1 con `rec_candidatos` (todos los campos del layout, tipos adecuados), RLS admin-only, y magic link/RPC de onboarding análogos a S5. |
+| **REC-062** | Tipos TS + schema zod | `lib/supabase/types.ts` + `onboardingSchema` con validaciones (CURP/RFC/CLABE/NSS por longitud+regex, requeridos vs opcionales). |
+| **REC-063** | Ruta pública + captura | `/onboarding/[token]` (fuera de `(dashboard)`, excluida del middleware), formulario agrupado (personales/fiscales/domicilio/contacto/bancarios) + RPC security definer de submit. Genera el magic link al contratar (`contratarCandidato`). |
+| **REC-064** | Vista RH/admin | Pantalla admin para revisar los datos capturados del candidato contratado (solo lectura o edición ligera), estado "datos completos ✓". |
+| **REC-065** | Gancho export xlsx (solo documentar) | Dejar anotado dónde iría el botón "Descargar layout" si RH lo pide; **no** implementar. |
+
+**Fuera de alcance de S7 (no hacer):** generación real del xlsx, carga de documentos escaneados (INE/acta/comprobante) salvo que se decida incluir uploads, integración con nómina/IMSS, portal del candidato con login.
 
 ---
 
