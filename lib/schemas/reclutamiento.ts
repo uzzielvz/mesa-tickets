@@ -44,7 +44,7 @@ export const ETAPA_LABEL: Record<(typeof ETAPAS)[number], string> = {
   en_revision: 'En revisión',
   viable: 'Viable',
   entrevistas_agendadas: 'Entrevistas agendadas',
-  comite: 'Comité',
+  comite: 'Reunión de comité',
   final_dg: 'Final DG',
   oferta: 'Oferta',
   contratado: 'Contratado',

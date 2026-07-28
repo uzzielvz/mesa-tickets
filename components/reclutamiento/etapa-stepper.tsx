@@ -13,7 +13,7 @@ const PASO_LABEL: Record<RecEtapa, string> = {
   en_revision: 'En revisión',
   viable: 'Viable',
   entrevistas_agendadas: 'Entrevistas',
-  comite: 'Comité',
+  comite: 'Reunión de comité',
   final_dg: 'Entrevista final (DG)',
   oferta: 'Configurar alta',
   contratado: 'Contratado',
