@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
-import type { ProblemField, TicketDatos } from '@/lib/supabase/types'
+import type { ProblemField, TicketDatos, TicketPrioridad, TicketModalidad } from '@/lib/supabase/types'
 
 interface Area { id: string; nombre: string }
 interface CatalogItem {
@@ -15,7 +15,20 @@ interface CatalogItem {
   responsable_default_id: string | null
   requiere_evidencia: boolean
   campos: ProblemField[] | null
+  prioridad: TicketPrioridad
+  sla_min: number | null
+  modalidad: TicketModalidad
 }
+
+const prioridadBadge: Record<TicketPrioridad, string> = {
+  alta: 'bg-red-50 text-red-700 border-red-200',
+  media: 'bg-amber-50 text-amber-700 border-amber-200',
+  baja: 'bg-gray-100 text-gray-600 border-gray-200',
+}
+const prioridadLabel: Record<TicketPrioridad, string> = { alta: 'Alta', media: 'Media', baja: 'Baja' }
+const modalidadLabel: Record<TicketModalidad, string> = { remoto: 'Remoto', presencial: 'Presencial', ambas: 'Remoto o presencial' }
+const chipClass = 'text-[11.5px] px-2 py-0.5 rounded-full border font-medium'
+const slaLabel = (min: number | null) => (min == null ? 'Tiempo variable' : `~${min} min`)
 
 interface Props {
   areas: Area[]
@@ -279,6 +292,20 @@ export default function TicketForm({ areas, catalog, userId, initialAreaId, init
             ))}
           </select>
           {problemError && <p className="text-[12px] text-red-600">{problemError}</p>}
+        </div>
+      )}
+
+      {selectedProblem && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={`${chipClass} ${prioridadBadge[selectedProblem.prioridad]}`}>
+            Prioridad {prioridadLabel[selectedProblem.prioridad]}
+          </span>
+          <span className={`${chipClass} bg-white text-ink-700 border-[#ECECEC]`}>
+            {slaLabel(selectedProblem.sla_min)}
+          </span>
+          <span className={`${chipClass} bg-white text-ink-700 border-[#ECECEC]`}>
+            {modalidadLabel[selectedProblem.modalidad]}
+          </span>
         </div>
       )}
 
