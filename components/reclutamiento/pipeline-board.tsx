@@ -20,6 +20,10 @@ interface Vacante {
 }
 
 // Siguiente etapa forward según el DAG (la RPC es la autoridad; esto es solo UX).
+// Nota: NO se ofrece "oferta → contratado" aquí a propósito. La contratación se
+// hace desde el panel de Comité ("Confirmar contratación"), que además encadena
+// las transiciones y envía el correo de bienvenida con adjuntos. Mover a
+// contratado por este botón genérico saltaría ese correo.
 const SIGUIENTE_ETAPA: Partial<Record<RecEtapa, RecEtapa>> = {
   postulado: 'en_revision',
   en_revision: 'viable',
@@ -27,7 +31,6 @@ const SIGUIENTE_ETAPA: Partial<Record<RecEtapa, RecEtapa>> = {
   entrevistas_agendadas: 'comite',
   comite: 'final_dg',
   final_dg: 'oferta',
-  oferta: 'contratado',
 }
 
 const TERMINALES: RecEtapa[] = ['contratado', 'descartado']
