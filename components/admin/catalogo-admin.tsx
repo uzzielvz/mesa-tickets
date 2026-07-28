@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import FieldsBuilder from './fields-builder'
-import type { ProblemField } from '@/lib/supabase/types'
+import type { ProblemField, TicketPrioridad, TicketModalidad } from '@/lib/supabase/types'
 
 interface CatalogItem {
   id: string; area_id: string; nombre: string; leyenda: string
@@ -13,6 +13,7 @@ interface CatalogItem {
   requiere_grupo: boolean; requiere_cliente: boolean
   requiere_ciclo: boolean; requiere_evidencia: boolean; activo: boolean
   campos: ProblemField[] | null
+  prioridad: TicketPrioridad; sla_min: number | null; modalidad: TicketModalidad
 }
 interface Area { id: string; nombre: string }
 interface Profile { id: string; nombre_completo: string }
@@ -27,6 +28,9 @@ interface FormState {
   responsable_default_id: string
   requiere_evidencia: boolean
   campos: ProblemField[]
+  prioridad: TicketPrioridad
+  sla_min: string
+  modalidad: TicketModalidad
 }
 
 const BLANK: FormState = {
@@ -36,6 +40,9 @@ const BLANK: FormState = {
   responsable_default_id: '',
   requiere_evidencia: false,
   campos: [],
+  prioridad: 'media',
+  sla_min: '',
+  modalidad: 'ambas',
 }
 
 export default function CatalogoAdmin({ catalog, areas, profiles }: { catalog: CatalogItem[]; areas: Area[]; profiles: Profile[] }) {
@@ -53,6 +60,9 @@ export default function CatalogoAdmin({ catalog, areas, profiles }: { catalog: C
       responsable_default_id: item.responsable_default_id ?? '',
       requiere_evidencia: item.requiere_evidencia,
       campos: item.campos ?? [],
+      prioridad: item.prioridad,
+      sla_min: item.sla_min?.toString() ?? '',
+      modalidad: item.modalidad,
     })
     setEditing(item.id)
     setShowForm(true)
@@ -94,6 +104,9 @@ export default function CatalogoAdmin({ catalog, areas, profiles }: { catalog: C
       responsable_default_id: form.responsable_default_id || null,
       requiere_evidencia: form.requiere_evidencia,
       campos: form.campos,
+      prioridad: form.prioridad,
+      sla_min: form.sla_min.trim() === '' ? null : Number(form.sla_min),
+      modalidad: form.modalidad,
     }
     const { error } = editing
       ? await supabase.from('problem_catalog').update(payload).eq('id', editing)
@@ -160,6 +173,29 @@ export default function CatalogoAdmin({ catalog, areas, profiles }: { catalog: C
           <div className="flex flex-col gap-1.5">
             <label className="text-[12px] font-medium text-ink-700">Leyenda (instrucciones al usuario)</label>
             <textarea value={form.leyenda} onChange={e => setForm(f => ({ ...f, leyenda: e.target.value }))} rows={3} placeholder="Explica qué debe hacer el usuario antes de levantar este ticket..." className={`${inputClass} resize-none`} />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[12px] font-medium text-ink-700">Prioridad</label>
+              <select value={form.prioridad} onChange={e => setForm(f => ({ ...f, prioridad: e.target.value as TicketPrioridad }))} className={selectClass}>
+                <option value="alta">Alta</option>
+                <option value="media">Media</option>
+                <option value="baja">Baja</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[12px] font-medium text-ink-700">SLA (minutos)</label>
+              <input type="number" min={0} value={form.sla_min} onChange={e => setForm(f => ({ ...f, sla_min: e.target.value }))} placeholder="Vacío = variable" className={inputClass} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[12px] font-medium text-ink-700">Modalidad</label>
+              <select value={form.modalidad} onChange={e => setForm(f => ({ ...f, modalidad: e.target.value as TicketModalidad }))} className={selectClass}>
+                <option value="remoto">Remoto</option>
+                <option value="presencial">Presencial</option>
+                <option value="ambas">Ambas</option>
+              </select>
+            </div>
           </div>
 
           <FieldsBuilder
