@@ -8,6 +8,10 @@ export type TicketStatus = 'abierto' | 'contestado' | 'terminado' | 'cerrado' | 
 
 export type ProblemFieldType = 'text' | 'textarea' | 'number' | 'select' | 'date'
 
+// Metadata de catálogo (TKT-023)
+export type TicketPrioridad = 'alta' | 'media' | 'baja'
+export type TicketModalidad = 'remoto' | 'presencial' | 'ambas'
+
 // ── Reclutamiento (enums rec_*) ──
 export type RecEtapa =
   | 'postulado' | 'en_revision' | 'viable' | 'entrevistas_agendadas'
@@ -57,6 +61,9 @@ export interface TicketWithStatus {
   status: TicketStatus
   area_nombre: string
   problema_nombre: string
+  prioridad: TicketPrioridad
+  sla_min: number | null
+  modalidad: TicketModalidad
   levantado_por_nombre: string
   responsable_nombre: string
   ultima_respuesta_at: string | null
@@ -134,6 +141,9 @@ export interface Database {
           requiere_evidencia: boolean
           activo: boolean
           campos: ProblemField[]
+          prioridad: TicketPrioridad
+          sla_min: number | null
+          modalidad: TicketModalidad
         }
         Insert: {
           area_id: string
@@ -146,6 +156,9 @@ export interface Database {
           requiere_evidencia?: boolean
           activo?: boolean
           campos?: ProblemField[]
+          prioridad?: TicketPrioridad
+          sla_min?: number | null
+          modalidad?: TicketModalidad
         }
         Update: {
           area_id?: string
@@ -158,6 +171,9 @@ export interface Database {
           requiere_evidencia?: boolean
           activo?: boolean
           campos?: ProblemField[]
+          prioridad?: TicketPrioridad
+          sla_min?: number | null
+          modalidad?: TicketModalidad
         }
         Relationships: []
       }
@@ -695,6 +711,9 @@ export interface Database {
           status: TicketStatus
           area_nombre: string
           problema_nombre: string
+          prioridad: TicketPrioridad
+          sla_min: number | null
+          modalidad: TicketModalidad
           levantado_por_nombre: string
           responsable_nombre: string
           ultima_respuesta_at: string | null
