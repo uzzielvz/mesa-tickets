@@ -4,6 +4,7 @@ import { ChevronLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import CandidatoForm from '@/components/reclutamiento/candidato-form'
 import EtapaStepper from '@/components/reclutamiento/etapa-stepper'
+import CandidatoGuia from '@/components/reclutamiento/candidato-guia'
 import type { RecEtapa, RecFuente, RecRevisionCv, RecMotivoDescarte } from '@/lib/supabase/types'
 
 export const metadata = { title: 'Editar candidato — Reclutamiento' }
@@ -67,6 +68,8 @@ export default async function EditarCandidatoPage({ params }: { params: { id: st
       </div>
 
       <EtapaStepper etapa={candidato.etapa} />
+
+      <CandidatoGuia etapa={candidato.etapa} vacanteId={candidato.vacante_id} />
 
       <h1 className="text-[18px] font-semibold text-ink-900">Editar candidato</h1>
 
