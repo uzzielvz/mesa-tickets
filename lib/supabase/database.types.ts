@@ -596,6 +596,9 @@ export type Database = {
           etapa: Database["public"]["Enums"]["rec_etapa"]
           etapa_actualizada_at: string | null
           etapa_actualizada_por: string | null
+          fecha_ingreso: string | null
+          final_dg_at: string | null
+          final_dg_meet_url: string | null
           fuente: Database["public"]["Enums"]["rec_fuente"] | null
           id: string
           motivo_descarte:
@@ -603,6 +606,7 @@ export type Database = {
             | null
           nombre: string
           notas: string | null
+          notas_comite: string | null
           revision_cv: Database["public"]["Enums"]["rec_revision_cv"] | null
           telefono: string | null
           vacante_id: string
@@ -615,6 +619,9 @@ export type Database = {
           etapa?: Database["public"]["Enums"]["rec_etapa"]
           etapa_actualizada_at?: string | null
           etapa_actualizada_por?: string | null
+          fecha_ingreso?: string | null
+          final_dg_at?: string | null
+          final_dg_meet_url?: string | null
           fuente?: Database["public"]["Enums"]["rec_fuente"] | null
           id?: string
           motivo_descarte?:
@@ -622,6 +629,7 @@ export type Database = {
             | null
           nombre: string
           notas?: string | null
+          notas_comite?: string | null
           revision_cv?: Database["public"]["Enums"]["rec_revision_cv"] | null
           telefono?: string | null
           vacante_id: string
@@ -634,6 +642,9 @@ export type Database = {
           etapa?: Database["public"]["Enums"]["rec_etapa"]
           etapa_actualizada_at?: string | null
           etapa_actualizada_por?: string | null
+          fecha_ingreso?: string | null
+          final_dg_at?: string | null
+          final_dg_meet_url?: string | null
           fuente?: Database["public"]["Enums"]["rec_fuente"] | null
           id?: string
           motivo_descarte?:
@@ -641,6 +652,7 @@ export type Database = {
             | null
           nombre?: string
           notas?: string | null
+          notas_comite?: string | null
           revision_cv?: Database["public"]["Enums"]["rec_revision_cv"] | null
           telefono?: string | null
           vacante_id?: string

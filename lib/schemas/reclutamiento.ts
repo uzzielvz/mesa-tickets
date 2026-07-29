@@ -213,6 +213,22 @@ export const contratarSchema = z.object({
 
 export type ContratarInput = z.infer<typeof contratarSchema>
 
+// ── Entrevista final con la Dirección General (S7) ──
+// Al pasar comité → final_dg se agenda un Meet con el Director General y el
+// candidato, y se envía la plantilla pase_fase3.
+
+export const DG_EMAIL = 'jvargas@financieracrediflexi.com'
+export const DG_NOMBRE = 'Javier Vargas'
+export const DURACION_FINAL_DG_MIN = 30
+
+export const pasarFinalDgSchema = z.object({
+  candidato_id: z.string().uuid('Candidato inválido'),
+  fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida'),
+  hora: z.string().regex(/^\d{2}:\d{2}$/, 'Hora inválida'),
+})
+
+export type PasarFinalDgInput = z.infer<typeof pasarFinalDgSchema>
+
 // ── Configuración de alta (etapa 'oferta', S7) ──
 // Equipo y sistemas son multi-selección; 'otros' en sistemas habilita texto libre.
 // Los destinatarios internos se prellenan con defaults y se editan al momento.

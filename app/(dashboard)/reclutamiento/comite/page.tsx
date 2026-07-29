@@ -21,6 +21,8 @@ export interface CandidatoComite {
   etapa: RecEtapa
   notas_comite: string | null
   fecha_ingreso: string | null
+  final_dg_at: string | null
+  final_dg_meet_url: string | null
   evaluaciones: EvaluacionComite[]
 }
 
@@ -43,7 +45,7 @@ export default async function ComitePage({
   if (vacanteId) {
     const { data: candData } = await supabase
       .from('rec_candidatos')
-      .select('id, nombre, email, etapa, notas_comite, fecha_ingreso')
+      .select('id, nombre, email, etapa, notas_comite, fecha_ingreso, final_dg_at, final_dg_meet_url')
       .eq('vacante_id', vacanteId)
       .in('etapa', ETAPAS_COMITE)
       .order('created_at', { ascending: false })

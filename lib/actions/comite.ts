@@ -3,8 +3,11 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { descifrar } from '@/lib/google/crypto'
-import { accessTokenDesdeRefresh, enviarCorreo } from '@/lib/google/client'
-import { notasComiteSchema, contratarSchema } from '@/lib/schemas/reclutamiento'
+import { accessTokenDesdeRefresh, enviarCorreo, crearEventoMeet } from '@/lib/google/client'
+import {
+  notasComiteSchema, contratarSchema, pasarFinalDgSchema,
+  DG_EMAIL, DG_NOMBRE, DURACION_FINAL_DG_MIN,
+} from '@/lib/schemas/reclutamiento'
 import type { RecEtapa } from '@/lib/supabase/types'
 
 type Result<T = unknown> = ({ ok: true } & T) | { ok: false; error: string }
@@ -75,6 +78,122 @@ export async function guardarNotasComite(raw: unknown): Promise<Result> {
 
   revalidatePath('/reclutamiento/comite')
   return { ok: true }
+}
+
+// ── Entrevista final con la DG: agenda el Meet y manda pase_fase3 ────────────
+
+export async function pasarAFinalDG(raw: unknown): Promise<Result<{ meetUrl: string }>> {
+  const parsed = pasarFinalDgSchema.safeParse(raw)
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
+  const d = parsed.data
+
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: 'No autenticado' }
+
+  // 1) Candidato + validaciones.
+  const { data: candData } = await supabase
+    .from('rec_candidatos')
+    .select('id, nombre, email, etapa, vacante_id')
+    .eq('id', d.candidato_id)
+    .single()
+  const cand = candData as
+    | { id: string; nombre: string; email: string | null; etapa: RecEtapa; vacante_id: string }
+    | null
+  if (!cand) return { ok: false, error: 'El candidato ya no existe.' }
+  if (!cand.email) return { ok: false, error: 'El candidato no tiene correo registrado.' }
+  if (cand.etapa !== 'comite') {
+    return { ok: false, error: 'Solo se pasa con la DG desde la etapa de comité.' }
+  }
+
+  // 2) Vacante (para el título del evento) + plantilla pase_fase3.
+  const { data: vacData } = await supabase
+    .from('rec_vacantes').select('titulo').eq('id', cand.vacante_id).maybeSingle()
+  const vacante = (vacData as { titulo: string } | null)?.titulo ?? 'Vacante'
+
+  const { data: tplData } = await supabase
+    .from('rec_plantillas_correo')
+    .select('asunto, cuerpo')
+    .eq('codigo', 'pase_fase3')
+    .eq('activa', true)
+    .maybeSingle()
+  const tpl = tplData as { asunto: string; cuerpo: string } | null
+  if (!tpl) return { ok: false, error: 'Falta la plantilla de entrevista final (pase_fase3).' }
+
+  // 3) Credencial de Google.
+  const { data: cred } = await supabase
+    .from('rec_credenciales_google')
+    .select('refresh_token')
+    .order('actualizado_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (!cred) return { ok: false, error: 'Conecta una cuenta de Google antes de pasar con la DG.' }
+
+  let accessToken: string
+  try {
+    accessToken = await accessTokenDesdeRefresh(descifrar((cred as { refresh_token: string }).refresh_token))
+  } catch {
+    return { ok: false, error: 'La conexión con Google expiró. Reconecta la cuenta e intenta de nuevo.' }
+  }
+
+  // 4) Crea el Meet (candidato + Director General). sendUpdates=all les manda la invitación.
+  const [hh, mm] = d.hora.split(':').map(Number)
+  const finTotal = hh * 60 + mm + DURACION_FINAL_DG_MIN
+  const finHora = `${String(Math.floor(finTotal / 60) % 24).padStart(2, '0')}:${String(finTotal % 60).padStart(2, '0')}`
+  const inicioIso = `${d.fecha}T${d.hora}:00`
+  const finIso = `${d.fecha}T${finHora}:00`
+  let meetUrl = ''
+  try {
+    const ev = await crearEventoMeet(accessToken, {
+      titulo: `Entrevista Final (DG) — ${vacante} — ${cand.nombre}`,
+      descripcion: `Entrevista final con ${DG_NOMBRE} (Dirección General) para la posición de ${vacante}.`,
+      inicioIso, finIso,
+      attendees: [cand.email, DG_EMAIL],
+    })
+    meetUrl = ev.meetUrl
+  } catch {
+    return { ok: false, error: 'No se pudo crear el evento de Google Meet. Revisa la conexión e intenta de nuevo.' }
+  }
+
+  // 5) Transición comité → final_dg.
+  const { error: transErr } = await supabase.rpc('rec_transicion_etapa', {
+    p_candidato_id: cand.id,
+    p_etapa_destino: 'final_dg',
+    p_motivo_descarte: null,
+    p_notas: 'Pasa a entrevista final con la DG',
+  })
+  if (transErr) {
+    const code = transErr.message.match(/[a-z_]+/)?.[0] ?? ''
+    return { ok: false, error: TRANSICION_ERRORES[code] ?? 'No se pudo mover a entrevista final.' }
+  }
+
+  // 6) Persiste fecha/hora y liga del Meet (el admin puede copiarla/reenviarla).
+  await supabase.from('rec_candidatos')
+    .update({ final_dg_at: inicioIso, final_dg_meet_url: meetUrl })
+    .eq('id', cand.id)
+
+  // 7) Envía pase_fase3 al candidato (el DG recibe la invitación de Calendar).
+  const vars = { nombre_candidato: cand.nombre, fecha_hora: `${fechaLarga(d.fecha)}, ${d.hora}` }
+  try {
+    const correo = await enviarCorreo(accessToken, {
+      to: [cand.email],
+      subject: render(tpl.asunto, vars),
+      html: aHtml(render(tpl.cuerpo, vars)),
+    })
+    await supabase.from('rec_correos_enviados').insert({
+      candidato_id: cand.id, plantilla_codigo: 'pase_fase3', to_email: cand.email,
+      estado: 'enviado', gmail_message_id: correo.messageId, gmail_thread_id: correo.threadId,
+    })
+  } catch (err) {
+    await supabase.from('rec_correos_enviados').insert({
+      candidato_id: cand.id, plantilla_codigo: 'pase_fase3', to_email: cand.email,
+      estado: 'error', error: err instanceof Error ? err.message : 'error desconocido',
+    })
+  }
+
+  revalidatePath('/reclutamiento/comite')
+  revalidatePath('/reclutamiento/pipeline')
+  return { ok: true, meetUrl }
 }
 
 // ── Contratación: encadena transiciones a "contratado" y manda la bienvenida ──

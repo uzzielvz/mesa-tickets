@@ -3,11 +3,11 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { ArrowRight, CheckCircle2, UserCheck, XCircle } from 'lucide-react'
+import { ArrowRight, CheckCircle2, Copy, UserCheck, Video, XCircle } from 'lucide-react'
 import { transicionarCandidato } from '@/lib/actions/reclutamiento'
-import { guardarNotasComite, contratarCandidato } from '@/lib/actions/comite'
+import { guardarNotasComite, contratarCandidato, pasarAFinalDG } from '@/lib/actions/comite'
 import {
-  ETAPA_LABEL, MOTIVOS_DESCARTE, MOTIVO_DESCARTE_LABEL,
+  ETAPA_LABEL, MOTIVOS_DESCARTE, MOTIVO_DESCARTE_LABEL, DG_NOMBRE,
 } from '@/lib/schemas/reclutamiento'
 import type { RecEtapa, RecMotivoDescarte, RecViabilidad } from '@/lib/supabase/types'
 import type { CandidatoComite } from '@/app/(dashboard)/reclutamiento/comite/page'
@@ -35,6 +35,22 @@ const inputClass =
 const selectClass = inputClass
 const labelClass = 'text-[11.5px] font-medium text-ink-500'
 
+async function copiarLiga(url: string) {
+  try {
+    await navigator.clipboard.writeText(url)
+    toast.success('Liga del Meet copiada.')
+  } catch {
+    toast.error('No se pudo copiar la liga.')
+  }
+}
+
+function fechaHoraDg(iso: string) {
+  const d = new Date(iso)
+  return d.toLocaleString('es-MX', {
+    day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  })
+}
+
 export default function ComitePanel({
   vacantes,
   vacanteId,
@@ -50,6 +66,7 @@ export default function ComitePanel({
   const [saving, setSaving] = useState<string | null>(null)
   const [descartando, setDescartando] = useState<string | null>(null)
   const [contratando, setContratando] = useState<string | null>(null)
+  const [agendandoDg, setAgendandoDg] = useState<string | null>(null)
 
   function navegar(vacante: string) {
     router.push(`/reclutamiento/comite?vacante=${vacante}`)
@@ -111,13 +128,17 @@ export default function ComitePanel({
             busy={saving === c.id}
             descartando={descartando === c.id}
             contratando={contratando === c.id}
+            agendandoDg={agendandoDg === c.id}
             onGuardarNotas={notas => guardarNotas(c.id, notas)}
             onMover={(destino, motivo) => mover(c.id, destino, motivo)}
-            onIniciarDescarte={() => { setDescartando(c.id); setContratando(null) }}
+            onIniciarDescarte={() => { setDescartando(c.id); setContratando(null); setAgendandoDg(null) }}
             onCancelarDescarte={() => setDescartando(null)}
-            onIniciarContratacion={() => { setContratando(c.id); setDescartando(null) }}
+            onIniciarContratacion={() => { setContratando(c.id); setDescartando(null); setAgendandoDg(null) }}
             onCancelarContratacion={() => setContratando(null)}
             onContratado={() => { setContratando(null); router.refresh() }}
+            onIniciarDg={() => { setAgendandoDg(c.id); setDescartando(null); setContratando(null) }}
+            onCancelarDg={() => setAgendandoDg(null)}
+            onAgendadoDg={() => { setAgendandoDg(null); router.refresh() }}
             setSaving={setSaving}
           />
         ))
@@ -132,6 +153,7 @@ function CandidatoCard({
   busy,
   descartando,
   contratando,
+  agendandoDg,
   onGuardarNotas,
   onMover,
   onIniciarDescarte,
@@ -139,6 +161,9 @@ function CandidatoCard({
   onIniciarContratacion,
   onCancelarContratacion,
   onContratado,
+  onIniciarDg,
+  onCancelarDg,
+  onAgendadoDg,
   setSaving,
 }: {
   candidato: CandidatoComite
@@ -146,6 +171,7 @@ function CandidatoCard({
   busy: boolean
   descartando: boolean
   contratando: boolean
+  agendandoDg: boolean
   onGuardarNotas: (notas: string) => void
   onMover: (destino: RecEtapa, motivo: RecMotivoDescarte | null) => void
   onIniciarDescarte: () => void
@@ -153,6 +179,9 @@ function CandidatoCard({
   onIniciarContratacion: () => void
   onCancelarContratacion: () => void
   onContratado: () => void
+  onIniciarDg: () => void
+  onCancelarDg: () => void
+  onAgendadoDg: () => void
   setSaving: (id: string | null) => void
 }) {
   const [notas, setNotas] = useState(c.notas_comite ?? '')
@@ -220,6 +249,33 @@ function CandidatoCard({
         </button>
       </div>
 
+      {/* Liga del Meet con la DG (guardada; el admin la puede copiar/reenviar) */}
+      {c.final_dg_meet_url && (
+        <div className="flex items-center gap-2 flex-wrap bg-surface-sidebar border border-border-subtle rounded p-2.5">
+          <Video size={13} className="text-navy shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-medium text-ink-500">
+              Entrevista final con {DG_NOMBRE}
+              {c.final_dg_at ? ` — ${fechaHoraDg(c.final_dg_at)}` : ''}
+            </p>
+            <a
+              href={c.final_dg_meet_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[12px] text-navy underline break-all"
+            >
+              {c.final_dg_meet_url}
+            </a>
+          </div>
+          <button
+            onClick={() => copiarLiga(c.final_dg_meet_url!)}
+            className="inline-flex items-center gap-1 text-[11.5px] font-medium text-navy border border-[#ECECEC] rounded px-2.5 py-[5px] hover:bg-surface-hover transition-colors shrink-0"
+          >
+            <Copy size={11} /> Copiar
+          </button>
+        </div>
+      )}
+
       {/* Formulario de contratación */}
       {contratando ? (
         <ContratacionForm
@@ -227,6 +283,13 @@ function CandidatoCard({
           ccDefault={ccDefault}
           onCancelar={onCancelarContratacion}
           onContratado={onContratado}
+          setSaving={setSaving}
+        />
+      ) : agendandoDg ? (
+        <FinalDgForm
+          candidatoId={c.id}
+          onCancelar={onCancelarDg}
+          onAgendado={onAgendadoDg}
           setSaving={setSaving}
         />
       ) : descartando ? (
@@ -252,7 +315,7 @@ function CandidatoCard({
         <div className="flex items-center gap-2 flex-wrap border-t border-border-subtle pt-3">
           {c.etapa === 'comite' && (
             <button
-              onClick={() => onMover('final_dg', null)}
+              onClick={onIniciarDg}
               disabled={busy}
               className="inline-flex items-center gap-1.5 text-[12px] font-medium text-navy border border-[#ECECEC] rounded px-3 py-[6px] hover:bg-surface-hover disabled:opacity-50 transition-colors"
             >
@@ -347,6 +410,72 @@ function ContratacionForm({
           className="inline-flex items-center gap-1.5 bg-orange hover:bg-orange-dark text-white text-[12px] font-medium rounded px-4 py-[7px] disabled:opacity-50 transition-colors"
         >
           {enviando ? 'Contratando y enviando…' : 'Confirmar contratación'}
+        </button>
+        <button
+          onClick={onCancelar}
+          disabled={enviando}
+          className="text-[12px] text-ink-500 border border-[#ECECEC] rounded px-4 py-[7px] hover:bg-surface-hover disabled:opacity-50 transition-colors"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function FinalDgForm({
+  candidatoId,
+  onCancelar,
+  onAgendado,
+  setSaving,
+}: {
+  candidatoId: string
+  onCancelar: () => void
+  onAgendado: () => void
+  setSaving: (id: string | null) => void
+}) {
+  const [fecha, setFecha] = useState('')
+  const [hora, setHora] = useState('')
+  const [enviando, setEnviando] = useState(false)
+
+  async function confirmar() {
+    setEnviando(true)
+    setSaving(candidatoId)
+    const res = await pasarAFinalDG({ candidato_id: candidatoId, fecha, hora })
+    setEnviando(false)
+    setSaving(null)
+    if (res.ok) {
+      toast.success('Entrevista final agendada y correo enviado al candidato.')
+      onAgendado()
+    } else {
+      toast.error(res.error)
+    }
+  }
+
+  const valido = /^\d{4}-\d{2}-\d{2}$/.test(fecha) && /^\d{2}:\d{2}$/.test(hora)
+
+  return (
+    <div className="border-t border-border-subtle pt-3 flex flex-col gap-3 bg-surface-sidebar -mx-4 -mb-4 px-4 pb-4 rounded-b-md">
+      <div className="flex items-center gap-1.5 text-[12px] font-medium text-ink-700">
+        <Video size={13} className="text-navy" /> Entrevista final con {DG_NOMBRE} — se agenda un Meet
+      </div>
+      <div className="grid grid-cols-2 gap-3 max-w-[440px]">
+        <div className="flex flex-col gap-1">
+          <label className={labelClass}>Fecha</label>
+          <input type="date" value={fecha} onChange={e => setFecha(e.target.value)} className={inputClass} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className={labelClass}>Hora</label>
+          <input type="time" value={hora} onChange={e => setHora(e.target.value)} className={inputClass} />
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={confirmar}
+          disabled={enviando || !valido}
+          className="inline-flex items-center gap-1.5 bg-navy hover:opacity-90 text-white text-[12px] font-medium rounded px-4 py-[7px] disabled:opacity-50 transition-colors"
+        >
+          {enviando ? 'Agendando…' : 'Agendar y pasar con DG'}
         </button>
         <button
           onClick={onCancelar}
