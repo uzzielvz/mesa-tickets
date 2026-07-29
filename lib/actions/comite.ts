@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { descifrar } from '@/lib/google/crypto'
 import { accessTokenDesdeRefresh, enviarCorreo, crearEventoMeet } from '@/lib/google/client'
 import {
-  notasComiteSchema, contratarSchema, pasarFinalDgSchema,
+  notasComiteSchema, contratarSchema, pasarFinalDgSchema, altaConfigSchema,
   DG_EMAIL, DG_NOMBRE, DURACION_FINAL_DG_MIN,
 } from '@/lib/schemas/reclutamiento'
 import type { RecEtapa } from '@/lib/supabase/types'
@@ -194,6 +194,33 @@ export async function pasarAFinalDG(raw: unknown): Promise<Result<{ meetUrl: str
   revalidatePath('/reclutamiento/comite')
   revalidatePath('/reclutamiento/pipeline')
   return { ok: true, meetUrl }
+}
+
+// ── Configuración de alta (etapa 'oferta'): se guarda por candidato ────────────
+
+export async function guardarAltaConfig(raw: unknown): Promise<Result> {
+  const parsed = altaConfigSchema.safeParse(raw)
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
+  const d = parsed.data
+
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: 'No autenticado' }
+
+  const { error } = await supabase.from('rec_alta_config').upsert({
+    candidato_id: d.candidato_id,
+    equipo: d.equipo,
+    sistemas: d.sistemas,
+    otros_texto: d.otros_texto || null,
+    induccion_fecha: d.induccion_fecha || null,
+    induccion_meet_url: d.induccion_meet_url || null,
+    destinatarios: d.destinatarios,
+    actualizado_at: new Date().toISOString(),
+  })
+  if (error) return { ok: false, error: 'No se pudo guardar la configuración de alta.' }
+
+  revalidatePath('/reclutamiento/comite')
+  return { ok: true }
 }
 
 // ── Contratación: encadena transiciones a "contratado" y manda la bienvenida ──

@@ -14,6 +14,15 @@ export interface EvaluacionComite {
   puntaje: number | null
 }
 
+export interface AltaConfigComite {
+  equipo: string[]
+  sistemas: string[]
+  otros_texto: string | null
+  induccion_fecha: string | null
+  induccion_meet_url: string | null
+  destinatarios: Record<string, string>
+}
+
 export interface CandidatoComite {
   id: string
   nombre: string
@@ -24,6 +33,7 @@ export interface CandidatoComite {
   final_dg_at: string | null
   final_dg_meet_url: string | null
   evaluaciones: EvaluacionComite[]
+  altaConfig: AltaConfigComite | null
 }
 
 export default async function ComitePage({
@@ -49,7 +59,7 @@ export default async function ComitePage({
       .eq('vacante_id', vacanteId)
       .in('etapa', ETAPAS_COMITE)
       .order('created_at', { ascending: false })
-    const base = (candData ?? []) as Omit<CandidatoComite, 'evaluaciones'>[]
+    const base = (candData ?? []) as Omit<CandidatoComite, 'evaluaciones' | 'altaConfig'>[]
 
     // Evaluaciones de cada candidato: candidato → entrevistas → evaluaciones.
     const porCandidato = new Map<string, EvaluacionComite[]>(base.map(c => [c.id, []]))
@@ -74,7 +84,26 @@ export default async function ComitePage({
       }
     }
 
-    candidatos = base.map(c => ({ ...c, evaluaciones: porCandidato.get(c.id) ?? [] }))
+    // Configuración de alta ya guardada (para candidatos en 'oferta').
+    const configPorCandidato = new Map<string, AltaConfigComite>()
+    const idsOferta = base.filter(c => c.etapa === 'oferta').map(c => c.id)
+    if (idsOferta.length > 0) {
+      const { data: cfgData } = await supabase
+        .from('rec_alta_config')
+        .select('candidato_id, equipo, sistemas, otros_texto, induccion_fecha, induccion_meet_url, destinatarios')
+        .in('candidato_id', idsOferta)
+      const cfgs = (cfgData ?? []) as (AltaConfigComite & { candidato_id: string })[]
+      for (const cfg of cfgs) {
+        const { candidato_id, ...rest } = cfg
+        configPorCandidato.set(candidato_id, rest)
+      }
+    }
+
+    candidatos = base.map(c => ({
+      ...c,
+      evaluaciones: porCandidato.get(c.id) ?? [],
+      altaConfig: configPorCandidato.get(c.id) ?? null,
+    }))
   }
 
   // CC por defecto del correo de bienvenida (configurado en la plantilla).

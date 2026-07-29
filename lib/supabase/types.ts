@@ -495,6 +495,39 @@ export interface Database {
         }
         Relationships: []
       }
+      rec_alta_config: {
+        Row: {
+          candidato_id: string
+          equipo: string[]
+          sistemas: string[]
+          otros_texto: string | null
+          induccion_fecha: string | null
+          induccion_meet_url: string | null
+          destinatarios: Record<string, string>
+          actualizado_at: string
+          created_at: string
+        }
+        Insert: {
+          candidato_id: string
+          equipo?: string[]
+          sistemas?: string[]
+          otros_texto?: string | null
+          induccion_fecha?: string | null
+          induccion_meet_url?: string | null
+          destinatarios?: Record<string, string>
+          actualizado_at?: string
+        }
+        Update: {
+          equipo?: string[]
+          sistemas?: string[]
+          otros_texto?: string | null
+          induccion_fecha?: string | null
+          induccion_meet_url?: string | null
+          destinatarios?: Record<string, string>
+          actualizado_at?: string
+        }
+        Relationships: []
+      }
       rec_sesiones_entrevistas: {
         Row: {
           id: string
