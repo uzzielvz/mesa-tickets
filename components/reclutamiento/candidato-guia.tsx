@@ -60,9 +60,11 @@ function guiaDe(etapa: RecEtapa, vacanteId: string): Guia | null {
 export default function CandidatoGuia({
   etapa,
   vacanteId,
+  evalProgress,
 }: {
   etapa: RecEtapa
   vacanteId: string
+  evalProgress?: { registradas: number; total: number } | null
 }) {
   if (etapa === 'contratado') {
     return (
@@ -81,6 +83,10 @@ export default function CandidatoGuia({
 
   const Icono = etapa === 'en_revision' ? FileSearch : ArrowRight
 
+  // En espera de evaluaciones: muestra cuántos entrevistadores ya registraron.
+  const mostrarProgreso = etapa === 'entrevistas_agendadas' && evalProgress && evalProgress.total > 0
+  const completo = mostrarProgreso && evalProgress!.registradas === evalProgress!.total
+
   return (
     <div className="rounded-md border border-[#ECECEC] bg-surface-sidebar px-3.5 py-3">
       <div className="flex items-start justify-between gap-3">
@@ -89,6 +95,19 @@ export default function CandidatoGuia({
           <div>
             <p className="text-[12.5px] font-medium text-ink-900">{guia.titulo}</p>
             <p className="mt-0.5 text-[11.5px] leading-snug text-ink-500">{guia.descripcion}</p>
+            {mostrarProgreso && (
+              <span
+                className={`mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                  completo
+                    ? 'bg-[#f0fdf4] text-[#15803d]'
+                    : 'bg-surface-hover text-ink-600'
+                }`}
+              >
+                {completo && <CheckCircle2 size={12} />}
+                {evalProgress!.registradas} de {evalProgress!.total} evaluaciones registradas
+                {completo && ' — listo para comité'}
+              </span>
+            )}
           </div>
         </div>
         {guia.accion && (

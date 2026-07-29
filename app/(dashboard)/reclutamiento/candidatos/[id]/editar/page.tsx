@@ -53,6 +53,25 @@ export default async function EditarCandidatoPage({ params }: { params: { id: st
 
   const vacantes = (vacData ?? []) as { id: string; titulo: string; estado: 'abierta' | 'cerrada' }[]
 
+  // Progreso de evaluaciones: cuántos entrevistadores ya registraron su
+  // valoración (evaluación con recomendación) sobre el total de entrevistas.
+  // Alimenta la tarjeta guía para saber cuándo el candidato está listo para comité.
+  let evalProgress: { registradas: number; total: number } | null = null
+  const { data: entData } = await supabase
+    .from('rec_entrevistas')
+    .select('id')
+    .eq('candidato_id', candidato.id)
+  const entrevistas = (entData ?? []) as { id: string }[]
+  if (entrevistas.length > 0) {
+    const { data: evalData } = await supabase
+      .from('rec_evaluaciones')
+      .select('entrevista_id, recomendacion')
+      .in('entrevista_id', entrevistas.map(e => e.id))
+    const registradas = ((evalData ?? []) as { recomendacion: string | null }[])
+      .filter(e => e.recomendacion).length
+    evalProgress = { registradas, total: entrevistas.length }
+  }
+
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-center gap-2">
@@ -69,7 +88,7 @@ export default async function EditarCandidatoPage({ params }: { params: { id: st
 
       <EtapaStepper etapa={candidato.etapa} />
 
-      <CandidatoGuia etapa={candidato.etapa} vacanteId={candidato.vacante_id} />
+      <CandidatoGuia etapa={candidato.etapa} vacanteId={candidato.vacante_id} evalProgress={evalProgress} />
 
       <h1 className="text-[18px] font-semibold text-ink-900">Editar candidato</h1>
 
