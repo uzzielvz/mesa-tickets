@@ -213,6 +213,81 @@ export const contratarSchema = z.object({
 
 export type ContratarInput = z.infer<typeof contratarSchema>
 
+// ── Configuración de alta (etapa 'oferta', S7) ──
+// Equipo y sistemas son multi-selección; 'otros' en sistemas habilita texto libre.
+// Los destinatarios internos se prellenan con defaults y se editan al momento.
+
+export const EQUIPO_OPCIONES = ['celular', 'laptop', 'desktop'] as const
+export const SISTEMAS_OPCIONES = ['yunius', 'hubspot', 'otros'] as const
+
+export const EQUIPO_LABEL: Record<(typeof EQUIPO_OPCIONES)[number], string> = {
+  celular: 'Celular',
+  laptop: 'Laptop',
+  desktop: 'Desktop',
+}
+
+export const SISTEMAS_LABEL: Record<(typeof SISTEMAS_OPCIONES)[number], string> = {
+  yunius: 'Yunius',
+  hubspot: 'HubSpot',
+  otros: 'Otros',
+}
+
+// Roles de destinatarios internos del correo de altas (orden de despliegue en el form).
+export const DESTINATARIOS_ROLES = [
+  { key: 'rh_firmas', label: 'RH / firmas y bienvenida' },
+  { key: 'correos', label: 'Correos electrónicos' },
+  { key: 'induccion', label: 'Inducción' },
+  { key: 'alta_yunius', label: 'Alta Yunius' },
+  { key: 'alta_hubspot', label: 'Alta HubSpot' },
+  { key: 'jefe_directo', label: 'Jefe directo' },
+  { key: 'cc_adicional', label: 'CC adicional' },
+] as const
+
+export type DestinatarioRol = (typeof DESTINATARIOS_ROLES)[number]['key']
+
+// Defaults prellenados de los destinatarios por rol. Se editan por candidato en el
+// form de alta; el valor elegido se persiste en rec_alta_config.destinatarios.
+// TODO(REC-062): completar con los correos reales de cada rol (por confirmar).
+export const ALTA_DESTINATARIOS_DEFAULT: Record<DestinatarioRol, string> = {
+  rh_firmas: '',
+  correos: '',
+  induccion: '',
+  alta_yunius: '',
+  alta_hubspot: '',
+  jefe_directo: '',
+  cc_adicional: '',
+}
+
+const emailOpcional = z.string().trim().email('Correo inválido').optional().or(z.literal(''))
+
+export const altaConfigSchema = z.object({
+  candidato_id: z.string().uuid('Candidato inválido'),
+  equipo: z.array(z.enum(EQUIPO_OPCIONES)).default([]),
+  sistemas: z.array(z.enum(SISTEMAS_OPCIONES)).default([]),
+  otros_texto: z.string().trim().max(200, 'Máximo 200 caracteres').optional().or(z.literal('')),
+  induccion_fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida').optional().or(z.literal('')),
+  induccion_meet_url: z.string().trim().url('URL inválida').optional().or(z.literal('')),
+  destinatarios: z.object({
+    rh_firmas: emailOpcional,
+    correos: emailOpcional,
+    induccion: emailOpcional,
+    alta_yunius: emailOpcional,
+    alta_hubspot: emailOpcional,
+    jefe_directo: emailOpcional,
+    cc_adicional: emailOpcional,
+  }),
+}).superRefine((val, ctx) => {
+  if (val.sistemas.includes('otros') && !val.otros_texto) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['otros_texto'],
+      message: 'Especifica qué otros sistemas',
+    })
+  }
+})
+
+export type AltaConfigInput = z.infer<typeof altaConfigSchema>
+
 // ── Cálculo de la cascada (puro, compartido entre preview y server action) ──
 
 export interface BloqueCascada {

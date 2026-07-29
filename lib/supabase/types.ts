@@ -26,7 +26,7 @@ export type RecEntrevistaEstado = 'programada' | 'realizada' | 'no_show' | 'canc
 export type RecPlantillaCodigo =
   | 'confirmacion_postulacion' | 'agendamiento_fase2' | 'notificacion_entrevistador'
   | 'pase_fase3' | 'descarte' | 'oferta' | 'informativa'
-  | 'agenda_entrevistadores' | 'bienvenida_contratacion'
+  | 'agenda_entrevistadores' | 'bienvenida_contratacion' | 'altas_nuevos_ingresos'
 
 // Entrevistador de la cascada Fase 2 (se guarda como jsonb en la sesión).
 export interface RecEntrevistador {

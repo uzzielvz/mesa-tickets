@@ -490,6 +490,50 @@ export type Database = {
           },
         ]
       }
+      rec_alta_config: {
+        Row: {
+          actualizado_at: string
+          candidato_id: string
+          created_at: string
+          destinatarios: Json
+          equipo: Json
+          induccion_fecha: string | null
+          induccion_meet_url: string | null
+          otros_texto: string | null
+          sistemas: Json
+        }
+        Insert: {
+          actualizado_at?: string
+          candidato_id: string
+          created_at?: string
+          destinatarios?: Json
+          equipo?: Json
+          induccion_fecha?: string | null
+          induccion_meet_url?: string | null
+          otros_texto?: string | null
+          sistemas?: Json
+        }
+        Update: {
+          actualizado_at?: string
+          candidato_id?: string
+          created_at?: string
+          destinatarios?: Json
+          equipo?: Json
+          induccion_fecha?: string | null
+          induccion_meet_url?: string | null
+          otros_texto?: string | null
+          sistemas?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rec_alta_config_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: true
+            referencedRelation: "rec_candidatos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rec_candidato_historial: {
         Row: {
           actor_id: string | null
@@ -1491,6 +1535,9 @@ export type Database = {
         | "descarte"
         | "oferta"
         | "informativa"
+        | "agenda_entrevistadores"
+        | "bienvenida_contratacion"
+        | "altas_nuevos_ingresos"
       rec_revision_cv: "viable" | "parcial" | "no_viable"
       rec_viabilidad: "si" | "no" | "filtro_dg"
       response_type:
@@ -1661,6 +1708,9 @@ export const Constants = {
         "descarte",
         "oferta",
         "informativa",
+        "agenda_entrevistadores",
+        "bienvenida_contratacion",
+        "altas_nuevos_ingresos",
       ],
       rec_revision_cv: ["viable", "parcial", "no_viable"],
       rec_viabilidad: ["si", "no", "filtro_dg"],
