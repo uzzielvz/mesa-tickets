@@ -7,6 +7,7 @@ import { accessTokenDesdeRefresh, enviarCorreo, crearEventoMeet } from '@/lib/go
 import {
   notasComiteSchema, contratarSchema, pasarFinalDgSchema, altaConfigSchema,
   DG_EMAIL, DG_NOMBRE, DURACION_FINAL_DG_MIN,
+  EQUIPO_LABEL,
 } from '@/lib/schemas/reclutamiento'
 import type { RecEtapa } from '@/lib/supabase/types'
 
@@ -56,6 +57,84 @@ function fechaLarga(fecha: string): string {
   return new Intl.DateTimeFormat('es-MX', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
   }).format(d)
+}
+
+// ── Correo interno de altas ("Altas nuevo ingreso") ──────────────────────────
+// Arma destinatarios y líneas de tarea por área a partir de la config de alta.
+// Cada tarea solo aparece si su destinatario está definido (y, para sistemas,
+// si el sistema fue marcado). Devuelve null si no hay a quién enviar.
+
+interface AltaConfigRow {
+  equipo: string[]
+  sistemas: string[]
+  otros_texto: string | null
+  induccion_fecha: string | null
+  induccion_meet_url: string | null
+  destinatarios: Record<string, string>
+}
+
+function construirCorreoAltas(
+  cfg: AltaConfigRow,
+  cand: { nombre: string; telefono: string | null },
+  vacante: { titulo: string; area: string | null },
+  fechaIngreso: string,
+): { to: string[]; cc: string[]; vars: Record<string, string> } | null {
+  const dest = cfg.destinatarios ?? {}
+  const val = (k: string) => (dest[k] ?? '').trim()
+
+  // Destinatarios: cada rol operativo va en "para"; cc_adicional en copia.
+  const to = [
+    val('rh_firmas'), val('correos'), val('induccion'),
+    val('alta_yunius'), val('alta_hubspot'), val('jefe_directo'),
+  ].filter(Boolean)
+  const toUnicos = Array.from(new Set(to))
+  const cc = val('cc_adicional') ? [val('cc_adicional')] : []
+  if (toUnicos.length === 0) return null
+
+  // Líneas de tarea por área (solo las que aplican según config).
+  const tareas: string[] = []
+  if (val('rh_firmas')) {
+    tareas.push('* Firmas de correo y bienvenida: apoyo con la firma de correo electrónico y la publicación del formato de bienvenida.')
+  }
+  if (val('correos')) {
+    tareas.push('* Correo electrónico: alta del correo institucional del nuevo ingreso.')
+  }
+  if (val('induccion')) {
+    let linea = '* Inducción: impartir el curso de inducción'
+    if (cfg.induccion_fecha) linea += ` el ${fechaLarga(cfg.induccion_fecha)}`
+    if (cfg.induccion_meet_url) linea += `. Liga: ${cfg.induccion_meet_url}`
+    tareas.push(linea + (linea.endsWith('.') ? '' : '.'))
+  }
+  if (val('jefe_directo')) {
+    let linea = `* Jefe directo: conectar a ${cand.nombre} para su inducción a la compañía`
+    if (cfg.induccion_meet_url) linea += `. Liga: ${cfg.induccion_meet_url}`
+    tareas.push(linea + (linea.endsWith('.') ? '' : '.'))
+  }
+  if (cfg.sistemas.includes('yunius') && val('alta_yunius')) {
+    tareas.push('* Alta Yunius: dar de alta al integrante en Yunius.')
+  }
+  if (cfg.sistemas.includes('hubspot') && val('alta_hubspot')) {
+    tareas.push('* Alta HubSpot: generar usuario y contraseña en la plataforma HubSpot.')
+  }
+  if (cfg.sistemas.includes('otros') && cfg.otros_texto) {
+    tareas.push(`* Otros sistemas (${cfg.otros_texto}): dar de alta al integrante.`)
+  }
+
+  const equipoTxt = cfg.equipo.length
+    ? cfg.equipo.map(e => EQUIPO_LABEL[e as keyof typeof EQUIPO_LABEL] ?? e).join(', ')
+    : '—'
+
+  const vars: Record<string, string> = {
+    nombre_candidato: cand.nombre,
+    zona: vacante.area?.trim() || '—',
+    telefono: cand.telefono?.trim() || '—',
+    puesto: vacante.titulo,
+    jefe_directo: val('jefe_directo') || '—',
+    fecha_ingreso: fechaLarga(fechaIngreso),
+    equipo: equipoTxt,
+    tareas: tareas.length ? tareas.join('\n') : '* Sin tareas específicas registradas.',
+  }
+  return { to: toUnicos, cc, vars }
 }
 
 // ── Notas del comité ─────────────────────────────────────────────────────────
@@ -225,7 +304,9 @@ export async function guardarAltaConfig(raw: unknown): Promise<Result> {
 
 // ── Contratación: encadena transiciones a "contratado" y manda la bienvenida ──
 
-export async function contratarCandidato(raw: unknown): Promise<Result<{ correoEnviado: boolean }>> {
+export async function contratarCandidato(
+  raw: unknown,
+): Promise<Result<{ correoEnviado: boolean; altasEnviado: boolean }>> {
   const parsed = contratarSchema.safeParse(raw)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
   const d = parsed.data
@@ -237,10 +318,12 @@ export async function contratarCandidato(raw: unknown): Promise<Result<{ correoE
   // 1) Candidato + validaciones (antes de mutar nada).
   const { data: candData } = await supabase
     .from('rec_candidatos')
-    .select('id, nombre, email, etapa')
+    .select('id, nombre, email, telefono, etapa, vacante_id')
     .eq('id', d.candidato_id)
     .single()
-  const cand = candData as { id: string; nombre: string; email: string | null; etapa: RecEtapa } | null
+  const cand = candData as
+    | { id: string; nombre: string; email: string | null; telefono: string | null; etapa: RecEtapa; vacante_id: string }
+    | null
   if (!cand) return { ok: false, error: 'El candidato ya no existe.' }
   if (!cand.email) return { ok: false, error: 'El candidato no tiene correo registrado.' }
 
@@ -340,7 +423,64 @@ export async function contratarCandidato(raw: unknown): Promise<Result<{ correoE
     })
   }
 
+  // 8) Correo interno "Altas nuevo ingreso" a las áreas (según config de alta).
+  const altasEnviado = await enviarCorreoAltas(supabase, accessToken, cand, d.fecha_ingreso)
+
   revalidatePath('/reclutamiento/comite')
   revalidatePath('/reclutamiento/pipeline')
-  return { ok: true, correoEnviado }
+  return { ok: true, correoEnviado, altasEnviado }
+}
+
+// Manda el correo interno de altas. Best-effort: nunca tumba la contratación.
+// Devuelve true solo si se envió (hay config, destinatarios y plantilla).
+async function enviarCorreoAltas(
+  supabase: ReturnType<typeof createClient>,
+  accessToken: string,
+  cand: { id: string; nombre: string; telefono: string | null; vacante_id: string },
+  fechaIngreso: string,
+): Promise<boolean> {
+  const { data: cfgData } = await supabase
+    .from('rec_alta_config')
+    .select('equipo, sistemas, otros_texto, induccion_fecha, induccion_meet_url, destinatarios')
+    .eq('candidato_id', cand.id)
+    .maybeSingle()
+  const cfg = cfgData as AltaConfigRow | null
+  if (!cfg) return false
+
+  const { data: vacData } = await supabase
+    .from('rec_vacantes').select('titulo, area').eq('id', cand.vacante_id).maybeSingle()
+  const vacante = (vacData as { titulo: string; area: string | null } | null) ?? { titulo: 'Vacante', area: null }
+
+  const armado = construirCorreoAltas(cfg, cand, vacante, fechaIngreso)
+  if (!armado) return false
+
+  const { data: tplData } = await supabase
+    .from('rec_plantillas_correo')
+    .select('asunto, cuerpo, cc_emails')
+    .eq('codigo', 'altas_nuevos_ingresos')
+    .eq('activa', true)
+    .maybeSingle()
+  const tpl = tplData as { asunto: string; cuerpo: string; cc_emails: string[] | null } | null
+  if (!tpl) return false
+
+  const cc = Array.from(new Set([...armado.cc, ...(tpl.cc_emails ?? [])]))
+  try {
+    const correo = await enviarCorreo(accessToken, {
+      to: armado.to,
+      cc,
+      subject: render(tpl.asunto, armado.vars),
+      html: aHtml(render(tpl.cuerpo, armado.vars)),
+    })
+    await supabase.from('rec_correos_enviados').insert({
+      candidato_id: cand.id, plantilla_codigo: 'altas_nuevos_ingresos', to_email: armado.to[0],
+      estado: 'enviado', gmail_message_id: correo.messageId, gmail_thread_id: correo.threadId,
+    })
+    return true
+  } catch (err) {
+    await supabase.from('rec_correos_enviados').insert({
+      candidato_id: cand.id, plantilla_codigo: 'altas_nuevos_ingresos', to_email: armado.to[0],
+      estado: 'error', error: err instanceof Error ? err.message : 'error desconocido',
+    })
+    return false
+  }
 }

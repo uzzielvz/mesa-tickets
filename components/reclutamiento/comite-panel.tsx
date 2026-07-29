@@ -390,7 +390,9 @@ function ContratacionForm({
     setSaving(null)
     if (res.ok) {
       toast.success(res.correoEnviado
-        ? 'Candidato contratado y correo de bienvenida enviado.'
+        ? res.altasEnviado
+          ? 'Candidato contratado. Bienvenida y aviso de altas enviados.'
+          : 'Candidato contratado y bienvenida enviada (revisa la config de alta para el aviso interno).'
         : 'Candidato contratado, pero el correo de bienvenida no se pudo enviar.')
       onContratado()
     } else {

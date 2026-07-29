@@ -263,15 +263,16 @@ export type DestinatarioRol = (typeof DESTINATARIOS_ROLES)[number]['key']
 
 // Defaults prellenados de los destinatarios por rol. Se editan por candidato en el
 // form de alta; el valor elegido se persiste en rec_alta_config.destinatarios.
-// TODO(REC-062): completar con los correos reales de cada rol (por confirmar).
+// Correos tomados de los correos reales de "Altas Nuevo Ingreso" (RH). El rol
+// 'correos' y 'jefe_directo' varían por caso, así que el admin los ajusta al vuelo.
 export const ALTA_DESTINATARIOS_DEFAULT: Record<DestinatarioRol, string> = {
-  rh_firmas: '',
-  correos: '',
-  induccion: '',
-  alta_yunius: '',
-  alta_hubspot: '',
+  rh_firmas: 'brendoli.durante@financieracrediflexi.com',
+  correos: 'julio.melquiades@financieracrediflexi.com',
+  induccion: 'jesus.montellano@financieracrediflexi.com',
+  alta_yunius: 'dtorres@financieracrediflexi.com',
+  alta_hubspot: 'rolando.davila@financieracrediflexi.com',
   jefe_directo: '',
-  cc_adicional: '',
+  cc_adicional: 'ncastaneda@financieracrediflexi.com',
 }
 
 const emailOpcional = z.string().trim().email('Correo inválido').optional().or(z.literal(''))
