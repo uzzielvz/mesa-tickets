@@ -3,7 +3,7 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-07-28.
+> Última actualización: 2026-07-29.
 
 ---
 
@@ -640,7 +640,7 @@ No se permite saltar etapas, retroceder, ni salir de un estado terminal (`contra
 
 ### 8.10 S7 — Completar pipeline + configuración de alta (plan 2026-07-28)
 
-> **Plan, aún sin implementar.** Le da propósito real a las etapas `final_dg` y `oferta` (que hoy solo se atraviesan) y agrega el correo interno de "Altas nuevos ingresos". Todo admin-side: se puede entregar sin depender de la captura del candidato (esa es S8).
+> **En progreso (REC-061..063 hechos; falta REC-064..066).** Le da propósito real a las etapas `final_dg` y `oferta` (que hoy solo se atraviesan) y agrega el correo interno de "Altas nuevos ingresos". Todo admin-side: se puede entregar sin depender de la captura del candidato (esa es S8).
 
 **Origen:** revisión de Uzziel (2026-07-28). Se detectó que S6 saltaba de `comité` directo a `contratado`, dejando `final_dg` y `oferta` como etapas fantasma. Al revisar los correos reales de Héctor (plantilla `pase_fase3` "Entrevista Final" ya sembrada, y el correo interno "Altas Nuevos Ingresos" del 2026-07-10) se ve que el DAG sí tenía lógica; solo faltaba cablearla.
 
@@ -662,14 +662,16 @@ No se permite saltar etapas, retroceder, ni salir de un estado terminal (`contra
 
 | Ticket | Entregable | Detalle |
 |---|---|---|
-| **REC-061** | Migración enum + plantilla | `alter type rec_plantilla_codigo add value 'altas_nuevos_ingresos'` **en su propia migración**; luego (otra migración) columnas para la config de alta (`rec_candidatos` o tabla `rec_alta_config` 1:1: equipo jsonb, sistemas jsonb, otros_texto, induccion_fecha, induccion_meet_url, destinatarios jsonb) + seed de la plantilla `altas_nuevos_ingresos` + defaults de destinatarios. |
-| **REC-062** | Tipos TS + schema | `lib/supabase/types.ts` (enum + columnas) + `altaConfigSchema` zod (equipo/sistemas enums, meet url, destinatarios email). |
-| **REC-063** | `pase_fase3` en la transición a `final_dg` | En la acción de "Pasa con DG": tras mover a `final_dg`, enviar `pase_fase3` (patrón de `contratarCandidato`: token Google, render, `enviarCorreo`, bitácora). |
+| **REC-061** ✅ | Migración enum + plantilla | Migración `rec_016` (enum `altas_nuevos_ingresos` solo) + `rec_017` (tabla `rec_alta_config` 1:1 con `rec_candidatos`: equipo/sistemas jsonb, otros_texto, induccion_fecha, induccion_meet_url, destinatarios jsonb; RLS; seed de la plantilla `altas_nuevos_ingresos`). |
+| **REC-062** ✅ | Tipos TS + schema | `altaConfigSchema` zod (equipo/sistemas enums, meet url, destinatarios email) + constantes DG (`pasarFinalDgSchema`, `DG_EMAIL`/`DG_NOMBRE`) en `lib/schemas/reclutamiento.ts`; tipos en `lib/supabase/database.types.ts`. |
+| **REC-063** ✅ | Entrevista final con la DG en la transición a `final_dg` | "Pasa con DG" abre form fecha/hora → `pasarAFinalDG`: **crea Google Meet** (candidato + Javier Vargas como en las otras meets), mueve a `final_dg`, envía `pase_fase3` al candidato, persiste `final_dg_at`/`final_dg_meet_url` en `rec_candidatos` (migración `rec_018`) para que el admin copie/reenvíe la liga. |
 | **REC-064** | Etapa `oferta` = formulario de config | En `/reclutamiento/comite` (o pipeline), para candidatos en `oferta`: formulario de equipo/sistemas/inducción/destinatarios (prellenados, editables), `guardarAltaConfig`. |
 | **REC-065** | Correo interno de altas al contratar | `contratarCandidato` (o acción nueva `finalizarAlta`) al pasar `oferta → contratado`: además de la bienvenida, arma y envía `altas_nuevos_ingresos` a los destinatarios con las líneas de tarea por rol; bitácora en `rec_correos_enviados`. |
 | **REC-066** | Verificación + docs | `tsc`/`build`, `db push`, smoke test con correos propios, actualizar PLAN/RESEARCH. |
 
 **Fuera de alcance de S7 (no hacer):** captura de datos por el candidato (S8), la tabla completa de datos personales en el correo interno (viene con S8), generación del xlsx.
+
+**Notas de progreso (2026-07-28):** REC-061..063 entregados y migraciones (`rec_016`/`rec_017`/`rec_018`) aplicadas a remoto. Decisión confirmada en REC-063: la liga se manda a Javier Vargas vía invitación de Calendar (igual que las otras meets) y el admin también puede copiarla desde el panel de comité. Pendiente arrancar REC-064 (form de alta en `oferta`; tabla `rec_alta_config` ya en `lib/supabase/types.ts`) y REC-065 (bloqueado suave: falta el **copy literal de la plantilla "Altas Nuevos Ingresos"** y los **correos default de los 7 roles** — Brendoli/Julio/Jesús Montellano/Diana/Rolando/jefe directo/Nohemi).
 
 ### 8.11 S8 — Onboarding del candidato (captura de datos) (plan 2026-07-28)
 
