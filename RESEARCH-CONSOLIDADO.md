@@ -1,7 +1,7 @@
 # RESEARCH CONSOLIDADO — mea-tickets (CrediFlexi Operaciones)
 
 > Documento vivo. Single source of truth del estado real del repo.
-> Última actualización: 2026-07-27.
+> Última actualización: 2026-07-29.
 > Para el plan de trabajo activo ver `PLAN.md`.
 
 ---
@@ -974,6 +974,8 @@ CrediFlexi necesita automatizar el tramo de reclutamiento que va de **"el candid
 - **RLS MVP definitiva:** Héctor (admin) ve y escribe **todo**; nadie más entra a la app autenticada (`acceso_reclutamiento` queda en el schema para v2); los entrevistadores solo acceden por **magic link** a la sesión de su token.
 - **Vista de comité explícita:** pantalla del viernes donde Héctor consolida las 3 viabilidades por candidato y decide `final_dg` / `descartado` (con `notas_comite` opcional). Es un sprint propio (S6 en el plan).
 - **Plantilla `notificacion_entrevistador`** (con placeholder exclusivo `{{magic_link}}`) se suma al catálogo de plantillas para el correo que lleva la liga al entrevistador.
+- **Pipeline completo (S7):** `final_dg` = entrevista final con la DG (Javier) → se manda `pase_fase3` al candidato y se crea Meet (candidato + Javier); la liga se persiste en `rec_candidatos.final_dg_at`/`final_dg_meet_url` para que el admin la copie/reenvíe. `oferta` = "Configurar alta": form por candidato (equipo/sistemas/inducción/destinatarios, prellenados y editables) que se guarda en `rec_alta_config`. Al pasar a `contratado` se dispara, además de la bienvenida, el **correo interno "Altas nuevo ingreso"** (`altas_nuevos_ingresos`) a las áreas.
+- **Correo interno de altas — decisiones (confirmadas con 2 correos reales de Héctor, 2026-07-29):** (a) **un candidato por correo** (el modelo de lote se descartó; los ejemplos reales mandan uno a la vez); (b) **Adriana Alejaldre = rol `jefe_directo`** (conecta al candidato a su inducción), no un rol nuevo; (c) las **líneas de tarea se arman por rol** solo si el destinatario está definido (y, para sistemas, si el sistema fue marcado); (d) los **correos default por rol** son estables salvo `correos` y `jefe_directo`, que varían por caso y se editan en el form. La "tabla completa" de datos personales se enriquece en S8.
 
 ### 13.6 Restricciones técnicas y conflictos con el codebase actual
 
@@ -999,7 +1001,7 @@ CrediFlexi necesita automatizar el tramo de reclutamiento que va de **"el candid
 
 ### 13.8 Preguntas abiertas / TODOs (resolver con Héctor antes del sprint que las consume)
 
-1. **Plantillas de correo**: solo tenemos físicamente el copy de "Entrevista Final" (`pase_fase3`). Conseguir el literal del resto (confirmación postulación, agendamiento Fase 2, notificación entrevistador, descarte, oferta, informativa) **antes del Sprint G**.
+1. **Plantillas de correo**: ya tenemos el copy real de "Entrevista Final" (`pase_fase3`) y de "Altas Nuevo Ingreso" (`altas_nuevos_ingresos`, formato de Héctor sembrado en `rec_019`). Falta conseguir el literal del resto (confirmación postulación, agendamiento Fase 2, notificación entrevistador, descarte, oferta, informativa).
 2. **"Filtro por DG"**: confirmar regla — ¿mayoría requerida? ¿un solo voto basta para que el candidato pase a Javier? ¿o solo cuenta como voto registrado y Héctor decide en comité?
 3. **Entrevistadores**: ¿siempre los mismos 3 en orden fijo Benny → Maritere → Sergio, o configurables por vacante/sesión? (afecta si `orden_entrevistadores` se fija por sesión).
 4. **Retención de datos** de candidatos descartados (compliance CNBV / LFPDPPP) — definir política de purga/anonimización.

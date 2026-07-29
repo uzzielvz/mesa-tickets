@@ -508,7 +508,7 @@ Digitalizar el flujo de entrevistas que hoy lleva el Gerente de RH en Excel/corr
 | **S4** ✅ 2026-07-07 | **Agendamiento masivo** (cascada de Meets + correos reales + transición) — server action `agendarSesion` + UI `/reclutamiento/agendar` | REC-030..REC-032 ✅ |
 | **S5** ✅ 2026-07-15 | Evaluaciones: magic link por email (token propio, no Auth), ruta pública `/evaluar/[token]`, RPCs `rec_sesion_por_token` + `rec_submit_evaluacion` — ver §8.8 | REC-046..REC-052 ✅ |
 | **S6** ✅ 2026-07-27 | Comité + entrevistadores dinámicos + contratación (correo de bienvenida) — ver §8.9 | REC-053..REC-060 ✅ |
-| **S7** | Completar pipeline (`final_dg` = entrevista final DG + `pase_fase3`; `oferta` = config de alta) + correo interno "Altas nuevos ingresos" — ver §8.10 | REC-061..REC-066 |
+| **S7** ✅ 2026-07-29 | Completar pipeline (`final_dg` = entrevista final DG + `pase_fase3`; `oferta` = config de alta) + correo interno "Altas nuevo ingreso" — ver §8.10 | REC-061..REC-066 ✅ |
 | **S8** | Onboarding del candidato: captura de datos de contratación vía magic link (sustituye Google Form + layout xlsx); alimenta la tabla del correo interno — ver §8.11 | REC-067..REC-072 |
 
 **S6 — alcance ampliado (2026-07-27):** además de la vista de comité original, S6 incluye entrevistadores dinámicos (N, no 3 fijos), transición automática a `en_revision` al abrir el perfil, campo de comentarios del comité, registro de la decisión de la DG (Javier) y la automatización del correo de bienvenida al contratar (con adjuntos fijos y CC configurable). Detalle completo en §8.9.
@@ -640,7 +640,7 @@ No se permite saltar etapas, retroceder, ni salir de un estado terminal (`contra
 
 ### 8.10 S7 — Completar pipeline + configuración de alta (plan 2026-07-28)
 
-> **En progreso (REC-061..063 hechos; falta REC-064..066).** Le da propósito real a las etapas `final_dg` y `oferta` (que hoy solo se atraviesan) y agrega el correo interno de "Altas nuevos ingresos". Todo admin-side: se puede entregar sin depender de la captura del candidato (esa es S8).
+> **Completado ✅ 2026-07-29 (REC-061..066).** Le da propósito real a las etapas `final_dg` y `oferta` (que antes solo se atravesaban) y agrega el correo interno de "Altas nuevo ingreso". Todo admin-side: se entregó sin depender de la captura del candidato (esa es S8).
 
 **Origen:** revisión de Uzziel (2026-07-28). Se detectó que S6 saltaba de `comité` directo a `contratado`, dejando `final_dg` y `oferta` como etapas fantasma. Al revisar los correos reales de Héctor (plantilla `pase_fase3` "Entrevista Final" ya sembrada, y el correo interno "Altas Nuevos Ingresos" del 2026-07-10) se ve que el DAG sí tenía lógica; solo faltaba cablearla.
 
@@ -665,13 +665,15 @@ No se permite saltar etapas, retroceder, ni salir de un estado terminal (`contra
 | **REC-061** ✅ | Migración enum + plantilla | Migración `rec_016` (enum `altas_nuevos_ingresos` solo) + `rec_017` (tabla `rec_alta_config` 1:1 con `rec_candidatos`: equipo/sistemas jsonb, otros_texto, induccion_fecha, induccion_meet_url, destinatarios jsonb; RLS; seed de la plantilla `altas_nuevos_ingresos`). |
 | **REC-062** ✅ | Tipos TS + schema | `altaConfigSchema` zod (equipo/sistemas enums, meet url, destinatarios email) + constantes DG (`pasarFinalDgSchema`, `DG_EMAIL`/`DG_NOMBRE`) en `lib/schemas/reclutamiento.ts`; tipos en `lib/supabase/database.types.ts`. |
 | **REC-063** ✅ | Entrevista final con la DG en la transición a `final_dg` | "Pasa con DG" abre form fecha/hora → `pasarAFinalDG`: **crea Google Meet** (candidato + Javier Vargas como en las otras meets), mueve a `final_dg`, envía `pase_fase3` al candidato, persiste `final_dg_at`/`final_dg_meet_url` en `rec_candidatos` (migración `rec_018`) para que el admin copie/reenvíe la liga. |
-| **REC-064** | Etapa `oferta` = formulario de config | En `/reclutamiento/comite` (o pipeline), para candidatos en `oferta`: formulario de equipo/sistemas/inducción/destinatarios (prellenados, editables), `guardarAltaConfig`. |
-| **REC-065** | Correo interno de altas al contratar | `contratarCandidato` (o acción nueva `finalizarAlta`) al pasar `oferta → contratado`: además de la bienvenida, arma y envía `altas_nuevos_ingresos` a los destinatarios con las líneas de tarea por rol; bitácora en `rec_correos_enviados`. |
-| **REC-066** | Verificación + docs | `tsc`/`build`, `db push`, smoke test con correos propios, actualizar PLAN/RESEARCH. |
+| **REC-064** ✅ | Etapa `oferta` = formulario de config | En `/reclutamiento/comite`, para candidatos en `oferta`: `AltaConfigForm` con equipo/sistemas/inducción/destinatarios (prellenados con `ALTA_DESTINATARIOS_DEFAULT`, editables) → `guardarAltaConfig` (upsert a `rec_alta_config`). |
+| **REC-065** ✅ | Correo interno de altas al contratar | `contratarCandidato` al pasar a `contratado`: además de la bienvenida, `enviarCorreoAltas` arma y envía `altas_nuevos_ingresos` (formato real de Héctor, migración `rec_019`) a los destinatarios con las líneas de tarea por rol según lo marcado; CC = cc_adicional + CC de plantilla; bitácora en `rec_correos_enviados`. Best-effort: no bloquea la contratación. |
+| **REC-066** ✅ | Verificación + docs | `tsc` y `next build` verdes, `db push` (`rec_019`), actualización de PLAN §8.10 / RESEARCH y bump de fechas. Smoke test de envío queda para prueba manual con correos propios (nunca los reales). |
 
 **Fuera de alcance de S7 (no hacer):** captura de datos por el candidato (S8), la tabla completa de datos personales en el correo interno (viene con S8), generación del xlsx.
 
-**Notas de progreso (2026-07-28):** REC-061..063 entregados y migraciones (`rec_016`/`rec_017`/`rec_018`) aplicadas a remoto. Decisión confirmada en REC-063: la liga se manda a Javier Vargas vía invitación de Calendar (igual que las otras meets) y el admin también puede copiarla desde el panel de comité. Pendiente arrancar REC-064 (form de alta en `oferta`; tabla `rec_alta_config` ya en `lib/supabase/types.ts`) y REC-065 (bloqueado suave: falta el **copy literal de la plantilla "Altas Nuevos Ingresos"** y los **correos default de los 7 roles** — Brendoli/Julio/Jesús Montellano/Diana/Rolando/jefe directo/Nohemi).
+**Notas de progreso (2026-07-28):** REC-061..063 entregados y migraciones (`rec_016`/`rec_017`/`rec_018`) aplicadas a remoto. Decisión confirmada en REC-063: la liga se manda a Javier Vargas vía invitación de Calendar (igual que las otras meets) y el admin también puede copiarla desde el panel de comité.
+
+**Cierre S7 (2026-07-29):** REC-064..066 entregados. Uzziel reenvió dos correos reales de "Altas Nuevo Ingreso" de Héctor, que desbloquearon REC-065: se aclaró que **Adriana Alejaldre es el rol `jefe_directo`** (conecta al candidato a la inducción, no es rol nuevo) y que el **modelo de un candidato por correo es correcto** (el segundo ejemplo trae uno solo). Migración `rec_019` reemplaza la plantilla genérica por el formato real; `ALTA_DESTINATARIOS_DEFAULT` se llenó con los correos consistentes (rh_firmas=Brendoli, correos=Julio, induccion=Jesús Montellano, alta_yunius=Diana, alta_hubspot=Rolando, cc_adicional=Nohemi); `correos` y `jefe_directo` varían por caso y se editan en el form. `next build` verde. Pendiente sólo el smoke test manual del envío con correos propios.
 
 ### 8.11 S8 — Onboarding del candidato (captura de datos) (plan 2026-07-28)
 
