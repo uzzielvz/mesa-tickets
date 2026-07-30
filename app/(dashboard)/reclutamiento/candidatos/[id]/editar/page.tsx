@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ChevronLeft } from 'lucide-react'
+import { ChevronLeft, Columns3 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import CandidatoForm from '@/components/reclutamiento/candidato-form'
 import EtapaStepper from '@/components/reclutamiento/etapa-stepper'
@@ -74,16 +74,25 @@ export default async function EditarCandidatoPage({ params }: { params: { id: st
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <Link
+            href={`/reclutamiento/candidatos?vacante=${candidato.vacante_id}`}
+            className="flex items-center gap-1 text-[12.5px] text-ink-400 hover:text-ink-700 transition-colors"
+          >
+            <ChevronLeft size={13} />
+            Candidatos
+          </Link>
+          <span className="text-ink-300 text-[12.5px]">/</span>
+          <span className="text-[12.5px] text-ink-700 truncate">{candidato.nombre}</span>
+        </div>
         <Link
-          href={`/reclutamiento/candidatos?vacante=${candidato.vacante_id}`}
-          className="flex items-center gap-1 text-[12.5px] text-ink-400 hover:text-ink-700 transition-colors"
+          href={`/reclutamiento/pipeline?vacante=${candidato.vacante_id}`}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded border border-[#ECECEC] px-3 py-[6px] text-[12px] font-medium text-ink-700 transition-colors hover:bg-surface-hover"
         >
-          <ChevronLeft size={13} />
-          Candidatos
+          <Columns3 size={13} className="text-ink-400" />
+          Ir al pipeline
         </Link>
-        <span className="text-ink-300 text-[12.5px]">/</span>
-        <span className="text-[12.5px] text-ink-700">{candidato.nombre}</span>
       </div>
 
       <EtapaStepper etapa={candidato.etapa} />
