@@ -28,6 +28,11 @@ export type RecPlantillaCodigo =
   | 'pase_fase3' | 'descarte' | 'oferta' | 'informativa'
   | 'agenda_entrevistadores' | 'bienvenida_contratacion' | 'altas_nuevos_ingresos'
 
+// Ajustes del módulo (tabla key/value rec_ajustes, REC-067).
+// `dg` → { email, nombre, duracion_min }; `alta_destinatarios` → los 7 roles.
+export type RecAjusteClave = 'dg' | 'alta_destinatarios'
+export type RecAjusteValor = Record<string, string | number>
+
 // Entrevistador de la cascada Fase 2 (se guarda como jsonb en la sesión).
 export interface RecEntrevistador {
   nombre: string
@@ -732,8 +737,38 @@ export interface Database {
         }
         Relationships: []
       }
+      rec_ajustes: {
+        Row: {
+          clave: RecAjusteClave
+          valor: RecAjusteValor
+          actualizado_at: string
+          actualizado_por: string | null
+        }
+        Insert: {
+          clave: RecAjusteClave
+          valor: RecAjusteValor
+          actualizado_at?: string
+          actualizado_por?: string | null
+        }
+        Update: {
+          valor?: RecAjusteValor
+          actualizado_at?: string
+          actualizado_por?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
+      // rec_candidatos + requisitos derivados (REC-068). Solo lectura.
+      rec_candidato_requisitos: {
+        Row: Database['public']['Tables']['rec_candidatos']['Row'] & {
+          entrevistas_total: number
+          evaluaciones_esperadas: number
+          evaluaciones_registradas: number
+          tiene_alta_config: boolean
+        }
+        Relationships: []
+      }
       tickets_with_status: {
         Row: {
           id: string
