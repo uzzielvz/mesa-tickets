@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import CvViewer from '@/components/reclutamiento/cv-viewer'
 import { crearCandidato, actualizarCandidato } from '@/lib/actions/reclutamiento'
 import {
-  FUENTES, FUENTE_LABEL, ETAPAS, ETAPA_LABEL,
+  FUENTES, FUENTE_LABEL,
   REVISIONES_CV, REVISION_CV_LABEL, MOTIVOS_DESCARTE, MOTIVO_DESCARTE_LABEL,
   CV_MIME_TYPES, CV_MAX_BYTES,
 } from '@/lib/schemas/reclutamiento'
@@ -65,7 +65,9 @@ export default function CandidatoForm({
   const [email, setEmail] = useState(initialData?.email ?? '')
   const [telefono, setTelefono] = useState(initialData?.telefono ?? '')
   const [fuente, setFuente] = useState<string>(initialData?.fuente ?? '')
-  const [etapa, setEtapa] = useState<RecEtapa>(initialData?.etapa ?? 'postulado')
+  // La etapa NO se edita aquí: solo se mueve por el kanban / las acciones guiadas,
+  // que pasan por la RPC (valida el DAG y registra el cambio en el historial).
+  const etapa: RecEtapa = initialData?.etapa ?? 'postulado'
   const [revisionCv, setRevisionCv] = useState<string>(initialData?.revision_cv ?? '')
   const [motivoDescarte, setMotivoDescarte] = useState<string>(initialData?.motivo_descarte ?? '')
   const [notas, setNotas] = useState(initialData?.notas ?? '')
@@ -179,13 +181,6 @@ export default function CandidatoForm({
             <select value={fuente} onChange={e => setFuente(e.target.value)} className={selectClass}>
               <option value="">Sin especificar</option>
               {FUENTES.map(f => <option key={f} value={f}>{FUENTE_LABEL[f]}</option>)}
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label>Etapa</Label>
-            <select value={etapa} onChange={e => setEtapa(e.target.value as RecEtapa)} className={selectClass}>
-              {ETAPAS.map(et => <option key={et} value={et}>{ETAPA_LABEL[et]}</option>)}
             </select>
           </div>
         </div>
