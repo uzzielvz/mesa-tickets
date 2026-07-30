@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { FileText, Upload, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import CvViewer from '@/components/reclutamiento/cv-viewer'
 import { crearCandidato, actualizarCandidato } from '@/lib/actions/reclutamiento'
 import {
   FUENTES, FUENTE_LABEL, ETAPAS, ETAPA_LABEL,
@@ -236,15 +237,7 @@ export default function CandidatoForm({
               </button>
             </div>
           ) : cvPath ? (
-            <div className="flex items-center justify-between border border-[#ECECEC] rounded px-3 py-2">
-              <span className="flex items-center gap-2 text-[12.5px] text-ink-700 min-w-0">
-                <FileText size={14} className="shrink-0 text-ink-400" />
-                <span className="truncate">CV cargado</span>
-              </span>
-              <button type="button" onClick={() => setCvPath('')} className="text-ink-300 hover:text-red-400 transition-colors p-1" title="Quitar CV">
-                <X size={14} />
-              </button>
-            </div>
+            <CvViewer path={cvPath} onQuitar={() => setCvPath('')} />
           ) : (
             <label className="flex items-center gap-2 border-2 border-dashed border-[#DCDCDC] hover:border-[#BBBBBB] rounded px-3 py-3 text-[12.5px] text-ink-500 cursor-pointer transition-colors">
               <Upload size={14} className="text-ink-400" />
