@@ -217,8 +217,11 @@ export type ContratarInput = z.infer<typeof contratarSchema>
 // Al pasar comité → final_dg se agenda un Meet con el Director General y el
 // candidato, y se envía la plantilla pase_fase3.
 
+/** @deprecated Se lee de rec_ajustes (`dg`). Se borra en REC-073. */
 export const DG_EMAIL = 'jvargas@financieracrediflexi.com'
+/** @deprecated Se lee de rec_ajustes (`dg`). Se borra en REC-073. */
 export const DG_NOMBRE = 'Javier Vargas'
+/** @deprecated Se lee de rec_ajustes (`dg.duracion_min`). Se borra en REC-073. */
 export const DURACION_FINAL_DG_MIN = 30
 
 export const pasarFinalDgSchema = z.object({
@@ -261,10 +264,10 @@ export const DESTINATARIOS_ROLES = [
 
 export type DestinatarioRol = (typeof DESTINATARIOS_ROLES)[number]['key']
 
-// Defaults prellenados de los destinatarios por rol. Se editan por candidato en el
-// form de alta; el valor elegido se persiste en rec_alta_config.destinatarios.
-// Correos tomados de los correos reales de "Altas Nuevo Ingreso" (RH). El rol
-// 'correos' y 'jefe_directo' varían por caso, así que el admin los ajusta al vuelo.
+/**
+ * @deprecated Se lee de rec_ajustes (`alta_destinatarios`) y se edita en
+ * /reclutamiento/ajustes. Se borra en REC-073.
+ */
 export const ALTA_DESTINATARIOS_DEFAULT: Record<DestinatarioRol, string> = {
   rh_firmas: 'brendoli.durante@financieracrediflexi.com',
   correos: 'julio.melquiades@financieracrediflexi.com',
@@ -304,6 +307,45 @@ export const altaConfigSchema = z.object({
 })
 
 export type AltaConfigInput = z.infer<typeof altaConfigSchema>
+
+// ── Ajustes del módulo (S7.5) ──
+// Editables desde /reclutamiento/ajustes; se guardan en rec_ajustes / plantillas.
+// El correo de la DG es obligatorio (sin él no se puede agendar la entrevista
+// final); los destinatarios de altas pueden quedar vacíos y solo prellenan el
+// formulario de cada candidato.
+
+export const ajustesDgSchema = z.object({
+  email: z.string().trim().email('Correo del Director General inválido'),
+  nombre: z.string().trim().min(2, 'Indica el nombre del Director General'),
+  duracion_min: z.number().int().min(15, 'Mínimo 15 minutos').max(180, 'Máximo 180 minutos'),
+})
+
+export type AjustesDgInput = z.infer<typeof ajustesDgSchema>
+
+export const ajustesDestinatariosSchema = z.object({
+  rh_firmas: emailOpcional,
+  correos: emailOpcional,
+  induccion: emailOpcional,
+  alta_yunius: emailOpcional,
+  alta_hubspot: emailOpcional,
+  jefe_directo: emailOpcional,
+  cc_adicional: emailOpcional,
+})
+
+export type AjustesDestinatariosInput = z.infer<typeof ajustesDestinatariosSchema>
+
+// Plantillas cuyo CC se puede editar desde Ajustes.
+export const PLANTILLAS_CC = [
+  { codigo: 'bienvenida_contratacion', label: 'Bienvenida al contratar' },
+  { codigo: 'altas_nuevos_ingresos', label: 'Altas nuevos ingresos (interno)' },
+] as const
+
+export const ccPlantillaSchema = z.object({
+  codigo: z.enum(['bienvenida_contratacion', 'altas_nuevos_ingresos']),
+  cc_emails: z.array(z.string().trim().email('Correo de copia inválido')),
+})
+
+export type CcPlantillaInput = z.infer<typeof ccPlantillaSchema>
 
 // ── Cálculo de la cascada (puro, compartido entre preview y server action) ──
 
