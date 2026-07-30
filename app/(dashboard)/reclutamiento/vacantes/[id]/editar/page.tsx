@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { ChevronLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import VacanteForm from '@/components/reclutamiento/vacante-form'
+import { sugerenciasArea } from '@/lib/actions/reclutamiento'
 
 export const metadata = { title: 'Editar vacante — Reclutamiento' }
 
@@ -24,6 +25,8 @@ export default async function EditarVacantePage({ params }: { params: { id: stri
     descripcion: string | null
     estado: 'abierta' | 'cerrada'
   }
+
+  const areas = await sugerenciasArea()
 
   return (
     <div className="flex flex-col gap-5">
@@ -49,7 +52,7 @@ export default async function EditarVacantePage({ params }: { params: { id: stri
         </Link>
       </div>
 
-      <VacanteForm initialData={vacante} />
+      <VacanteForm initialData={vacante} areas={areas} />
     </div>
   )
 }

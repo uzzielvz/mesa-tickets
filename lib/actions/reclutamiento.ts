@@ -86,6 +86,25 @@ export async function cerrarVacante(vacanteId: string, reabrir = false): Promise
   return { ok: true }
 }
 
+// El catálogo `areas` es del módulo de Tickets y `rec_vacantes.area` es texto
+// libre (sin FK), así que solo sugerimos: el catálogo más las áreas ya usadas en
+// vacantes. La captura sigue sin restricción.
+export async function sugerenciasArea(): Promise<string[]> {
+  const supabase = createClient()
+
+  const [{ data: catalogo }, { data: usadas }] = await Promise.all([
+    supabase.from('areas').select('nombre').eq('activo', true),
+    supabase.from('rec_vacantes').select('area').not('area', 'is', null),
+  ])
+
+  const nombres = [
+    ...((catalogo ?? []) as { nombre: string }[]).map(a => a.nombre.trim()),
+    ...((usadas ?? []) as { area: string | null }[]).map(v => (v.area ?? '').trim()),
+  ].filter(Boolean)
+
+  return Array.from(new Set(nombres)).sort((a, b) => a.localeCompare(b, 'es'))
+}
+
 // ─── Candidatos ────────────────────────────────────────────────────────────────
 
 export async function crearCandidato(raw: unknown): Promise<Result<{ id: string }>> {

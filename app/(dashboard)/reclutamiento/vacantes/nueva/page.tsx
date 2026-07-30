@@ -1,10 +1,13 @@
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import VacanteForm from '@/components/reclutamiento/vacante-form'
+import { sugerenciasArea } from '@/lib/actions/reclutamiento'
 
 export const metadata = { title: 'Nueva vacante — Reclutamiento' }
 
-export default function NuevaVacantePage() {
+export default async function NuevaVacantePage() {
+  const areas = await sugerenciasArea()
+
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-center gap-2">
@@ -21,7 +24,7 @@ export default function NuevaVacantePage() {
 
       <h1 className="text-[18px] font-semibold text-ink-900">Nueva vacante</h1>
 
-      <VacanteForm />
+      <VacanteForm areas={areas} />
     </div>
   )
 }

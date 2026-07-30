@@ -25,7 +25,13 @@ function Label({ children, required }: { children: React.ReactNode; required?: b
   )
 }
 
-export default function VacanteForm({ initialData }: { initialData?: InitialData }) {
+export default function VacanteForm({
+  initialData,
+  areas: areasSugeridas = [],
+}: {
+  initialData?: InitialData
+  areas?: string[]
+}) {
   const router = useRouter()
   const isEdit = !!initialData
 
@@ -91,9 +97,17 @@ export default function VacanteForm({ initialData }: { initialData?: InitialData
           <input
             value={area}
             onChange={e => setArea(e.target.value)}
+            list="areas-sugeridas"
+            autoComplete="off"
             placeholder="ej. Inversiones"
             className={inputClass}
           />
+          <datalist id="areas-sugeridas">
+            {areasSugeridas.map(a => <option key={a} value={a} />)}
+          </datalist>
+          <p className="text-[11.5px] text-ink-400">
+            Sugiere áreas ya registradas, pero puedes escribir una nueva.
+          </p>
         </div>
 
         <div className="flex flex-col gap-1.5">
