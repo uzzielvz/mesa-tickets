@@ -428,6 +428,7 @@ export interface Database {
           fecha_ingreso: string | null
           final_dg_at: string | null
           final_dg_meet_url: string | null
+          factorial_employee_id: string | null
           etapa_actualizada_at: string | null
           etapa_actualizada_por: string | null
           created_at: string
@@ -448,6 +449,7 @@ export interface Database {
           fecha_ingreso?: string | null
           final_dg_at?: string | null
           final_dg_meet_url?: string | null
+          factorial_employee_id?: string | null
           etapa_actualizada_at?: string | null
           etapa_actualizada_por?: string | null
         }
@@ -467,6 +469,7 @@ export interface Database {
           fecha_ingreso?: string | null
           final_dg_at?: string | null
           final_dg_meet_url?: string | null
+          factorial_employee_id?: string | null
           etapa_actualizada_at?: string | null
           etapa_actualizada_por?: string | null
         }
