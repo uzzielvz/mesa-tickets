@@ -29,9 +29,10 @@ export type RecPlantillaCodigo =
   | 'agenda_entrevistadores' | 'bienvenida_contratacion' | 'altas_nuevos_ingresos'
 
 // Ajustes del módulo (tabla key/value rec_ajustes, REC-067).
-// `dg` → { email, nombre, duracion_min }; `alta_destinatarios` → los 7 roles.
-export type RecAjusteClave = 'dg' | 'alta_destinatarios'
-export type RecAjusteValor = Record<string, string | number>
+// `dg` → { email, nombre, duracion_min }; `alta_destinatarios` → los 7 roles;
+// `factorial` → { sync_activa }.
+export type RecAjusteClave = 'dg' | 'alta_destinatarios' | 'factorial'
+export type RecAjusteValor = Record<string, string | number | boolean>
 
 // Entrevistador de la cascada Fase 2 (se guarda como jsonb en la sesión).
 export interface RecEntrevistador {

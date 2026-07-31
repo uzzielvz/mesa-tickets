@@ -188,7 +188,7 @@ export async function pasarAFinalDG(raw: unknown): Promise<Result<{ meetUrl: str
 
   // 2) Datos de la Dirección General (configurables en /reclutamiento/ajustes).
   // Sin correo no hay a quién invitar: se falla antes de tocar nada.
-  const { dg, factorialSyncActiva } = await leerAjustes(supabase)
+  const { dg } = await leerAjustes(supabase)
   if (!dg.email) {
     return {
       ok: false,
@@ -441,6 +441,7 @@ export async function contratarCandidato(
   // 9) Alta del empleado en Factorial HR (best-effort, idempotente).
   //    Solo si la sincronización está activa en Ajustes; si ya tiene
   //    factorial_employee_id tampoco se vuelve a crear.
+  const { factorialSyncActiva } = await leerAjustes(supabase)
   const factorialCreado = factorialSyncActiva
     ? await altaEnFactorial(supabase, cand, d)
     : false
