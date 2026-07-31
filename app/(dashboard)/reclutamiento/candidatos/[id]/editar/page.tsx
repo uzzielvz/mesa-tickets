@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/server'
 import CandidatoForm from '@/components/reclutamiento/candidato-form'
 import EtapaStepper from '@/components/reclutamiento/etapa-stepper'
 import CandidatoGuia from '@/components/reclutamiento/candidato-guia'
+import { leerAjustes } from '@/lib/reclutamiento/ajustes'
+import { siguientePaso } from '@/lib/reclutamiento/etapas'
 import type { RecEtapa, RecFuente, RecRevisionCv, RecMotivoDescarte } from '@/lib/supabase/types'
 
 export const metadata = { title: 'Editar candidato — Reclutamiento' }
@@ -12,9 +14,11 @@ export const metadata = { title: 'Editar candidato — Reclutamiento' }
 export default async function EditarCandidatoPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
 
+  // La vista trae el candidato y sus requisitos derivados (evaluaciones
+  // esperadas/registradas, alta configurada) en una sola consulta.
   const { data } = await supabase
-    .from('rec_candidatos')
-    .select('id, vacante_id, nombre, email, telefono, fuente, etapa, revision_cv, motivo_descarte, cv_storage_path, notas')
+    .from('rec_candidato_requisitos')
+    .select('id, vacante_id, nombre, email, telefono, fuente, etapa, revision_cv, motivo_descarte, cv_storage_path, notas, final_dg_at, evaluaciones_esperadas, evaluaciones_registradas, tiene_alta_config')
     .eq('id', params.id)
     .single()
 
@@ -32,6 +36,10 @@ export default async function EditarCandidatoPage({ params }: { params: { id: st
     motivo_descarte: RecMotivoDescarte | null
     cv_storage_path: string | null
     notas: string | null
+    final_dg_at: string | null
+    evaluaciones_esperadas: number
+    evaluaciones_registradas: number
+    tiene_alta_config: boolean
   }
 
   // S6 (REC-058): abrir el perfil de un postulado lo mueve automáticamente a
@@ -46,31 +54,18 @@ export default async function EditarCandidatoPage({ params }: { params: { id: st
     if (!error) candidato.etapa = 'en_revision'
   }
 
-  const { data: vacData } = await supabase
-    .from('rec_vacantes')
-    .select('id, titulo, estado')
-    .order('created_at', { ascending: false })
+  const [{ data: vacData }, { data: cred }, ajustes] = await Promise.all([
+    supabase.from('rec_vacantes').select('id, titulo, estado').order('created_at', { ascending: false }),
+    supabase.from('rec_credenciales_google').select('id').limit(1).maybeSingle(),
+    leerAjustes(supabase),
+  ])
 
   const vacantes = (vacData ?? []) as { id: string; titulo: string; estado: 'abierta' | 'cerrada' }[]
 
-  // Progreso de evaluaciones: cuántos entrevistadores ya registraron su
-  // valoración (evaluación con recomendación) sobre el total de entrevistas.
-  // Alimenta la tarjeta guía para saber cuándo el candidato está listo para comité.
-  let evalProgress: { registradas: number; total: number } | null = null
-  const { data: entData } = await supabase
-    .from('rec_entrevistas')
-    .select('id')
-    .eq('candidato_id', candidato.id)
-  const entrevistas = (entData ?? []) as { id: string }[]
-  if (entrevistas.length > 0) {
-    const { data: evalData } = await supabase
-      .from('rec_evaluaciones')
-      .select('entrevista_id, recomendacion')
-      .in('entrevista_id', entrevistas.map(e => e.id))
-    const registradas = ((evalData ?? []) as { recomendacion: string | null }[])
-      .filter(e => e.recomendacion).length
-    evalProgress = { registradas, total: entrevistas.length }
-  }
+  const paso = siguientePaso(candidato, {
+    googleConectado: !!cred,
+    dgConfigurada: !!ajustes.dg.email,
+  })
 
   return (
     <div className="flex flex-col gap-5">
@@ -97,7 +92,7 @@ export default async function EditarCandidatoPage({ params }: { params: { id: st
 
       <EtapaStepper etapa={candidato.etapa} />
 
-      <CandidatoGuia etapa={candidato.etapa} vacanteId={candidato.vacante_id} evalProgress={evalProgress} />
+      <CandidatoGuia etapa={candidato.etapa} paso={paso} />
 
       <h1 className="text-[18px] font-semibold text-ink-900">Editar candidato</h1>
 

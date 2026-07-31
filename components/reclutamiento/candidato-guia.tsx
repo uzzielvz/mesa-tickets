@@ -1,70 +1,16 @@
 import Link from 'next/link'
-import { ArrowRight, CalendarClock, ClipboardCheck, FileSearch, CheckCircle2 } from 'lucide-react'
+import { AlertTriangle, ArrowRight, CheckCircle2, FileSearch } from 'lucide-react'
 import type { RecEtapa } from '@/lib/supabase/types'
+import type { SiguientePaso } from '@/lib/reclutamiento/etapas'
 
-interface Guia {
-  titulo: string
-  descripcion: string
-  accion?: { label: string; href: string; icon: typeof ArrowRight }
-}
-
-// Qué hacer en cada etapa: un paso claro y (cuando aplica) el botón que lleva a
-// la acción correcta. La contratación NO se hace desde aquí: vive en Comité,
-// que es donde se disparan los correos.
-function guiaDe(etapa: RecEtapa, vacanteId: string): Guia | null {
-  const comite = `/reclutamiento/comite?vacante=${vacanteId}`
-  const agendar = `/reclutamiento/agendar?vacante=${vacanteId}`
-  switch (etapa) {
-    case 'en_revision':
-      return {
-        titulo: 'Revisa el CV',
-        descripcion: 'Define la viabilidad del candidato en el formulario de abajo. Si es viable, el siguiente paso es agendar sus entrevistas.',
-      }
-    case 'viable':
-      return {
-        titulo: 'Agenda las entrevistas',
-        descripcion: 'Este candidato pasó el filtro. Agenda la sesión de entrevistas y se enviarán las invitaciones con la liga de Meet.',
-        accion: { label: 'Agendar entrevistas', href: agendar, icon: CalendarClock },
-      }
-    case 'entrevistas_agendadas':
-      return {
-        titulo: 'En espera de evaluaciones',
-        descripcion: 'Los entrevistadores registran su evaluación por su liga. Cuando estén listas, revisa la decisión en Comité.',
-        accion: { label: 'Ir a Comité', href: comite, icon: ClipboardCheck },
-      }
-    case 'comite':
-      return {
-        titulo: 'Decisión del comité',
-        descripcion: 'Revisa las evaluaciones, deja las notas del comité y decide: pasar a entrevista final con la DG, contratar o descartar.',
-        accion: { label: 'Abrir en Comité', href: comite, icon: ClipboardCheck },
-      }
-    case 'final_dg':
-      return {
-        titulo: 'Entrevista final con la DG',
-        descripcion: 'El candidato está en la entrevista final con Dirección General. Al confirmar, continúa a la configuración del alta.',
-        accion: { label: 'Abrir en Comité', href: comite, icon: ClipboardCheck },
-      }
-    case 'oferta':
-      return {
-        titulo: 'Configura el alta y contrata',
-        descripcion: 'Último paso: confirma la contratación desde Comité. Ahí se envían el correo de bienvenida al candidato y las altas a los responsables.',
-        accion: { label: 'Abrir en Comité', href: comite, icon: ClipboardCheck },
-      }
-    default:
-      return null
-  }
-}
-
-// Tarjeta de "qué hacer ahora": traduce la etapa actual en un paso claro con su
-// botón. En etapas terminales (contratado / descartado) no se muestra.
+// Tarjeta de "qué hacer ahora". Ya no decide nada: solo renderiza el paso que
+// calculó lib/reclutamiento/etapas.ts, el mismo que usa el kanban.
 export default function CandidatoGuia({
   etapa,
-  vacanteId,
-  evalProgress,
+  paso,
 }: {
   etapa: RecEtapa
-  vacanteId: string
-  evalProgress?: { registradas: number; total: number } | null
+  paso: SiguientePaso | null
 }) {
   if (etapa === 'contratado') {
     return (
@@ -78,14 +24,17 @@ export default function CandidatoGuia({
     )
   }
 
-  const guia = guiaDe(etapa, vacanteId)
-  if (!guia) return null
+  if (!paso) return null
 
   const Icono = etapa === 'en_revision' ? FileSearch : ArrowRight
 
-  // En espera de evaluaciones: muestra cuántos entrevistadores ya registraron.
-  const mostrarProgreso = etapa === 'entrevistas_agendadas' && evalProgress && evalProgress.total > 0
-  const completo = mostrarProgreso && evalProgress!.registradas === evalProgress!.total
+  // Solo se ofrece botón cuando el paso lleva a otra pantalla. Las acciones
+  // directas y los formularios se ejecutan desde el pipeline, no desde aquí.
+  const enlace = paso.accion.tipo === 'redirect' ? paso.accion.href : null
+  const mostrarEnlace = enlace != null && !enlace.startsWith('/reclutamiento/candidatos/')
+
+  const prog = paso.progreso
+  const completo = prog != null && prog.registradas === prog.total
 
   return (
     <div className="rounded-md border border-[#ECECEC] bg-surface-sidebar px-3.5 py-3">
@@ -93,30 +42,42 @@ export default function CandidatoGuia({
         <div className="flex items-start gap-2.5">
           <Icono size={16} className="mt-0.5 shrink-0 text-navy" />
           <div>
-            <p className="text-[12.5px] font-medium text-ink-900">{guia.titulo}</p>
-            <p className="mt-0.5 text-[11.5px] leading-snug text-ink-500">{guia.descripcion}</p>
-            {mostrarProgreso && (
+            <p className="text-[12.5px] font-medium text-ink-900">{paso.titulo}</p>
+            <p className="mt-0.5 text-[11.5px] leading-snug text-ink-500">{paso.descripcion}</p>
+
+            {prog && (
               <span
                 className={`mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                  completo
-                    ? 'bg-[#f0fdf4] text-[#15803d]'
-                    : 'bg-surface-hover text-ink-600'
+                  completo ? 'bg-[#f0fdf4] text-[#15803d]' : 'bg-surface-hover text-ink-600'
                 }`}
               >
                 {completo && <CheckCircle2 size={12} />}
-                {evalProgress!.registradas} de {evalProgress!.total} evaluaciones registradas
+                {prog.registradas} de {prog.total} evaluaciones registradas
                 {completo && ' — listo para comité'}
               </span>
             )}
+
+            {/* Qué impide avanzar y qué conviene revisar antes. */}
+            {paso.bloqueos.map(b => (
+              <p key={b} className="mt-1.5 flex items-center gap-1 text-[11px] font-medium text-[#b91c1c]">
+                <AlertTriangle size={12} className="shrink-0" /> {b}
+              </p>
+            ))}
+            {paso.advertencias.map(a => (
+              <p key={a} className="mt-1.5 flex items-center gap-1 text-[11px] font-medium text-[#a16207]">
+                <AlertTriangle size={12} className="shrink-0" /> {a}
+              </p>
+            ))}
           </div>
         </div>
-        {guia.accion && (
+
+        {mostrarEnlace && (
           <Link
-            href={guia.accion.href}
+            href={enlace!}
             className="inline-flex shrink-0 items-center gap-1.5 rounded bg-orange px-3 py-[7px] text-[12px] font-medium text-white transition-colors hover:bg-orange/90"
           >
-            <guia.accion.icon size={13} />
-            {guia.accion.label}
+            <ArrowRight size={13} />
+            {paso.titulo}
           </Link>
         )}
       </div>
