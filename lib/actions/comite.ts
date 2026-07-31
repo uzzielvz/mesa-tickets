@@ -6,9 +6,9 @@ import { descifrar } from '@/lib/google/crypto'
 import { accessTokenDesdeRefresh, enviarCorreo, crearEventoMeet } from '@/lib/google/client'
 import {
   notasComiteSchema, contratarSchema, pasarFinalDgSchema, altaConfigSchema,
-  DG_EMAIL, DG_NOMBRE, DURACION_FINAL_DG_MIN,
   EQUIPO_LABEL,
 } from '@/lib/schemas/reclutamiento'
+import { leerAjustes } from '@/lib/reclutamiento/ajustes'
 import type { RecEtapa } from '@/lib/supabase/types'
 
 type Result<T = unknown> = ({ ok: true } & T) | { ok: false; error: string }
@@ -185,7 +185,17 @@ export async function pasarAFinalDG(raw: unknown): Promise<Result<{ meetUrl: str
     return { ok: false, error: 'Solo se pasa con la DG desde la etapa de comité.' }
   }
 
-  // 2) Vacante (para el título del evento) + plantilla pase_fase3.
+  // 2) Datos de la Dirección General (configurables en /reclutamiento/ajustes).
+  // Sin correo no hay a quién invitar: se falla antes de tocar nada.
+  const { dg } = await leerAjustes(supabase)
+  if (!dg.email) {
+    return {
+      ok: false,
+      error: 'Falta el correo del Director General. Configúralo en Reclutamiento → Ajustes.',
+    }
+  }
+
+  // 3) Vacante (para el título del evento) + plantilla pase_fase3.
   const { data: vacData } = await supabase
     .from('rec_vacantes').select('titulo').eq('id', cand.vacante_id).maybeSingle()
   const vacante = (vacData as { titulo: string } | null)?.titulo ?? 'Vacante'
@@ -199,7 +209,7 @@ export async function pasarAFinalDG(raw: unknown): Promise<Result<{ meetUrl: str
   const tpl = tplData as { asunto: string; cuerpo: string } | null
   if (!tpl) return { ok: false, error: 'Falta la plantilla de entrevista final (pase_fase3).' }
 
-  // 3) Credencial de Google.
+  // 4) Credencial de Google.
   const { data: cred } = await supabase
     .from('rec_credenciales_google')
     .select('refresh_token')
@@ -215,26 +225,27 @@ export async function pasarAFinalDG(raw: unknown): Promise<Result<{ meetUrl: str
     return { ok: false, error: 'La conexión con Google expiró. Reconecta la cuenta e intenta de nuevo.' }
   }
 
-  // 4) Crea el Meet (candidato + Director General). sendUpdates=all les manda la invitación.
+  // 5) Crea el Meet (candidato + Director General). sendUpdates=all les manda la invitación.
   const [hh, mm] = d.hora.split(':').map(Number)
-  const finTotal = hh * 60 + mm + DURACION_FINAL_DG_MIN
+  const finTotal = hh * 60 + mm + dg.duracion_min
   const finHora = `${String(Math.floor(finTotal / 60) % 24).padStart(2, '0')}:${String(finTotal % 60).padStart(2, '0')}`
   const inicioIso = `${d.fecha}T${d.hora}:00`
   const finIso = `${d.fecha}T${finHora}:00`
+  const dgNombre = dg.nombre || 'la Dirección General'
   let meetUrl = ''
   try {
     const ev = await crearEventoMeet(accessToken, {
       titulo: `Entrevista Final (DG) — ${vacante} — ${cand.nombre}`,
-      descripcion: `Entrevista final con ${DG_NOMBRE} (Dirección General) para la posición de ${vacante}.`,
+      descripcion: `Entrevista final con ${dgNombre} (Dirección General) para la posición de ${vacante}.`,
       inicioIso, finIso,
-      attendees: [cand.email, DG_EMAIL],
+      attendees: [cand.email, dg.email],
     })
     meetUrl = ev.meetUrl
   } catch {
     return { ok: false, error: 'No se pudo crear el evento de Google Meet. Revisa la conexión e intenta de nuevo.' }
   }
 
-  // 5) Transición comité → final_dg.
+  // 6) Transición comité → final_dg.
   const { error: transErr } = await supabase.rpc('rec_transicion_etapa', {
     p_candidato_id: cand.id,
     p_etapa_destino: 'final_dg',
@@ -246,12 +257,12 @@ export async function pasarAFinalDG(raw: unknown): Promise<Result<{ meetUrl: str
     return { ok: false, error: TRANSICION_ERRORES[code] ?? 'No se pudo mover a entrevista final.' }
   }
 
-  // 6) Persiste fecha/hora y liga del Meet (el admin puede copiarla/reenviarla).
+  // 7) Persiste fecha/hora y liga del Meet (el admin puede copiarla/reenviarla).
   await supabase.from('rec_candidatos')
     .update({ final_dg_at: inicioIso, final_dg_meet_url: meetUrl })
     .eq('id', cand.id)
 
-  // 7) Envía pase_fase3 al candidato (el DG recibe la invitación de Calendar).
+  // 8) Envía pase_fase3 al candidato (el DG recibe la invitación de Calendar).
   const vars = { nombre_candidato: cand.nombre, fecha_hora: `${fechaLarga(d.fecha)}, ${d.hora}` }
   try {
     const correo = await enviarCorreo(accessToken, {

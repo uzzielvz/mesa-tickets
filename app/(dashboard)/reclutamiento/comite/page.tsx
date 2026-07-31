@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import ComitePanel from '@/components/reclutamiento/comite-panel'
+import { leerAjustes } from '@/lib/reclutamiento/ajustes'
 import type { RecEtapa, RecViabilidad } from '@/lib/supabase/types'
 
 export const metadata = { title: 'Comité — Reclutamiento' }
@@ -114,6 +115,9 @@ export default async function ComitePage({
     .maybeSingle()
   const ccDefault = ((tplData as { cc_emails: string[] } | null)?.cc_emails ?? []) as string[]
 
+  // Ajustes del módulo: nombre de la DG y prellenado de destinatarios de altas.
+  const ajustes = await leerAjustes(supabase)
+
   return (
     <div className="flex flex-col gap-5">
       <div>
@@ -130,6 +134,8 @@ export default async function ComitePage({
         vacanteId={vacanteId}
         candidatos={candidatos}
         ccDefault={ccDefault}
+        dgNombre={ajustes.dg.nombre || 'la Dirección General'}
+        destinatariosDefault={ajustes.altaDestinatarios}
       />
     </div>
   )

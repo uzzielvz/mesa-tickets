@@ -215,14 +215,8 @@ export type ContratarInput = z.infer<typeof contratarSchema>
 
 // ── Entrevista final con la Dirección General (S7) ──
 // Al pasar comité → final_dg se agenda un Meet con el Director General y el
-// candidato, y se envía la plantilla pase_fase3.
-
-/** @deprecated Se lee de rec_ajustes (`dg`). Se borra en REC-073. */
-export const DG_EMAIL = 'jvargas@financieracrediflexi.com'
-/** @deprecated Se lee de rec_ajustes (`dg`). Se borra en REC-073. */
-export const DG_NOMBRE = 'Javier Vargas'
-/** @deprecated Se lee de rec_ajustes (`dg.duracion_min`). Se borra en REC-073. */
-export const DURACION_FINAL_DG_MIN = 30
+// candidato, y se envía la plantilla pase_fase3. El correo, el nombre y la
+// duración se leen de rec_ajustes (`dg`) y se editan en /reclutamiento/ajustes.
 
 export const pasarFinalDgSchema = z.object({
   candidato_id: z.string().uuid('Candidato inválido'),
@@ -263,20 +257,6 @@ export const DESTINATARIOS_ROLES = [
 ] as const
 
 export type DestinatarioRol = (typeof DESTINATARIOS_ROLES)[number]['key']
-
-/**
- * @deprecated Se lee de rec_ajustes (`alta_destinatarios`) y se edita en
- * /reclutamiento/ajustes. Se borra en REC-073.
- */
-export const ALTA_DESTINATARIOS_DEFAULT: Record<DestinatarioRol, string> = {
-  rh_firmas: 'brendoli.durante@financieracrediflexi.com',
-  correos: 'julio.melquiades@financieracrediflexi.com',
-  induccion: 'jesus.montellano@financieracrediflexi.com',
-  alta_yunius: 'dtorres@financieracrediflexi.com',
-  alta_hubspot: 'rolando.davila@financieracrediflexi.com',
-  jefe_directo: '',
-  cc_adicional: 'ncastaneda@financieracrediflexi.com',
-}
 
 const emailOpcional = z.string().trim().email('Correo inválido').optional().or(z.literal(''))
 

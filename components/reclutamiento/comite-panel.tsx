@@ -7,9 +7,9 @@ import { ArrowRight, CheckCircle2, ClipboardList, Copy, UserCheck, Video, XCircl
 import { transicionarCandidato } from '@/lib/actions/reclutamiento'
 import { guardarNotasComite, contratarCandidato, pasarAFinalDG, guardarAltaConfig } from '@/lib/actions/comite'
 import {
-  ETAPA_LABEL, MOTIVOS_DESCARTE, MOTIVO_DESCARTE_LABEL, DG_NOMBRE,
+  ETAPA_LABEL, MOTIVOS_DESCARTE, MOTIVO_DESCARTE_LABEL,
   EQUIPO_OPCIONES, EQUIPO_LABEL, SISTEMAS_OPCIONES, SISTEMAS_LABEL,
-  DESTINATARIOS_ROLES, ALTA_DESTINATARIOS_DEFAULT,
+  DESTINATARIOS_ROLES,
 } from '@/lib/schemas/reclutamiento'
 import type { RecEtapa, RecMotivoDescarte, RecViabilidad } from '@/lib/supabase/types'
 import type { CandidatoComite, AltaConfigComite } from '@/app/(dashboard)/reclutamiento/comite/page'
@@ -58,11 +58,17 @@ export default function ComitePanel({
   vacanteId,
   candidatos,
   ccDefault,
+  dgNombre,
+  destinatariosDefault,
 }: {
   vacantes: Vacante[]
   vacanteId: string | null
   candidatos: CandidatoComite[]
   ccDefault: string[]
+  /** Nombre de la Dirección General (rec_ajustes → `dg`). */
+  dgNombre: string
+  /** Prellenado de los destinatarios del correo de altas (rec_ajustes). */
+  destinatariosDefault: Record<string, string>
 }) {
   const router = useRouter()
   const [saving, setSaving] = useState<string | null>(null)
@@ -127,6 +133,8 @@ export default function ComitePanel({
             key={c.id}
             candidato={c}
             ccDefault={ccDefault}
+            dgNombre={dgNombre}
+            destinatariosDefault={destinatariosDefault}
             busy={saving === c.id}
             descartando={descartando === c.id}
             contratando={contratando === c.id}
@@ -152,6 +160,8 @@ export default function ComitePanel({
 function CandidatoCard({
   candidato: c,
   ccDefault,
+  dgNombre,
+  destinatariosDefault,
   busy,
   descartando,
   contratando,
@@ -170,6 +180,8 @@ function CandidatoCard({
 }: {
   candidato: CandidatoComite
   ccDefault: string[]
+  dgNombre: string
+  destinatariosDefault: Record<string, string>
   busy: boolean
   descartando: boolean
   contratando: boolean
@@ -257,7 +269,7 @@ function CandidatoCard({
           <Video size={13} className="text-navy shrink-0" />
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-medium text-ink-500">
-              Entrevista final con {DG_NOMBRE}
+              Entrevista final con {dgNombre}
               {c.final_dg_at ? ` — ${fechaHoraDg(c.final_dg_at)}` : ''}
             </p>
             <a
@@ -280,7 +292,12 @@ function CandidatoCard({
 
       {/* Configuración de alta (etapa 'oferta') */}
       {c.etapa === 'oferta' && (
-        <AltaConfigForm candidatoId={c.id} inicial={c.altaConfig} setSaving={setSaving} />
+        <AltaConfigForm
+          candidatoId={c.id}
+          inicial={c.altaConfig}
+          destinatariosDefault={destinatariosDefault}
+          setSaving={setSaving}
+        />
       )}
 
       {/* Formulario de contratación */}
@@ -295,6 +312,7 @@ function CandidatoCard({
       ) : agendandoDg ? (
         <FinalDgForm
           candidatoId={c.id}
+          dgNombre={dgNombre}
           onCancelar={onCancelarDg}
           onAgendado={onAgendadoDg}
           setSaving={setSaving}
@@ -443,11 +461,13 @@ function ContratacionForm({
 
 function FinalDgForm({
   candidatoId,
+  dgNombre,
   onCancelar,
   onAgendado,
   setSaving,
 }: {
   candidatoId: string
+  dgNombre: string
   onCancelar: () => void
   onAgendado: () => void
   setSaving: (id: string | null) => void
@@ -475,7 +495,7 @@ function FinalDgForm({
   return (
     <div className="border-t border-border-subtle pt-3 flex flex-col gap-3 bg-surface-sidebar -mx-4 -mb-4 px-4 pb-4 rounded-b-md">
       <div className="flex items-center gap-1.5 text-[12px] font-medium text-ink-700">
-        <Video size={13} className="text-navy" /> Entrevista final con {DG_NOMBRE} — se agenda un Meet
+        <Video size={13} className="text-navy" /> Entrevista final con {dgNombre} — se agenda un Meet
       </div>
       <div className="grid grid-cols-2 gap-3 max-w-[440px]">
         <div className="flex flex-col gap-1">
@@ -510,10 +530,12 @@ function FinalDgForm({
 function AltaConfigForm({
   candidatoId,
   inicial,
+  destinatariosDefault,
   setSaving,
 }: {
   candidatoId: string
   inicial: AltaConfigComite | null
+  destinatariosDefault: Record<string, string>
   setSaving: (id: string | null) => void
 }) {
   const [equipo, setEquipo] = useState<string[]>(inicial?.equipo ?? [])
@@ -522,7 +544,7 @@ function AltaConfigForm({
   const [induccionFecha, setInduccionFecha] = useState(inicial?.induccion_fecha ?? '')
   const [induccionMeet, setInduccionMeet] = useState(inicial?.induccion_meet_url ?? '')
   const [destinatarios, setDestinatarios] = useState<Record<string, string>>({
-    ...ALTA_DESTINATARIOS_DEFAULT,
+    ...destinatariosDefault,
     ...(inicial?.destinatarios ?? {}),
   })
   const [guardando, setGuardando] = useState(false)
