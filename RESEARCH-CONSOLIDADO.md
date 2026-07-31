@@ -1,7 +1,7 @@
 # RESEARCH CONSOLIDADO — mea-tickets (CrediFlexi Operaciones)
 
 > Documento vivo. Single source of truth del estado real del repo.
-> Última actualización: 2026-07-29.
+> Última actualización: 2026-07-30.
 > Para el plan de trabajo activo ver `PLAN.md`.
 
 ---
@@ -885,9 +885,9 @@ Cierre del pipeline de cartera para producción (mismo día que SEC-002 y CART-0
 
 ---
 
-## 13. Módulo Reclutamiento *(S1..S6 + Sprint G implementados)*
+## 13. Módulo Reclutamiento *(S1..S7.5 + Sprint G implementados)*
 
-> Documentación de research del 4º módulo. **Estado 2026-07-27:** S1 (fundaciones), S2 (vacantes+candidatos), S3 (pipeline/DAG), **Sprint G (Google Workspace)**, **S4 (agendamiento masivo en cascada)**, **S5 (evaluaciones vía magic link)** y **S6 (comité + entrevistadores dinámicos + contratación)** entregados. Todo el pipeline `postulado → … → contratado` está cubierto end-to-end.
+> Documentación de research del 4º módulo. **Estado 2026-07-30:** S1 (fundaciones), S2 (vacantes+candidatos), S3 (pipeline/DAG), **Sprint G (Google Workspace)**, **S4 (agendamiento masivo en cascada)**, **S5 (evaluaciones vía magic link)**, **S6 (comité + entrevistadores dinámicos + contratación)**, **S7 (`final_dg` + config de alta + correo interno de altas)** y **S7.5 (destinatarios editables + pipeline dinámico)** entregados. Todo el pipeline `postulado → … → contratado` está cubierto end-to-end y se opera desde el kanban.
 > El plan de trabajo (modelo de datos, sprints, integraciones) vive en `PLAN.md §8`.
 > Detalle operativo en `docs/reclutamiento/`.
 
@@ -914,6 +914,16 @@ Cierre del pipeline de cartera para producción (mismo día que SEC-002 y CART-0
 - **Comité sin login para la DG.** Página `/reclutamiento/comite` (filtrable por vacante, etapas `comite/final_dg/oferta`). Por candidato muestra todas las evaluaciones de los entrevistadores (recomendación + comentarios + puntaje) y un campo nuevo `notas_comite` (decisión conjunta, capturada en la reunión). Javier (DG) no tiene cuenta: la pantalla se le muestra en la reunión y **el admin registra ahí mismo** la decisión ("Pasa con DG" → `final_dg`, o descarte con motivo), reutilizando `transicionarCandidato`; todo queda en `rec_candidato_historial`.
 - **Contratación como acción única que centraliza el "al contratar pasa X".** `contratarCandidato` valida prerequisitos (email del candidato, plantilla activa, credencial Google) **antes** de mutar; luego encadena las transiciones del DAG hasta `contratado`, fija `fecha_ingreso` y envía el correo `bienvenida_contratacion` (copy base = correo real de Héctor) con `fecha_ingreso`/`fecha_limite_docs` renderizadas en español largo. El envío es best-effort con bitácora en `rec_correos_enviados` (estado `enviado`/`error`). Es el único gancho para automatización post-contratación futura (por definir).
 - **CC configurable + adjuntos fijos.** Se agregó `cc_emails jsonb` a `rec_plantillas_correo` (default seed: Irvin Mora, Cynthia Aguilar, Jesús Montellano), editable al contratar; `enviarCorreo` ahora emite header `Cc`. Dos adjuntos fijos viven en el bucket `reclutamiento/plantillas/` (`layout-datos-personales.xlsx`, `lineamientos-fotografias.pdf`) y se adjuntan igual que en REC-033. El bucket restringía mime types a PDF/DOC/DOCX, así que `rec_015` agregó el mime de xlsx. **Subir los archivos es un paso manual por el dashboard** (no hay service-role key en el entorno para automatizarlo); sin ellos el correo se envía sin adjuntos.
+
+#### 13.0.3 Configuración editable y pipeline dinámico — decisiones entregadas (S7.5, 2026-07-30)
+
+- **Cero correos en el código.** Las constantes `DG_EMAIL`/`DG_NOMBRE`/`ALTA_DESTINATARIOS_DEFAULT` se eliminaron y viven en la tabla `rec_ajustes` (key/value jsonb: claves `dg` y `alta_destinatarios`), editables en `/reclutamiento/ajustes`. Los CC por plantilla **no se duplicaron** ahí: `rec_plantillas_correo.cc_emails` ya existía y solo le faltaba UI. Los valores prellenan cada formulario y siguen siendo editables por candidato (config + override, no una u otra).
+- **RLS de escritura por acceso al módulo, no admin-only.** `rec_ajustes` usa `has_reclutamiento_access() or is_admin()`: Héctor tiene el flag pero no es admin, y con escritura admin-only el único operador real del módulo no podría cambiar un correo. La auditoría queda en `actualizado_por`/`actualizado_at`.
+- **Sin fallbacks de correo.** Si falta la fila, `leerAjustes(supabase)` devuelve strings vacíos + `faltanAjustes: true` y la acción falla con `Result` en español. Nunca se envía a una dirección quemada por accidente. El lector **recibe el cliente por parámetro** (mismo patrón que `enviarCorreoAltas`) para importarse igual desde Server Components y Server Actions.
+- **Requisitos derivados en una vista, con `security_invoker = on`.** `rec_candidato_requisitos` agrega `evaluaciones_esperadas`/`evaluaciones_registradas`/`tiene_alta_config` a `rec_candidatos`: una consulta por página en vez de 4 round-trips repetidos en tres pantallas. `security_invoker` es obligatorio (PG15+): sin él la vista corre como owner y **se salta RLS**. Corrigió de paso un bug de conteo — el total de evaluaciones se calculaba como `entrevistas.length` (siempre 1, porque `agendarSesion` crea 1 entrevista y N evaluaciones); el total correcto es `sum(jsonb_array_length(entrevistadores))`.
+- **Motor de etapas puro.** `lib/reclutamiento/etapas.ts` (sin React, sin Supabase, sin directivas) recibe el candidato + contexto y devuelve `SiguientePaso` (destino, copy, acción, `puede`, `bloqueos`, `advertencias`, `progreso`). Lo consumen kanban, perfil y comité: las reglas y el copy dejaron de estar duplicados en tres componentes.
+- **Fricción proporcional al efecto secundario.** Todo paso que manda correo (`comité→final_dg`, `oferta→contratado`) exige un formulario en modal; los pasos `directa` no envían nada. Un click accidental en una tarjeta de 220px no puede disparar un Meet ni una bienvenida. **Bloqueo duro solo con 0 evaluaciones**; con parciales es advertencia confirmable, para que un entrevistador que no responde no congele el pipeline.
+- **`components/ui/*` es código muerto que rompe el build.** El scaffolding de shadcn importa `@/lib/utils` (el helper `cn`), que nunca se creó, y `clsx`/`tailwind-merge` no están instalados: importar cualquiera de esos componentes tira `next build`. Para diálogos se usan los primitivos de `@radix-ui/react-dialog` directamente.
 
 ### 13.1 Resumen y alcance
 
