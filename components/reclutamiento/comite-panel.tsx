@@ -1,9 +1,10 @@
 'use client'
 
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { ArrowRight, Copy, UserCheck, Video, XCircle } from 'lucide-react'
+import { ArrowRight, Check, Copy, UserCheck, Video, XCircle } from 'lucide-react'
 import { transicionarCandidato } from '@/lib/actions/reclutamiento'
 import { guardarNotasComite } from '@/lib/actions/comite'
 import ContratacionForm from '@/components/reclutamiento/forms/contratacion-form'
@@ -83,8 +84,12 @@ export default function ComitePanel({
     setSaving(id)
     const res = await guardarNotasComite({ candidato_id: id, notas_comite: notas })
     setSaving(null)
-    if (res.ok) toast.success('Notas del comité guardadas.')
-    else toast.error(res.error)
+    if (res.ok) {
+      toast.success('Notas del comité guardadas.')
+      return true
+    }
+    toast.error(res.error)
+    return false
   }
 
   async function mover(id: string, destino: RecEtapa, motivo: RecMotivoDescarte | null) {
@@ -123,7 +128,10 @@ export default function ComitePanel({
       {candidatos.length === 0 ? (
         <div className="py-16 text-center">
           <p className="text-[13px] text-ink-400">
-            No hay candidatos en comité para esta vacante. Muévelos desde el pipeline.
+            No hay candidatos en comité para esta vacante.{' '}
+            <Link href={`/reclutamiento/pipeline?vacante=${vacanteId}`} className="font-medium text-navy hover:underline">
+              Muévelos desde el pipeline
+            </Link>.
           </p>
         </div>
       ) : (
@@ -185,7 +193,7 @@ function CandidatoCard({
   descartando: boolean
   contratando: boolean
   agendandoDg: boolean
-  onGuardarNotas: (notas: string) => void
+  onGuardarNotas: (notas: string) => Promise<boolean>
   onMover: (destino: RecEtapa, motivo: RecMotivoDescarte | null) => void
   onIniciarDescarte: () => void
   onCancelarDescarte: () => void
@@ -198,6 +206,9 @@ function CandidatoCard({
   setSaving: (id: string | null) => void
 }) {
   const [notas, setNotas] = useState(c.notas_comite ?? '')
+  // Confirmación visible junto al botón: el toast queda en la esquina y en una
+  // página larga el usuario no se entera de que guardó.
+  const [guardado, setGuardado] = useState(false)
 
   return (
     <div className="bg-white border border-[#ECECEC] rounded-md p-4 flex flex-col gap-3">
@@ -248,18 +259,25 @@ function CandidatoCard({
         <label className={labelClass}>Comentarios del comité (decisión conjunta)</label>
         <textarea
           value={notas}
-          onChange={e => setNotas(e.target.value)}
+          onChange={e => { setNotas(e.target.value); setGuardado(false) }}
           rows={3}
           placeholder="Acuerdos y observaciones del comité…"
           className={`${inputClass} resize-y`}
         />
-        <button
-          onClick={() => onGuardarNotas(notas)}
-          disabled={busy}
-          className="self-start text-[11.5px] font-medium text-navy border border-[#ECECEC] rounded px-3 py-[5px] hover:bg-surface-hover disabled:opacity-50 transition-colors"
-        >
-          Guardar notas
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={async () => { if (await onGuardarNotas(notas)) setGuardado(true) }}
+            disabled={busy}
+            className="text-[11.5px] font-medium text-navy border border-[#ECECEC] rounded px-3 py-[5px] hover:bg-surface-hover disabled:opacity-50 transition-colors"
+          >
+            {busy ? 'Guardando…' : 'Guardar notas'}
+          </button>
+          {guardado && !busy && (
+            <span className="inline-flex items-center gap-1 text-[11.5px] font-medium text-[#15803d]">
+              <Check size={12} /> Guardado
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Liga del Meet con la DG (guardada; el admin la puede copiar/reenviar) */}
