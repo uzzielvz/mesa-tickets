@@ -1,7 +1,7 @@
 import Link from 'next/link'
-import { ChevronLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import CandidatoForm from '@/components/reclutamiento/candidato-form'
+import VolverPipeline from '@/components/reclutamiento/volver-pipeline'
 
 export const metadata = { title: 'Nuevo candidato — Reclutamiento' }
 
@@ -21,13 +21,7 @@ export default async function NuevoCandidatoPage({
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-center gap-2">
-        <Link
-          href={`/reclutamiento/candidatos${searchParams.vacante ? `?vacante=${searchParams.vacante}` : ''}`}
-          className="flex items-center gap-1 text-[12.5px] text-ink-400 hover:text-ink-700 transition-colors"
-        >
-          <ChevronLeft size={13} />
-          Candidatos
-        </Link>
+        <VolverPipeline vacanteId={searchParams.vacante} />
         <span className="text-ink-300 text-[12.5px]">/</span>
         <span className="text-[12.5px] text-ink-700">Nuevo candidato</span>
       </div>

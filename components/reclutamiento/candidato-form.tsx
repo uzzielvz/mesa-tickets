@@ -139,7 +139,9 @@ export default function CandidatoForm({
 
     if (result.ok) {
       toast.success(isEdit ? 'Candidato actualizado' : 'Candidato registrado')
-      router.push(`/reclutamiento/candidatos?vacante=${vacanteId}`)
+      // Al pipeline, no al listado: es el tablero desde el que se opera y donde
+      // se ve el efecto del cambio (p. ej. marcar el CV viable habilita agendar).
+      router.push(`/reclutamiento/pipeline?vacante=${vacanteId}`)
       router.refresh()
     } else {
       toast.error(result.error)

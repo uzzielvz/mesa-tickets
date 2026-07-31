@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import AgendarForm from '@/components/reclutamiento/agendar-form'
+import VolverPipeline from '@/components/reclutamiento/volver-pipeline'
 import { ETAPA_LABEL } from '@/lib/schemas/reclutamiento'
 import type { RecEtapa } from '@/lib/supabase/types'
 
@@ -68,6 +69,7 @@ export default async function AgendarPage({
 
   return (
     <div className="flex flex-col gap-5">
+      <VolverPipeline vacanteId={vacanteId} />
       <div>
         <h1 className="text-[18px] font-semibold text-ink-900">Agendar entrevistas</h1>
         <p className="text-[13px] text-ink-400 mt-0.5">

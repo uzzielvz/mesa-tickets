@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import ComitePanel from '@/components/reclutamiento/comite-panel'
+import VolverPipeline from '@/components/reclutamiento/volver-pipeline'
 import { leerAjustes } from '@/lib/reclutamiento/ajustes'
 import type { RecEtapa, RecViabilidad } from '@/lib/supabase/types'
 
@@ -120,6 +121,7 @@ export default async function ComitePage({
 
   return (
     <div className="flex flex-col gap-5">
+      <VolverPipeline vacanteId={vacanteId} />
       <div>
         <h1 className="text-[18px] font-semibold text-ink-900">Comité</h1>
         <p className="text-[13px] text-ink-400 mt-0.5">

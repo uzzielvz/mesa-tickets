@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import AjustesPanel from '@/components/reclutamiento/ajustes-panel'
+import VolverPipeline from '@/components/reclutamiento/volver-pipeline'
 import { leerAjustes } from '@/lib/reclutamiento/ajustes'
 import { PLANTILLAS_CC } from '@/lib/schemas/reclutamiento'
 
@@ -23,6 +24,7 @@ export default async function AjustesReclutamientoPage() {
 
   return (
     <div className="flex flex-col gap-5">
+      <VolverPipeline />
       <div>
         <h1 className="text-[18px] font-semibold text-ink-900">Ajustes de Reclutamiento</h1>
         <p className="text-[13px] text-ink-400 mt-0.5">

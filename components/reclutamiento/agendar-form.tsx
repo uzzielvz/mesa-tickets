@@ -1,9 +1,10 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { CalendarClock, CheckCircle2, Link2, Mail, Plus, RefreshCw, X, XCircle } from 'lucide-react'
+import { CalendarClock, CheckCircle2, Columns3, Link2, Mail, Plus, RefreshCw, X, XCircle } from 'lucide-react'
 import { agendarSesion, type ResultadoCandidato } from '@/lib/actions/agendamiento'
 import { calcularCascada } from '@/lib/schemas/reclutamiento'
 import type { CandidatoViable } from '@/app/(dashboard)/reclutamiento/agendar/page'
@@ -156,12 +157,23 @@ export default function AgendarForm({
             Agenda a entrevistadores: {agendaEnviada ? 'enviada' : 'no enviada'}.
           </p>
         </div>
-        <button
-          onClick={() => { setResultados(null); setSeleccion([]) }}
-          className="self-start text-[12.5px] font-medium text-navy border border-[#ECECEC] rounded px-4 py-[7px] hover:bg-surface-hover transition-colors"
-        >
-          Agendar otra sesión
-        </button>
+        {/* El agendamiento nace en el pipeline y tiene que volver ahí: es donde
+            se ven las tarjetas ya movidas a "Entrevistas agendadas". */}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => router.push(`/reclutamiento/pipeline?vacante=${vacanteId}`)}
+            className="inline-flex items-center gap-1.5 bg-orange hover:bg-orange-dark text-white text-[12.5px] font-medium rounded px-5 py-[8px] transition-colors"
+          >
+            <Columns3 size={13} />
+            Volver al pipeline
+          </button>
+          <button
+            onClick={() => { setResultados(null); setSeleccion([]) }}
+            className="text-[12.5px] font-medium text-navy border border-[#ECECEC] rounded px-4 py-[7px] hover:bg-surface-hover transition-colors"
+          >
+            Agendar otra sesión
+          </button>
+        </div>
       </div>
     )
   }
@@ -222,7 +234,10 @@ export default function AgendarForm({
         </label>
         {candidatos.length === 0 ? (
           <p className="text-[12.5px] text-ink-400">
-            No hay candidatos en etapa Viable para esta vacante. Muévelos desde el pipeline.
+            No hay candidatos en etapa Viable para esta vacante.{' '}
+            <Link href={`/reclutamiento/pipeline?vacante=${vacanteId}`} className="font-medium text-navy hover:underline">
+              Muévelos desde el pipeline
+            </Link>.
           </p>
         ) : (
           <div className="flex flex-col gap-1.5">

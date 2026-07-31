@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import CandidatoList from '@/components/reclutamiento/candidato-list'
+import VolverPipeline from '@/components/reclutamiento/volver-pipeline'
 import type { RecEtapa } from '@/lib/supabase/types'
 
 export const metadata = { title: 'Candidatos — Reclutamiento' }
@@ -48,6 +49,7 @@ export default async function CandidatosPage({
 
   return (
     <div className="flex flex-col gap-5">
+      <VolverPipeline vacanteId={vacanteId} />
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-[18px] font-semibold text-ink-900">Candidatos</h1>
