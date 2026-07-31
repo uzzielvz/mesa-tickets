@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import AgendarForm from '@/components/reclutamiento/agendar-form'
+import { ETAPA_LABEL } from '@/lib/schemas/reclutamiento'
+import type { RecEtapa } from '@/lib/supabase/types'
 
 export const metadata = { title: 'Agendar entrevistas — Reclutamiento' }
 
@@ -16,7 +18,7 @@ export interface CandidatoViable {
 export default async function AgendarPage({
   searchParams,
 }: {
-  searchParams: { vacante?: string; google?: string; google_error?: string }
+  searchParams: { vacante?: string; candidato?: string; google?: string; google_error?: string }
 }) {
   const supabase = createClient()
 
@@ -37,6 +39,23 @@ export default async function AgendarPage({
       .eq('etapa', 'viable')
       .order('created_at', { ascending: true })
     candidatos = (data ?? []) as CandidatoViable[]
+  }
+
+  // El kanban manda aquí con ?candidato= para no obligar a buscarlo en la lista.
+  // Si el id no está entre los viables (ya se agendó, se descartó, cambió de
+  // vacante), se dice por qué en vez de ignorarlo en silencio.
+  const preseleccion = searchParams.candidato ?? null
+  let avisoPreseleccion: string | null = null
+  if (preseleccion && !candidatos.some(c => c.id === preseleccion)) {
+    const { data: otro } = await supabase
+      .from('rec_candidatos')
+      .select('nombre, etapa')
+      .eq('id', preseleccion)
+      .maybeSingle()
+    const c = otro as { nombre: string; etapa: string } | null
+    avisoPreseleccion = c
+      ? `${c.nombre} no aparece en la lista: está en la etapa "${ETAPA_LABEL[c.etapa as RecEtapa]}" o pertenece a otra vacante. Solo se pueden agendar candidatos viables.`
+      : 'El candidato indicado ya no existe.'
   }
 
   // ¿Hay cuenta de Google emisora conectada?
@@ -60,6 +79,8 @@ export default async function AgendarPage({
         vacantes={vacantes}
         vacanteId={vacanteId}
         candidatos={candidatos}
+        preseleccion={avisoPreseleccion ? null : preseleccion}
+        avisoPreseleccion={avisoPreseleccion}
         googleConectado={!!cred}
         googleQuery={searchParams.google ?? null}
         googleError={searchParams.google_error ?? null}

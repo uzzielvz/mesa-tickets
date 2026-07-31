@@ -29,6 +29,8 @@ export default function AgendarForm({
   vacantes,
   vacanteId,
   candidatos,
+  preseleccion,
+  avisoPreseleccion,
   googleConectado,
   googleQuery,
   googleError,
@@ -36,13 +38,17 @@ export default function AgendarForm({
   vacantes: Vacante[]
   vacanteId: string | null
   candidatos: CandidatoViable[]
+  /** Candidato que viene marcado desde el kanban (?candidato=). */
+  preseleccion: string | null
+  /** Por qué la preselección no se pudo aplicar, si es el caso. */
+  avisoPreseleccion: string | null
   googleConectado: boolean
   googleQuery: string | null
   googleError: string | null
 }) {
   const router = useRouter()
   // Orden de selección = lugar en la cascada.
-  const [seleccion, setSeleccion] = useState<string[]>([])
+  const [seleccion, setSeleccion] = useState<string[]>(preseleccion ? [preseleccion] : [])
   const [fecha, setFecha] = useState('')
   const [horaInicio, setHoraInicio] = useState('09:00')
   const [conPausa, setConPausa] = useState(false)
@@ -171,6 +177,11 @@ export default function AgendarForm({
       {googleQuery === 'conectado' && (
         <div className="bg-[#dcfce7] border border-[#bbf7d0] rounded-md px-4 py-3 text-[12.5px] text-[#15803d]">
           Cuenta de Google conectada correctamente.
+        </div>
+      )}
+      {avisoPreseleccion && (
+        <div className="bg-[#fffbeb] border border-[#fde68a] rounded-md px-4 py-3 text-[12.5px] text-[#a16207]">
+          {avisoPreseleccion}
         </div>
       )}
       <div className="bg-white border border-[#ECECEC] rounded-md px-4 py-3 flex items-center justify-between gap-3">
