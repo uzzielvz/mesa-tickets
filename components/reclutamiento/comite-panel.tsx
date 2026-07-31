@@ -321,6 +321,7 @@ function CandidatoCard({
       {contratando ? (
         <ContratacionForm
           candidatoId={c.id}
+          nombreCompleto={c.nombre}
           ccDefault={ccDefault}
           onCancelar={onCancelarContratacion}
           onContratado={onContratado}

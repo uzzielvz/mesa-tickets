@@ -9,6 +9,7 @@ import {
   EQUIPO_LABEL,
 } from '@/lib/schemas/reclutamiento'
 import { leerAjustes } from '@/lib/reclutamiento/ajustes'
+import { crearEmpleadoConContrato } from '@/lib/factorial/client'
 import type { RecEtapa } from '@/lib/supabase/types'
 
 type Result<T = unknown> = ({ ok: true } & T) | { ok: false; error: string }
@@ -317,7 +318,7 @@ export async function guardarAltaConfig(raw: unknown): Promise<Result> {
 
 export async function contratarCandidato(
   raw: unknown,
-): Promise<Result<{ correoEnviado: boolean; altasEnviado: boolean }>> {
+): Promise<Result<{ correoEnviado: boolean; altasEnviado: boolean; factorialCreado: boolean }>> {
   const parsed = contratarSchema.safeParse(raw)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
   const d = parsed.data
@@ -329,11 +330,11 @@ export async function contratarCandidato(
   // 1) Candidato + validaciones (antes de mutar nada).
   const { data: candData } = await supabase
     .from('rec_candidatos')
-    .select('id, nombre, email, telefono, etapa, vacante_id')
+    .select('id, nombre, email, telefono, etapa, vacante_id, factorial_employee_id')
     .eq('id', d.candidato_id)
     .single()
   const cand = candData as
-    | { id: string; nombre: string; email: string | null; telefono: string | null; etapa: RecEtapa; vacante_id: string }
+    | { id: string; nombre: string; email: string | null; telefono: string | null; etapa: RecEtapa; vacante_id: string; factorial_employee_id: string | null }
     | null
   if (!cand) return { ok: false, error: 'El candidato ya no existe.' }
   if (!cand.email) return { ok: false, error: 'El candidato no tiene correo registrado.' }
@@ -437,9 +438,42 @@ export async function contratarCandidato(
   // 8) Correo interno "Altas nuevo ingreso" a las áreas (según config de alta).
   const altasEnviado = await enviarCorreoAltas(supabase, accessToken, cand, d.fecha_ingreso)
 
+  // 9) Alta del empleado en Factorial HR (best-effort, idempotente).
+  //    Si el candidato ya tiene factorial_employee_id no se vuelve a crear.
+  const factorialCreado = await altaEnFactorial(supabase, cand, d)
+
   revalidatePath('/reclutamiento/comite')
   revalidatePath('/reclutamiento/pipeline')
-  return { ok: true, correoEnviado, altasEnviado }
+  return { ok: true, correoEnviado, altasEnviado, factorialCreado }
+}
+
+// Crea el empleado en Factorial y persiste su id. Best-effort: nunca tumba la
+// contratación (si falla, se puede reintentar y la idempotencia evita duplicados).
+// Devuelve true solo si se creó ahora (false si ya existía o si falló).
+async function altaEnFactorial(
+  supabase: ReturnType<typeof createClient>,
+  cand: { id: string; email: string | null; telefono: string | null; factorial_employee_id: string | null },
+  datos: { first_name: string; last_name: string; fecha_ingreso: string },
+): Promise<boolean> {
+  if (cand.factorial_employee_id) return false // ya dado de alta
+  if (!cand.email) return false // sin email personal no se puede crear
+
+  try {
+    const { id } = await crearEmpleadoConContrato({
+      firstName: datos.first_name,
+      lastName: datos.last_name,
+      email: cand.email,
+      contractStartsOn: datos.fecha_ingreso,
+      phoneNumber: cand.telefono ?? undefined,
+    })
+    await supabase.from('rec_candidatos')
+      .update({ factorial_employee_id: id })
+      .eq('id', cand.id)
+    return true
+  } catch {
+    // Alta fallida: no se persiste id, se puede reintentar más tarde.
+    return false
+  }
 }
 
 // Manda el correo interno de altas. Best-effort: nunca tumba la contratación.

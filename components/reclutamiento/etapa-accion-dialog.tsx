@@ -78,6 +78,7 @@ export default function EtapaAccionDialog({
           {form === 'contratacion' && (
             <ContratacionForm
               candidatoId={candidatoId}
+              nombreCompleto={candidatoNombre}
               ccDefault={ccDefault}
               variante="modal"
               onCancelar={() => onOpenChange(false)}

@@ -209,6 +209,9 @@ export const contratarSchema = z.object({
   fecha_ingreso: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha de ingreso inválida'),
   fecha_limite_docs: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha límite de documentos inválida'),
   cc_emails: z.array(z.string().trim().email('Correo de copia inválido')),
+  // Nombre y apellidos por separado para el alta en Factorial (dato limpio de RH).
+  first_name: z.string().trim().min(1, 'El nombre es obligatorio'),
+  last_name: z.string().trim().min(1, 'Los apellidos son obligatorios'),
 })
 
 export type ContratarInput = z.infer<typeof contratarSchema>
