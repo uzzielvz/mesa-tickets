@@ -36,6 +36,7 @@ export default async function AjustesReclutamientoPage() {
         dg={ajustes.dg}
         destinatarios={ajustes.altaDestinatarios}
         ccPorPlantilla={ccPorPlantilla}
+        factorialSyncActiva={ajustes.factorialSyncActiva}
         faltanAjustes={ajustes.faltanAjustes}
       />
     </div>

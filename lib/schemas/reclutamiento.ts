@@ -317,6 +317,12 @@ export const ajustesDestinatariosSchema = z.object({
 
 export type AjustesDestinatariosInput = z.infer<typeof ajustesDestinatariosSchema>
 
+export const ajustesFactorialSchema = z.object({
+  sync_activa: z.boolean(),
+})
+
+export type AjustesFactorialInput = z.infer<typeof ajustesFactorialSchema>
+
 // Plantillas cuyo CC se puede editar desde Ajustes.
 export const PLANTILLAS_CC = [
   { codigo: 'bienvenida_contratacion', label: 'Bienvenida al contratar' },

@@ -9,6 +9,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import {
   ajustesDgSchema, ajustesDestinatariosSchema, ccPlantillaSchema,
+  ajustesFactorialSchema,
 } from '@/lib/schemas/reclutamiento'
 
 type Result<T = unknown> = ({ ok: true } & T) | { ok: false; error: string }
@@ -55,6 +56,26 @@ export async function guardarDestinatariosAltas(raw: unknown): Promise<Result> {
     actualizado_por: user.id,
   })
   if (error) return { ok: false, error: 'No se pudieron guardar los destinatarios de altas.' }
+
+  revalidarConsumidores()
+  return { ok: true }
+}
+
+export async function guardarAjustesFactorial(raw: unknown): Promise<Result> {
+  const parsed = ajustesFactorialSchema.safeParse(raw)
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
+
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: 'No autenticado' }
+
+  const { error } = await supabase.from('rec_ajustes').upsert({
+    clave: 'factorial',
+    valor: parsed.data,
+    actualizado_at: new Date().toISOString(),
+    actualizado_por: user.id,
+  })
+  if (error) return { ok: false, error: 'No se pudo guardar la sincronización con Factorial.' }
 
   revalidarConsumidores()
   return { ok: true }

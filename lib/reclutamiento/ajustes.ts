@@ -23,6 +23,8 @@ export type AjustesDestinatarios = Record<DestinatarioRol, string>
 export interface AjustesReclutamiento {
   dg: AjustesDg
   altaDestinatarios: AjustesDestinatarios
+  /** Interruptor del alta automática del empleado en Factorial HR al contratar. */
+  factorialSyncActiva: boolean
   /** true si falta alguna fila o el correo de la DG está vacío */
   faltanAjustes: boolean
 }
@@ -60,9 +62,12 @@ export async function leerAjustes(
       ) as AjustesDestinatarios)
     : DESTINATARIOS_VACIOS
 
+  const factorialRaw = porClave.get('factorial')
+
   return {
     dg,
     altaDestinatarios,
+    factorialSyncActiva: factorialRaw?.sync_activa === true,
     faltanAjustes: !dgRaw || !destRaw || !dg.email,
   }
 }

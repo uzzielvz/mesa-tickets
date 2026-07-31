@@ -3,9 +3,10 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { AlertTriangle, Mail, UserCog, Users } from 'lucide-react'
+import { AlertTriangle, Mail, RefreshCw, UserCog, Users } from 'lucide-react'
 import {
   guardarAjustesDg, guardarDestinatariosAltas, guardarCcPlantilla,
+  guardarAjustesFactorial,
 } from '@/lib/actions/ajustes'
 import { DESTINATARIOS_ROLES, PLANTILLAS_CC } from '@/lib/schemas/reclutamiento'
 import type { AjustesDg, AjustesDestinatarios } from '@/lib/reclutamiento/ajustes'
@@ -45,11 +46,13 @@ export default function AjustesPanel({
   dg,
   destinatarios,
   ccPorPlantilla,
+  factorialSyncActiva,
   faltanAjustes,
 }: {
   dg: AjustesDg
   destinatarios: AjustesDestinatarios
   ccPorPlantilla: Record<string, string[]>
+  factorialSyncActiva: boolean
   faltanAjustes: boolean
 }) {
   return (
@@ -65,9 +68,52 @@ export default function AjustesPanel({
       )}
 
       <BloqueDg inicial={dg} />
+      <BloqueFactorial inicial={factorialSyncActiva} />
       <BloqueDestinatarios inicial={destinatarios} />
       <BloqueCc inicial={ccPorPlantilla} />
     </div>
+  )
+}
+
+function BloqueFactorial({ inicial }: { inicial: boolean }) {
+  const router = useRouter()
+  const [activa, setActiva] = useState(inicial)
+  const [guardando, setGuardando] = useState(false)
+
+  async function alternar() {
+    const nuevo = !activa
+    setGuardando(true)
+    const res = await guardarAjustesFactorial({ sync_activa: nuevo })
+    setGuardando(false)
+    if (res.ok) {
+      setActiva(nuevo)
+      toast.success(nuevo ? 'Sincronización con Factorial activada.' : 'Sincronización con Factorial desactivada.')
+      router.refresh()
+    } else toast.error(res.error)
+  }
+
+  return (
+    <Bloque
+      icono={RefreshCw}
+      titulo="Sincronización con Factorial HR"
+      descripcion="Cuando está activa, al contratar a un candidato se da de alta el empleado en Factorial. La contratación y sus correos funcionan igual con esto apagado."
+    >
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[12.5px] text-ink-700">
+          {activa ? 'Activada — se crearán empleados en Factorial.' : 'Desactivada — no se crea nada en Factorial.'}
+        </span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={activa}
+          onClick={alternar}
+          disabled={guardando}
+          className={`relative inline-flex h-[22px] w-[40px] shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${activa ? 'bg-orange' : 'bg-[#D4D4D4]'}`}
+        >
+          <span className={`inline-block h-[16px] w-[16px] rounded-full bg-white shadow transition-transform ${activa ? 'translate-x-[21px]' : 'translate-x-[3px]'}`} />
+        </button>
+      </div>
+    </Bloque>
   )
 }
 
