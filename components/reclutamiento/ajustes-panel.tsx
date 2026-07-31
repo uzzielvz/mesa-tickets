@@ -5,10 +5,11 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { AlertTriangle, Mail, RefreshCw, UserCog, Users } from 'lucide-react'
 import {
-  guardarAjustesDg, guardarDestinatariosAltas, guardarCcPlantilla,
+  guardarAjustesDg, guardarDestinatariosAltas,
   guardarAjustesFactorial,
 } from '@/lib/actions/ajustes'
-import { DESTINATARIOS_ROLES, PLANTILLAS_CC } from '@/lib/schemas/reclutamiento'
+import { DESTINATARIOS_ROLES } from '@/lib/schemas/reclutamiento'
+import PlantillasEditor, { type PlantillaGuardada } from '@/components/reclutamiento/plantillas-editor'
 import type { AjustesDg, AjustesDestinatarios } from '@/lib/reclutamiento/ajustes'
 
 const inputClass =
@@ -45,13 +46,13 @@ function Bloque({
 export default function AjustesPanel({
   dg,
   destinatarios,
-  ccPorPlantilla,
+  plantillas,
   factorialSyncActiva,
   faltanAjustes,
 }: {
   dg: AjustesDg
   destinatarios: AjustesDestinatarios
-  ccPorPlantilla: Record<string, string[]>
+  plantillas: Record<string, PlantillaGuardada>
   factorialSyncActiva: boolean
   faltanAjustes: boolean
 }) {
@@ -70,7 +71,14 @@ export default function AjustesPanel({
       <BloqueDg inicial={dg} />
       <BloqueFactorial inicial={factorialSyncActiva} />
       <BloqueDestinatarios inicial={destinatarios} />
-      <BloqueCc inicial={ccPorPlantilla} />
+
+      <Bloque
+        icono={Mail}
+        titulo="Plantillas de correo"
+        descripcion="El texto exacto que reciben candidatos y entrevistadores. Se aplica al siguiente envío."
+      >
+        <PlantillasEditor plantillas={plantillas} />
+      </Bloque>
     </div>
   )
 }
@@ -200,54 +208,6 @@ function BloqueDestinatarios({ inicial }: { inicial: AjustesDestinatarios }) {
       <button onClick={guardar} disabled={guardando} className={botonClass}>
         {guardando ? 'Guardando…' : 'Guardar'}
       </button>
-    </Bloque>
-  )
-}
-
-function BloqueCc({ inicial }: { inicial: Record<string, string[]> }) {
-  const router = useRouter()
-  const [valores, setValores] = useState<Record<string, string>>(
-    Object.fromEntries(PLANTILLAS_CC.map(p => [p.codigo, (inicial[p.codigo] ?? []).join(', ')])),
-  )
-  const [guardando, setGuardando] = useState<string | null>(null)
-
-  async function guardar(codigo: string) {
-    setGuardando(codigo)
-    const cc_emails = (valores[codigo] ?? '').split(',').map(s => s.trim()).filter(Boolean)
-    const res = await guardarCcPlantilla({ codigo, cc_emails })
-    setGuardando(null)
-    if (res.ok) { toast.success('Copias guardadas.'); router.refresh() }
-    else toast.error(res.error)
-  }
-
-  return (
-    <Bloque
-      icono={Mail}
-      titulo="Copias (CC) por plantilla"
-      descripcion="Quién recibe copia de cada correo automático. Separa varios con comas."
-    >
-      <div className="flex flex-col gap-3">
-        {PLANTILLAS_CC.map(p => (
-          <div key={p.codigo} className="flex flex-col gap-1">
-            <label className={labelClass}>{p.label}</label>
-            <div className="flex gap-2">
-              <input
-                value={valores[p.codigo] ?? ''}
-                onChange={e => setValores(prev => ({ ...prev, [p.codigo]: e.target.value }))}
-                placeholder="correo@…, otro@…"
-                className={inputClass}
-              />
-              <button
-                onClick={() => guardar(p.codigo)}
-                disabled={guardando === p.codigo}
-                className="shrink-0 text-[11.5px] font-medium text-navy border border-[#ECECEC] rounded px-3 py-[6px] hover:bg-surface-hover disabled:opacity-50 transition-colors"
-              >
-                {guardando === p.codigo ? 'Guardando…' : 'Guardar'}
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
     </Bloque>
   )
 }

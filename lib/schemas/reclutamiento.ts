@@ -323,18 +323,9 @@ export const ajustesFactorialSchema = z.object({
 
 export type AjustesFactorialInput = z.infer<typeof ajustesFactorialSchema>
 
-// Plantillas cuyo CC se puede editar desde Ajustes.
-export const PLANTILLAS_CC = [
-  { codigo: 'bienvenida_contratacion', label: 'Bienvenida al contratar' },
-  { codigo: 'altas_nuevos_ingresos', label: 'Altas nuevos ingresos (interno)' },
-] as const
-
-export const ccPlantillaSchema = z.object({
-  codigo: z.enum(['bienvenida_contratacion', 'altas_nuevos_ingresos']),
-  cc_emails: z.array(z.string().trim().email('Correo de copia inválido')),
-})
-
-export type CcPlantillaInput = z.infer<typeof ccPlantillaSchema>
+// Las plantillas de correo (asunto, cuerpo y CC) viven en
+// lib/reclutamiento/plantillas.ts: el catálogo necesita las variables de cada
+// una y no solo su código.
 
 // ── Cálculo de la cascada (puro, compartido entre preview y server action) ──
 
