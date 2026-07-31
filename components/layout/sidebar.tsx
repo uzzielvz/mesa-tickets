@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Ticket, Inbox, Tags, FolderTree,
   Users, UserPlus, Gauge,
   PieChart, Building2, UserSearch, AlertTriangle, Layers, Upload, KeyRound,
-  BarChart3, Briefcase, Kanban, CalendarClock, ClipboardCheck, Settings,
+  BarChart3, Briefcase, Kanban, CalendarClock, ClipboardCheck, Settings, Send,
   type LucideIcon,
 } from 'lucide-react'
 import Wordmark from '@/components/brand/wordmark'
@@ -345,6 +345,13 @@ function NavContent({
             label="Comité"
             icon={ClipboardCheck}
             active={pathname.startsWith('/reclutamiento/comite')}
+            onClick={onNav}
+          />
+          <NavItem
+            href="/reclutamiento/correos"
+            label="Correos enviados"
+            icon={Send}
+            active={pathname.startsWith('/reclutamiento/correos')}
             onClick={onNav}
           />
           <NavItem
