@@ -1,3 +1,4 @@
+import { Paperclip } from 'lucide-react'
 import { formatDate, formatName } from '@/lib/utils/format'
 
 interface Response {
@@ -21,6 +22,8 @@ interface Attachment {
 interface Props {
   responses: Response[]
   attachments: Attachment[]
+  /** storage_path → URL firmada temporal. El bucket es privado. */
+  urlsAdjuntos: Record<string, string>
   levantadoPorId: string
 }
 
@@ -30,7 +33,7 @@ const TIPO_LABEL: Record<string, string> = {
   rechazo_responsable: 'Rechazó la solicitud',
 }
 
-export default function TicketThread({ responses, attachments, levantadoPorId }: Props) {
+export default function TicketThread({ responses, attachments, urlsAdjuntos, levantadoPorId }: Props) {
   if (responses.length === 0) {
     return (
       <div className="mx-5 md:mx-9 py-8 text-center">
@@ -119,14 +122,30 @@ export default function TicketThread({ responses, attachments, levantadoPorId }:
             {/* Adjuntos */}
             {respAttachments.length > 0 && (
               <div className="pl-8 flex flex-wrap gap-2 mt-1">
-                {respAttachments.map(att => (
-                  <span
-                    key={att.id}
-                    className="text-[11.5px] text-ink-500 border border-[#ECECEC] rounded px-2 py-1 bg-surface-sidebar"
-                  >
-                    {att.nombre_original}
-                  </span>
-                ))}
+                {respAttachments.map(att => {
+                  const url = urlsAdjuntos[att.storage_path]
+                  const clase = 'text-[11.5px] flex items-center gap-1.5 border border-[#ECECEC] rounded px-2 py-1 bg-surface-sidebar max-w-full'
+                  if (!url) {
+                    return (
+                      <span key={att.id} className={`${clase} text-ink-400`} title="El enlace no se pudo generar">
+                        <Paperclip size={11} className="shrink-0" />
+                        <span className="truncate">{att.nombre_original}</span>
+                      </span>
+                    )
+                  }
+                  return (
+                    <a
+                      key={att.id}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`${clase} text-ink-700 hover:border-orange hover:text-orange transition-colors`}
+                    >
+                      <Paperclip size={11} className="shrink-0" />
+                      <span className="truncate">{att.nombre_original}</span>
+                    </a>
+                  )
+                })}
               </div>
             )}
           </div>

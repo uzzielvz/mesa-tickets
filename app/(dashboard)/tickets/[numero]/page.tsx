@@ -51,6 +51,19 @@ export default async function TicketDetailPage({ params }: { params: { numero: s
   ])
   const campos = ((catalogo?.campos as ProblemField[] | null) ?? [])
 
+  // El bucket es privado: sin URL firmada el adjunto no se puede abrir.
+  // Se firman todos de una vez porque la página se renderiza en cada visita.
+  const adjuntos = attachments ?? []
+  const urlsAdjuntos: Record<string, string> = {}
+  if (adjuntos.length > 0) {
+    const { data: firmadas } = await supabase.storage
+      .from('ticket-attachments')
+      .createSignedUrls(adjuntos.map(a => a.storage_path), 60 * 10)
+    for (const f of firmadas ?? []) {
+      if (f.path && f.signedUrl) urlsAdjuntos[f.path] = f.signedUrl
+    }
+  }
+
   // Construir lista label/valor combinando datos dinámicos + legacy.
   // Los datos dinámicos toman prioridad; los legacy solo se muestran si
   // su key no está ya cubierta por un campo dinámico.
@@ -141,7 +154,8 @@ export default async function TicketDetailPage({ params }: { params: { numero: s
       {/* Hilo de respuestas */}
       <TicketThread
         responses={responses ?? []}
-        attachments={attachments ?? []}
+        attachments={adjuntos}
+        urlsAdjuntos={urlsAdjuntos}
         levantadoPorId={ticket.levantado_por_id}
       />
 
