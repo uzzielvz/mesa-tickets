@@ -27,8 +27,25 @@ const prioridadBadge: Record<TicketPrioridad, string> = {
 }
 const prioridadLabel: Record<TicketPrioridad, string> = { alta: 'Alta', media: 'Media', baja: 'Baja' }
 const modalidadLabel: Record<TicketModalidad, string> = { remoto: 'Remoto', presencial: 'Presencial', ambas: 'Remoto o presencial' }
-const chipClass = 'text-[11.5px] px-2 py-0.5 rounded-full border font-medium'
+const chipClass = 'text-[11px] px-1.5 py-[1px] rounded-full border font-medium'
 const slaLabel = (min: number | null) => (min == null ? 'Tiempo variable' : `~${min} min`)
+
+/** Prioridad, tiempo estimado y modalidad de un tipo de problema. */
+function MetaChips({ item }: { item: CatalogItem }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className={`${chipClass} ${prioridadBadge[item.prioridad]}`}>
+        {prioridadLabel[item.prioridad]}
+      </span>
+      <span className={`${chipClass} bg-white text-ink-500 border-[#ECECEC]`}>
+        {slaLabel(item.sla_min)}
+      </span>
+      <span className={`${chipClass} bg-white text-ink-500 border-[#ECECEC]`}>
+        {modalidadLabel[item.modalidad]}
+      </span>
+    </div>
+  )
+}
 
 interface Props {
   areas: Area[]
@@ -263,49 +280,68 @@ export default function TicketForm({ areas, catalog, userId, initialAreaId, init
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5 pt-2">
-      <div className="flex flex-col gap-1.5">
-        <label className="text-[12.5px] font-medium text-ink-700">Área</label>
-        <select
-          value={selectedArea}
-          onChange={e => handleAreaChange(e.target.value)}
-          className={inputClass}
-        >
-          <option value="">Selecciona un área</option>
+      <div className="flex flex-col gap-2">
+        <label className="text-[12.5px] font-medium text-ink-700">¿Qué área te puede ayudar?</label>
+        <div className="flex flex-wrap gap-1.5">
           {areas.map(a => (
-            <option key={a.id} value={a.id}>{a.nombre}</option>
+            <button
+              key={a.id}
+              type="button"
+              onClick={() => handleAreaChange(a.id)}
+              className={`
+                text-[12.5px] font-medium rounded-full border px-3 py-[5px] transition-colors
+                ${selectedArea === a.id
+                  ? 'bg-navy text-white border-navy'
+                  : 'bg-white text-ink-700 border-[#ECECEC] hover:bg-surface-hover'}
+              `}
+            >
+              {a.nombre}
+            </button>
           ))}
-        </select>
+        </div>
         {areaError && <p className="text-[12px] text-red-600">{areaError}</p>}
       </div>
 
       {selectedArea && (
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[12.5px] font-medium text-ink-700">Tipo de problema</label>
-          <select
-            value={selectedProblem?.id ?? ''}
-            onChange={e => handleProblemChange(e.target.value)}
-            className={inputClass}
-          >
-            <option value="">Selecciona el tipo de problema</option>
-            {filteredCatalog.map(c => (
-              <option key={c.id} value={c.id}>{c.nombre}</option>
-            ))}
-          </select>
-          {problemError && <p className="text-[12px] text-red-600">{problemError}</p>}
-        </div>
-      )}
+        <div className="flex flex-col gap-2">
+          <label className="text-[12.5px] font-medium text-ink-700">Elige el tipo de problema</label>
 
-      {selectedProblem && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className={`${chipClass} ${prioridadBadge[selectedProblem.prioridad]}`}>
-            Prioridad {prioridadLabel[selectedProblem.prioridad]}
-          </span>
-          <span className={`${chipClass} bg-white text-ink-700 border-[#ECECEC]`}>
-            {slaLabel(selectedProblem.sla_min)}
-          </span>
-          <span className={`${chipClass} bg-white text-ink-700 border-[#ECECEC]`}>
-            {modalidadLabel[selectedProblem.modalidad]}
-          </span>
+          {selectedProblem ? (
+            // Ya elegido: se colapsa a una tarjeta para que el formulario no crezca de más.
+            <div className="border border-orange rounded-md px-3 py-2.5 flex items-start justify-between gap-3">
+              <div className="flex flex-col gap-1.5 min-w-0">
+                <span className="text-[13px] font-medium text-ink-900">{selectedProblem.nombre}</span>
+                <MetaChips item={selectedProblem} />
+              </div>
+              <button
+                type="button"
+                onClick={() => handleProblemChange('')}
+                className="shrink-0 text-[12px] font-medium text-orange hover:underline"
+              >
+                Cambiar
+              </button>
+            </div>
+          ) : filteredCatalog.length === 0 ? (
+            <p className="text-[12.5px] text-ink-400">
+              Esta área todavía no tiene tipos de problema configurados.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {filteredCatalog.map(c => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => handleProblemChange(c.id)}
+                  className="text-left bg-white border border-[#ECECEC] rounded-md px-3 py-2.5 flex flex-col gap-1.5 hover:border-orange hover:bg-surface-hover transition-colors"
+                >
+                  <span className="text-[13px] font-medium text-ink-900">{c.nombre}</span>
+                  <MetaChips item={c} />
+                </button>
+              ))}
+            </div>
+          )}
+
+          {problemError && <p className="text-[12px] text-red-600">{problemError}</p>}
         </div>
       )}
 
