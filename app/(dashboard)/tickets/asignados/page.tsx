@@ -21,7 +21,7 @@ export default async function AsignadosPage() {
     <div>
       <Header
         title="Asignados a mí"
-        subtitle={`${tickets?.length ?? 0} tickets activos`}
+        subtitle={`${tickets.filter(t => t.status !== 'cerrado' && t.status !== 'rechazado').length} activos de ${tickets.length}`}
         action={
           <Link
             href="/tickets/nuevo"
@@ -33,6 +33,7 @@ export default async function AsignadosPage() {
       />
       <TicketList
         tickets={tickets}
+        ahora={Date.now()}
         emptyMessage="No tienes tickets asignados."
         showResponsable={false}
       />

@@ -33,6 +33,7 @@ export default async function MisTicketsPage() {
       />
       <TicketList
         tickets={tickets}
+        ahora={Date.now()}
         emptyMessage="No has levantado ningún ticket todavía."
         showResponsable={true}
       />

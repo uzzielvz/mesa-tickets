@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import type { TicketWithStatus, ProblemField } from '@/lib/supabase/types'
 import Header from '@/components/layout/header'
 import StatusBadge from '@/components/tickets/status-badge'
+import {
+  calcularSla, MODALIDAD_LABEL, PRIORIDAD_CHIP, PRIORIDAD_LABEL, SLA_COLOR,
+} from '@/lib/tickets/sla'
 import TicketThread from '@/components/tickets/ticket-thread'
 import ResponseComposer from '@/components/tickets/response-composer'
 
@@ -85,23 +88,45 @@ export default async function TicketDetailPage({ params }: { params: { numero: s
   const isTerminado = ticket.status === 'terminado'
   const esResponsable = user.id === ticket.responsable_id
   const esLevantador = user.id === ticket.levantado_por_id
+  const sla = calcularSla(ticket, Date.now())
+  const chipBase = 'text-[11.5px] font-medium px-2 py-[2px] rounded-full border'
 
   return (
     <div className="max-w-3xl">
       <Header
         title={`#${ticket.numero} — ${ticket.problema_nombre}`}
         subtitle={
-          <span className="flex items-center gap-3 flex-wrap">
+          <span className="flex items-center gap-x-2 gap-y-1 flex-wrap">
             <StatusBadge status={ticket.status} />
-            <span className="text-ink-400">·</span>
+            <span className="text-ink-300">·</span>
             <span>{ticket.area_nombre}</span>
-            <span className="text-ink-400">·</span>
-            <span>Levantado por: {ticket.levantado_por_nombre}</span>
-            <span className="text-ink-400">·</span>
-            <span>Responsable: {ticket.responsable_nombre}</span>
           </span>
         }
       />
+
+      {/* Prioridad, tiempo de atención y modalidad — lo que decide qué hacer primero */}
+      <div className="mx-5 md:mx-9 mb-4 flex flex-wrap items-center gap-2">
+        <span className={`${chipBase} ${PRIORIDAD_CHIP[ticket.prioridad]}`}>
+          Prioridad {PRIORIDAD_LABEL[ticket.prioridad]}
+        </span>
+        <span
+          className={`${chipBase} bg-white border-[#ECECEC] ${SLA_COLOR[sla.estado]}`}
+        >
+          {sla.etiqueta}
+        </span>
+        <span className={`${chipBase} bg-white border-[#ECECEC] text-ink-700`}>
+          {MODALIDAD_LABEL[ticket.modalidad]}
+        </span>
+      </div>
+
+      <div className="mx-5 md:mx-9 mb-5 flex flex-wrap gap-x-5 gap-y-1 text-[12.5px]">
+        <span className="text-ink-700">
+          <span className="text-ink-400">Levantado por:</span> {ticket.levantado_por_nombre}
+        </span>
+        <span className="text-ink-700">
+          <span className="text-ink-400">Responsable:</span> {ticket.responsable_nombre}
+        </span>
+      </div>
 
       {datosUI.length > 0 && (
         <div className="mx-5 md:mx-9 mb-6 bg-surface-sidebar border border-[#ECECEC] rounded-md px-4 py-3 flex flex-wrap gap-x-6 gap-y-1">

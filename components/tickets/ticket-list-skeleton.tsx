@@ -1,8 +1,9 @@
-const COLUMNS_DESKTOP = 'grid-cols-[80px_1fr_140px_120px_100px]'
+// Debe coincidir con COLUMNS de ticket-list.tsx
+const COLUMNS_DESKTOP = 'grid-cols-[56px_minmax(0,1fr)_116px_140px_96px]'
 
 function SkeletonRow({ last }: { last: boolean }) {
   return (
-    <div className={`hidden md:grid ${COLUMNS_DESKTOP} items-center px-9 py-[14px] ${last ? '' : 'border-b border-[#F5F5F5]'}`}>
+    <div className={`hidden md:grid ${COLUMNS_DESKTOP} gap-3 items-center px-9 py-[13px] ${last ? '' : 'border-b border-[#F5F5F5]'}`}>
       <div className="h-3 w-10 bg-[#ECECEC] rounded animate-pulse" />
       <div className="flex flex-col gap-1.5">
         <div className="h-3 w-48 bg-[#ECECEC] rounded animate-pulse" />
@@ -32,8 +33,8 @@ export default function TicketListSkeleton({ rows = 5 }: { rows?: number }) {
   return (
     <div className="w-full">
       {/* Header desktop */}
-      <div className={`hidden md:grid ${COLUMNS_DESKTOP} px-9 pb-2 border-b border-[#ECECEC]`}>
-        {['Ticket', 'Asunto', 'Responsable', 'Estatus', 'Fecha'].map(col => (
+      <div className={`hidden md:grid ${COLUMNS_DESKTOP} gap-3 px-9 pb-2 border-b border-[#ECECEC]`}>
+        {['Ticket', 'Asunto', 'Estatus', 'Atención', 'Actualizado'].map(col => (
           <span key={col} className="text-[11px] font-medium text-ink-400 uppercase tracking-[0.3px]">{col}</span>
         ))}
       </div>
