@@ -383,7 +383,7 @@ Las 6 incidencias (columna "¿Qué engloba?" → campo `select` guiado dentro de
 **Operativo (usuario):**
 
 7. **Cron-job.org wake-up** — GET `https://crediflexi-services.onrender.com/health` cada 10 min, para evitar el cold start de Render Free.
-8. **Regenerar `database.types.ts`** (`npm run db:types`): se generó el 2026-07-28/29 y le faltan `problem_catalog.prioridad`/`sla_min`/`modalidad` y las migraciones `rec_020..023` (`rec_ajustes`, `rec_candidato_requisitos`, `factorial_employee_id`). No truena nada porque `client.ts`/`server.ts` importan `Database` de `./types` (el manual, que sí está completo) — pero cualquiera que use el generado por costumbre se lleva un schema viejo.
+8. ✅ ~~Regenerar `database.types.ts`~~ — hecho 2026-08-04 (`8bcec2e`). **Convertirlo en hábito:** `npm run db:types` después de cada `db push`, si no el espejo vuelve a desfasarse en silencio (nada lo importa, así que nada truena para avisar).
 9. **Vaciar el bucket `ticket-attachments`** vía Storage API: quedaron huérfanos tras los `delete from tickets` de las migraciones de limpieza.
 
 ---

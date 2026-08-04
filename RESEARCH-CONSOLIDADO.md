@@ -932,7 +932,7 @@ Cierre del pipeline de cartera para producción (mismo día que SEC-002 y CART-0
 >
 > **Ojo con los dos archivos de tipos.** `lib/supabase/database.types.ts` (1738 líneas) es el **espejo autogenerado** (`npm run db:types`); `lib/supabase/types.ts` (838 líneas) es el **manual de dominio/UI**. `client.ts` y `server.ts` importan `Database` del **manual**, no del generado — por eso el generado puede estar desfasado sin que truene nada.
 >
-> Y lo está: se generó alrededor del **2026-07-28/29** y le falta lo aplicado después — `problem_catalog.prioridad` / `sla_min` / `modalidad` (mig. 54, que se pusheó a remoto más tarde que las `rec_*` de esa misma fecha), `rec_ajustes`, `rec_candidato_requisitos` y `factorial_employee_id` (migs. 61-64). El manual sí los tiene todos. Regenerar con `npm run db:types`.
+> **Regenerado el 2026-08-04** (`8bcec2e`). Se había quedado en el 28-29 de julio, sin `problem_catalog.prioridad`/`sla_min`/`modalidad` (mig. 54, que se pusheó a remoto más tarde que las `rec_*` del mismo día), `rec_ajustes`, `rec_candidato_requisitos` ni `factorial_employee_id`. Como nada lo importa, el desfase no rompía nada — solo daba respuestas viejas con cara de autoridad. **Regenerar con `npm run db:types` después de cada `db push`.**
 
 ---
 
