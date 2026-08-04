@@ -390,12 +390,15 @@ export type Database = {
           campos: Json
           id: string
           leyenda: string
+          modalidad: Database["public"]["Enums"]["ticket_modalidad"]
           nombre: string
+          prioridad: Database["public"]["Enums"]["ticket_prioridad"]
           requiere_ciclo: boolean
           requiere_cliente: boolean
           requiere_evidencia: boolean
           requiere_grupo: boolean
           responsable_default_id: string | null
+          sla_min: number | null
         }
         Insert: {
           activo?: boolean
@@ -403,12 +406,15 @@ export type Database = {
           campos?: Json
           id?: string
           leyenda: string
+          modalidad?: Database["public"]["Enums"]["ticket_modalidad"]
           nombre: string
+          prioridad?: Database["public"]["Enums"]["ticket_prioridad"]
           requiere_ciclo?: boolean
           requiere_cliente?: boolean
           requiere_evidencia?: boolean
           requiere_grupo?: boolean
           responsable_default_id?: string | null
+          sla_min?: number | null
         }
         Update: {
           activo?: boolean
@@ -416,12 +422,15 @@ export type Database = {
           campos?: Json
           id?: string
           leyenda?: string
+          modalidad?: Database["public"]["Enums"]["ticket_modalidad"]
           nombre?: string
+          prioridad?: Database["public"]["Enums"]["ticket_prioridad"]
           requiere_ciclo?: boolean
           requiere_cliente?: boolean
           requiere_evidencia?: boolean
           requiere_grupo?: boolean
           responsable_default_id?: string | null
+          sla_min?: number | null
         }
         Relationships: [
           {
@@ -490,6 +499,27 @@ export type Database = {
           },
         ]
       }
+      rec_ajustes: {
+        Row: {
+          actualizado_at: string
+          actualizado_por: string | null
+          clave: string
+          valor: Json
+        }
+        Insert: {
+          actualizado_at?: string
+          actualizado_por?: string | null
+          clave: string
+          valor: Json
+        }
+        Update: {
+          actualizado_at?: string
+          actualizado_por?: string | null
+          clave?: string
+          valor?: Json
+        }
+        Relationships: []
+      }
       rec_alta_config: {
         Row: {
           actualizado_at: string
@@ -525,6 +555,13 @@ export type Database = {
           sistemas?: Json
         }
         Relationships: [
+          {
+            foreignKeyName: "rec_alta_config_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: true
+            referencedRelation: "rec_candidato_requisitos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "rec_alta_config_candidato_id_fkey"
             columns: ["candidato_id"]
@@ -583,6 +620,13 @@ export type Database = {
             foreignKeyName: "rec_candidato_historial_candidato_id_fkey"
             columns: ["candidato_id"]
             isOneToOne: false
+            referencedRelation: "rec_candidato_requisitos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rec_candidato_historial_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
             referencedRelation: "rec_candidatos"
             referencedColumns: ["id"]
           },
@@ -596,6 +640,7 @@ export type Database = {
           etapa: Database["public"]["Enums"]["rec_etapa"]
           etapa_actualizada_at: string | null
           etapa_actualizada_por: string | null
+          factorial_employee_id: string | null
           fecha_ingreso: string | null
           final_dg_at: string | null
           final_dg_meet_url: string | null
@@ -619,6 +664,7 @@ export type Database = {
           etapa?: Database["public"]["Enums"]["rec_etapa"]
           etapa_actualizada_at?: string | null
           etapa_actualizada_por?: string | null
+          factorial_employee_id?: string | null
           fecha_ingreso?: string | null
           final_dg_at?: string | null
           final_dg_meet_url?: string | null
@@ -642,6 +688,7 @@ export type Database = {
           etapa?: Database["public"]["Enums"]["rec_etapa"]
           etapa_actualizada_at?: string | null
           etapa_actualizada_por?: string | null
+          factorial_employee_id?: string | null
           fecha_ingreso?: string | null
           final_dg_at?: string | null
           final_dg_meet_url?: string | null
@@ -720,6 +767,13 @@ export type Database = {
             foreignKeyName: "rec_correos_enviados_candidato_id_fkey"
             columns: ["candidato_id"]
             isOneToOne: false
+            referencedRelation: "rec_candidato_requisitos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rec_correos_enviados_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
             referencedRelation: "rec_candidatos"
             referencedColumns: ["id"]
           },
@@ -765,6 +819,7 @@ export type Database = {
           fecha_hora: string | null
           gcal_event_id: string | null
           id: string
+          meet_url: string | null
           sesion_id: string
         }
         Insert: {
@@ -774,6 +829,7 @@ export type Database = {
           fecha_hora?: string | null
           gcal_event_id?: string | null
           id?: string
+          meet_url?: string | null
           sesion_id: string
         }
         Update: {
@@ -783,9 +839,17 @@ export type Database = {
           fecha_hora?: string | null
           gcal_event_id?: string | null
           id?: string
+          meet_url?: string | null
           sesion_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "rec_entrevistas_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "rec_candidato_requisitos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "rec_entrevistas_candidato_id_fkey"
             columns: ["candidato_id"]
@@ -807,7 +871,9 @@ export type Database = {
           comentarios: string | null
           created_at: string
           entrevista_id: string
-          entrevistador_id: string
+          entrevistador_email: string | null
+          entrevistador_id: string | null
+          entrevistador_nombre: string | null
           enviada_at: string | null
           id: string
           puntaje: number | null
@@ -817,7 +883,9 @@ export type Database = {
           comentarios?: string | null
           created_at?: string
           entrevista_id: string
-          entrevistador_id: string
+          entrevistador_email?: string | null
+          entrevistador_id?: string | null
+          entrevistador_nombre?: string | null
           enviada_at?: string | null
           id?: string
           puntaje?: number | null
@@ -827,7 +895,9 @@ export type Database = {
           comentarios?: string | null
           created_at?: string
           entrevista_id?: string
-          entrevistador_id?: string
+          entrevistador_email?: string | null
+          entrevistador_id?: string | null
+          entrevistador_nombre?: string | null
           enviada_at?: string | null
           id?: string
           puntaje?: number | null
@@ -853,7 +923,9 @@ export type Database = {
       rec_magic_links: {
         Row: {
           created_at: string
-          entrevistador_id: string
+          entrevistador_email: string | null
+          entrevistador_id: string | null
+          entrevistador_nombre: string | null
           expira_at: string | null
           id: string
           sesion_id: string
@@ -862,7 +934,9 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          entrevistador_id: string
+          entrevistador_email?: string | null
+          entrevistador_id?: string | null
+          entrevistador_nombre?: string | null
           expira_at?: string | null
           id?: string
           sesion_id: string
@@ -871,7 +945,9 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          entrevistador_id?: string
+          entrevistador_email?: string | null
+          entrevistador_id?: string | null
+          entrevistador_nombre?: string | null
           expira_at?: string | null
           id?: string
           sesion_id?: string
@@ -899,6 +975,7 @@ export type Database = {
         Row: {
           activa: boolean
           asunto: string
+          cc_emails: Json
           codigo: Database["public"]["Enums"]["rec_plantilla_codigo"]
           cuerpo: string
           id: string
@@ -906,6 +983,7 @@ export type Database = {
         Insert: {
           activa?: boolean
           asunto: string
+          cc_emails?: Json
           codigo: Database["public"]["Enums"]["rec_plantilla_codigo"]
           cuerpo: string
           id?: string
@@ -913,6 +991,7 @@ export type Database = {
         Update: {
           activa?: boolean
           asunto?: string
+          cc_emails?: Json
           codigo?: Database["public"]["Enums"]["rec_plantilla_codigo"]
           cuerpo?: string
           id?: string
@@ -924,27 +1003,42 @@ export type Database = {
           creada_por_id: string | null
           created_at: string
           descripcion: string | null
+          duracion_bloque_min: number
+          entrevistadores: Json | null
           fase: number
           fecha: string | null
+          hora_inicio: string | null
           id: string
+          pausa_despues_de: number | null
+          pausa_minutos: number | null
           vacante_id: string
         }
         Insert: {
           creada_por_id?: string | null
           created_at?: string
           descripcion?: string | null
+          duracion_bloque_min?: number
+          entrevistadores?: Json | null
           fase?: number
           fecha?: string | null
+          hora_inicio?: string | null
           id?: string
+          pausa_despues_de?: number | null
+          pausa_minutos?: number | null
           vacante_id: string
         }
         Update: {
           creada_por_id?: string | null
           created_at?: string
           descripcion?: string | null
+          duracion_bloque_min?: number
+          entrevistadores?: Json | null
           fase?: number
           fecha?: string | null
+          hora_inicio?: string | null
           id?: string
+          pausa_despues_de?: number | null
+          pausa_minutos?: number | null
           vacante_id?: string
         }
         Relationships: [
@@ -1415,6 +1509,51 @@ export type Database = {
       }
     }
     Views: {
+      rec_candidato_requisitos: {
+        Row: {
+          created_at: string | null
+          cv_storage_path: string | null
+          email: string | null
+          entrevistas_total: number | null
+          etapa: Database["public"]["Enums"]["rec_etapa"] | null
+          etapa_actualizada_at: string | null
+          etapa_actualizada_por: string | null
+          evaluaciones_esperadas: number | null
+          evaluaciones_registradas: number | null
+          fecha_ingreso: string | null
+          final_dg_at: string | null
+          final_dg_meet_url: string | null
+          fuente: Database["public"]["Enums"]["rec_fuente"] | null
+          id: string | null
+          motivo_descarte:
+            | Database["public"]["Enums"]["rec_motivo_descarte"]
+            | null
+          nombre: string | null
+          notas: string | null
+          notas_comite: string | null
+          revision_cv: Database["public"]["Enums"]["rec_revision_cv"] | null
+          telefono: string | null
+          tiene_alta_config: boolean | null
+          vacante_id: string | null
+          viabilidad: Database["public"]["Enums"]["rec_viabilidad"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rec_candidatos_etapa_actualizada_por_fkey"
+            columns: ["etapa_actualizada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rec_candidatos_vacante_id_fkey"
+            columns: ["vacante_id"]
+            isOneToOne: false
+            referencedRelation: "rec_vacantes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tickets_with_status: {
         Row: {
           area_nombre: string | null
@@ -1427,11 +1566,14 @@ export type Database = {
           id: string | null
           levantado_por_id: string | null
           levantado_por_nombre: string | null
+          modalidad: Database["public"]["Enums"]["ticket_modalidad"] | null
           numero: number | null
+          prioridad: Database["public"]["Enums"]["ticket_prioridad"] | null
           problem_catalog_id: string | null
           problema_nombre: string | null
           responsable_id: string | null
           responsable_nombre: string | null
+          sla_min: number | null
           status: string | null
           ultima_respuesta_at: string | null
         }
@@ -1504,6 +1646,17 @@ export type Database = {
       has_score_access: { Args: never; Returns: boolean }
       is_admin: { Args: { user_id: string }; Returns: boolean }
       next_response_order: { Args: { p_ticket_id: string }; Returns: number }
+      rec_sesion_por_token: { Args: { p_token: string }; Returns: Json }
+      rec_submit_evaluacion: {
+        Args: {
+          p_comentarios?: string
+          p_entrevista_id: string
+          p_puntaje?: number
+          p_recomendacion: Database["public"]["Enums"]["rec_viabilidad"]
+          p_token: string
+        }
+        Returns: Json
+      }
       rec_transicion_etapa: {
         Args: {
           p_candidato_id: string
@@ -1557,6 +1710,8 @@ export type Database = {
         | "terminado_responsable"
         | "terminado_usuario"
         | "rechazo_responsable"
+      ticket_modalidad: "remoto" | "presencial" | "ambas"
+      ticket_prioridad: "alta" | "media" | "baja"
       user_role: "admin" | "responsable" | "usuario"
     }
     CompositeTypes: {
@@ -1732,6 +1887,8 @@ export const Constants = {
         "terminado_usuario",
         "rechazo_responsable",
       ],
+      ticket_modalidad: ["remoto", "presencial", "ambas"],
+      ticket_prioridad: ["alta", "media", "baja"],
       user_role: ["admin", "responsable", "usuario"],
     },
   },
