@@ -1,7 +1,7 @@
 # RESEARCH CONSOLIDADO — mea-tickets (CrediFlexi Operaciones)
 
 > Documento vivo. Single source of truth del estado real del repo.
-> Última actualización: 2026-07-30.
+> Última actualización: 2026-08-04.
 > Para el plan de trabajo activo ver `PLAN.md`.
 
 ---
@@ -11,25 +11,27 @@
 **mea-tickets** es la plataforma interna de Financiera CrediFlexi (Next.js 14 App Router + Supabase). Hoy convive con un **ecosistema** que comprende:
 
 - **Legacy intocable** (`automatizador-crediflexi`, Flask local) — sistema en operación que genera el Reporte de Antigüedad Individual en Excel y lo distribuye por correo. **No es objeto de cambio**; queda como referente funcional y de negocio.
-- **Plataforma** (`mea-tickets`, este repo) — Next.js + Supabase. Convive 4 módulos: Tickets, Score, Onboarding/Auth, Cartera.
+- **Plataforma** (`mea-tickets`, este repo) — Next.js + Supabase. Conviven **5 módulos**: Tickets, Score, Onboarding/Auth, Cartera y **Reclutamiento** (el más grande y el único con integraciones externas de escritura: Google Workspace y Factorial HR).
 - **Microservicio** (`crediflexi-services`, FastAPI) — separado del repo principal, encargado del ETL de cartera; reemplaza progresivamente al legacy desde el flujo de datos.
 
 **Estado por módulo** (detalle en §5):
 
-1. **Mesa de Tickets** — producción. Base de captura **superior al promedio** (formularios dinámicos sin código, cierre confirmado, rechazo con motivo), pero con gaps en el **ciclo de vida operativo** del ticket: sin notificaciones, sin reasignación, conversación con paridad forzada y sin búsqueda/filtros. Benchmark y no-negociables en §5.1.2–5.1.6.
+1. **Mesa de Tickets** — producción. Base de captura **superior al promedio** (formularios dinámicos sin código, cierre confirmado, rechazo con motivo). Prioridad, SLA visible, filtros y búsqueda cerrados el 2026-08-01. Lo que sigue faltando es el **ciclo de vida operativo**: sin notificaciones, sin reasignación, conversación con paridad forzada y responsable fijo por persona. Benchmark y no-negociables en §5.1.2–5.1.6.
 2. **Score Crediticio** — producción, modelo HM replicado.
 3. **Onboarding + presets** — producción.
-4. **Cartera Individual** — pipeline ETL end-to-end funcional (upload → microservicio → staging). **Falta toda la capa de consumo** (endpoints de lectura + dashboards). Microservicio aún sin deploy. ETL inserta solo ~20 de las ~55 columnas posibles. La tabla `loan_amortizacion_individual` está vacía (se llenará vía script externo TBD).
+4. **Cartera Individual** — completo de punta a punta: ETL (upload → microservicio en Render → staging), capa de consulta (5 RPCs) y 5 dashboards, más el asistente Gemini con tools. Pendiente: `loan_amortizacion_individual` sigue vacía (bloquea drill-down y liquidación anticipada) y faltan los endpoints GET (CART-015).
+5. **Reclutamiento** — el pipeline `postulado → contratado` opera completo desde el kanban, con Meets y correos reales vía Google Workspace, evaluaciones por magic link y alta automática en Factorial HR. **Su deuda no es de código, es de validación**: el smoke test end-to-end nunca se corrió con correos de prueba y el alta en Factorial sigue apagada por interruptor.
 
 **Riesgos principales**:
+- **`FACTORIAL_API_KEY` es god-mode**: la API Key de Factorial no se puede acotar por scope, así que da acceso total a los datos de RH de la empresa. Solo server-side, nunca en cliente (§13.9).
+- **Destinatarios reales seedeados**: `bienvenida_contratacion` tiene 3 empleados de CrediFlexi en CC. Cualquier prueba de contratación les manda correo si no se reapunta antes desde `/reclutamiento/ajustes`.
 - Seguridad RLS: `attachments_insert` no valida participación; `profiles_select using (true)` expone PII.
-- Cartera depende de microservicio externo sin deploy y sin auth entre servicios.
 - Mutaciones de tickets desde el cliente — seguridad 100% en RLS.
-- Tickets: ciclo de vida operativo incompleto (notificar, reasignar, priorizar, buscar) — ver no-negociables §5.1.4.
-- Tipos Supabase desactualizados respecto a cartera.
+- Tickets: ciclo de vida operativo incompleto (notificar, reasignar, cola por área) — ver no-negociables §5.1.4.
+- `database.types.ts` congelado en la migración 23 de 64 (no truena porque el código usa `types.ts` manual, pero el archivo generado miente).
 - Sin tests, sin CI, sin `error.tsx` global.
 
-**Recomendación inmediata**: Cartera es el eje estratégico. La paridad con el legacy (vía dashboards en la plataforma) es lo que justifica la inversión. Endurecer RLS de tickets en paralelo.
+**Recomendación inmediata**: la plataforma ya no tiene un solo eje. Cartera alcanzó paridad con el legacy; **el trabajo de mayor valor ahora es cerrar la brecha entre "implementado" y "probado"** en Reclutamiento (smoke test con correos propios, validación de Factorial), y darle a Tickets el ciclo de vida que le falta (cola por área + estados explícitos). Endurecer RLS sigue siendo transversal y pendiente.
 
 ---
 
@@ -109,13 +111,23 @@ middleware.ts
 | `components/tickets/ticket-form.tsx` | Crear ticket (cliente Supabase) |
 | `components/cartera/upload-form.tsx` | Drag-drop, upload a Storage, polling de estado |
 | `app/api/cartera/procesar/route.ts` | Bridge a microservicio Python |
-| `supabase/migrations/*.sql` | 22 migraciones: schema, RLS, triggers, vistas, scoring, cartera |
+| `lib/tickets/sla.ts` | Cálculo del SLA de un ticket (puro, sin React ni Supabase) |
+| `lib/reclutamiento/etapas.ts` | Motor de etapas: qué exige cada paso del pipeline, qué lo bloquea y qué acción dispara (puro) |
+| `lib/reclutamiento/ajustes.ts` | Lectura de `rec_ajustes` (DG, destinatarios, interruptor de Factorial). Recibe el cliente Supabase por parámetro |
+| `lib/reclutamiento/plantillas.ts` | Catálogo de plantillas de correo: cuándo se envía cada una, variables y requeridos (puro) |
+| `lib/actions/comite.ts` | Contratación: correos de bienvenida y de altas + alta en Factorial (best-effort) |
+| `lib/google/*` | OAuth propio vía REST + Calendar (Meet) + Gmail; `refresh_token` cifrado AES-256-GCM |
+| `lib/factorial/client.ts` | Alta de empleado en Factorial HR vía SDK oficial (API Key `x-api-key`) |
+| `supabase/migrations/*.sql` | **64** migraciones: schema, RLS, triggers, vistas, scoring, cartera, tickets y `rec_*` — inventario completo en §11 |
 
 ### Server Actions vs Client Mutations
 
-- **Server Actions**: solo `lib/actions/acreditados.ts` (4 funciones: `crearAcreditado`, `actualizarAcreditado`, `guardarEvaluacion`, `eliminarAcreditado`).
+> **Cambió con Reclutamiento.** El módulo se construyó entero sobre Server Actions con `safeParse` de Zod y el patrón `Result`, así que la afirmación original ("solo `acreditados.ts`") dejó de ser cierta hace tiempo. Tickets es hoy la **excepción**, no la regla — de ahí que SEC-001 siga abierto.
+
+- **Server Actions**: `lib/actions/acreditados.ts`, **`reclutamiento.ts`**, **`agendamiento.ts`**, **`comite.ts`**, **`ajustes.ts`**, **`evaluaciones.ts`**.
 - **Cliente Supabase directo**: tickets (`ticket-form.tsx`, `response-composer.tsx`), admin (`catalogo-admin.tsx`, `usuarios-admin.tsx`, `areas-admin.tsx`, `cartera-accesos.tsx`).
-- **Route Handlers**: `auth/callback`, `api/cartera/{upload,procesar,uploads}`.
+- **Route Handlers**: `auth/callback`, `api/cartera/{upload,procesar,uploads}`, `api/google/{conectar,callback}`.
+- **RPCs security definer** como única superficie pública (sin login): `rec_sesion_por_token`, `rec_submit_evaluacion`.
 
 ### Documentación del repo
 
@@ -138,17 +150,24 @@ middleware.ts
 | Auth corporativa | Completo | Supabase + middleware + filtro dominio |
 | Stand-by corporativo | Completo | Usuarios sin accesos → `/stand-by`; admin asigna área/accesos |
 | Login presets (operadores Score) | Completo | `login_presets` + trigger `handle_new_user` |
-| Mesa de tickets (crear/responder/rechazar/cerrar) | Completo (con bugs UX) | Cliente Supabase + RLS + triggers |
+| Mesa de tickets (crear/responder/rechazar/cerrar) | Completo | Cliente Supabase + RLS + triggers |
+| Tickets — prioridad, SLA visible, filtros y búsqueda | Completo | `problem_catalog` (mig. 54) + `lib/tickets/sla.ts` |
+| Tickets — cola por área / estados explícitos | Pendiente | Responsable fijo por persona; estatus derivado de la paridad (T-P1/T-P2) |
 | Campos dinámicos por catálogo | Completo | `problem_catalog.campos` jsonb + `tickets.datos` jsonb |
 | Rechazo responsable | Completo | enum `rechazo_responsable` + triggers + vista |
 | Score Crediticio (CRUD + modelo) | Completo | Server Actions + RPC `guardar_evaluacion_promotor` |
 | Admin tickets/areas/usuarios | Completo | Cliente Supabase + RLS admin |
 | Métricas admin (tickets + score) | Parcial | Falta filtrar `rechazado`, sin gráficas |
 | Cartera — carga Excel + ETL parcial | Completo end-to-end (con gaps de columnas) | Next.js → Storage → microservicio Python → `stg_yunius_cartera_individual` |
-| Cartera — API de consulta | Pendiente | Sin endpoints GET ni RPCs agregadoras |
-| Cartera — dashboards | Pendiente | Solo placeholders en sidebar |
-| Cartera — Chat IA / Asistente | Demo entregada (sin LLM) | KB embebida determinística (2026-06-04); agente real con Gemini + tools planeado (PLAN §2.5, ver §5.5) |
-| Notificaciones email | Pendiente | — |
+| Cartera — capa de consulta | Completo | RPCs `cartera_resumen` / `por_coordinacion` / `por_recuperador` / `mora_operativa` / `cohort`. Falta CART-015 (endpoints GET) |
+| Cartera — dashboards | Completo | `/cartera`, `/coordinacion`, `/recuperador`, `/mora`, `/cohort` sobre los RPCs |
+| Cartera — Chat IA / Asistente | Completo (IA-A) | Agente Gemini `gemini-2.5-flash` + 6 tools sobre los RPCs, widget flotante (ver §5.5) |
+| Reclutamiento — pipeline `postulado → contratado` | Completo | RPC `rec_transicion_etapa` + motor de etapas + kanban dinámico (S1-S7.5) |
+| Reclutamiento — Google Workspace (Meet + Gmail) | Completo | OAuth propio vía REST, `refresh_token` cifrado AES-256-GCM (Sprint G) |
+| Reclutamiento — ajustes y plantillas editables | Completo | `rec_ajustes` + `/reclutamiento/ajustes`; cero correos quemados (S7.5 + S9.5) |
+| Reclutamiento — alta en Factorial HR | Completo, sin validar | SDK oficial + API Key; **interruptor apagado por defecto** (S9, §13.9) |
+| Reclutamiento — onboarding del candidato | Pendiente | S10 — captura de datos de contratación vía magic link |
+| Notificaciones email (tickets) | Pendiente | Reclutamiento sí manda correos; tickets no notifica nada |
 | Tests automatizados | Pendiente | — |
 | CI/CD | Pendiente | Solo deploy automático de Vercel desde main |
 
@@ -246,7 +265,19 @@ middleware.ts
 | Cartera: upload + Storage + ETL parcial | Parcial | Funciona end-to-end pero mapea solo 20 de ~55 cols |
 | Cartera: dashboards | Completo | `/cartera` (resumen), `/cartera/coordinacion`, `/cartera/recuperador`, `/cartera/mora`, `/cartera/cohort` — sobre RPCs `cartera_*`. Placeholders `cobranza`/`riesgo` retirados. |
 | Cartera: Asistente IA | Completo (IA-A) | Agente real Gemini `gemini-2.5-flash` + 6 tools sobre RPCs (mora seudonimizada), modo mock (`AI_ASSISTANT_MOCK`), logging tokens/costo. **Widget flotante** (FAB + panel con pantalla completa) en todas las páginas de cartera; `/cartera/chat` → redirect. (AI-001..004, PLAN §2.5) |
-| Notificaciones email | Pendiente | — |
+| Tickets: prioridad / SLA / modalidad | Completo | Metadata en `problem_catalog` (mig. 54) visible al levantar **y** en seguimiento: chip de prioridad, columna "Atención" coloreada, filtros y buscador. Cálculo en `lib/tickets/sla.ts`. **Sin alertas ni escalación** (TKT-005) |
+| Tickets: cola por área / estados explícitos | Pendiente | Responsable fijo por persona; estatus derivado de la paridad de respuestas (T-P1/T-P2) |
+| Reclutamiento: vacantes + candidatos | Completo | CRUD, CV a Storage, fuente, revisión de CV con motivo (S1-S2) |
+| Reclutamiento: pipeline (DAG) | Completo | RPC `rec_transicion_etapa` + historial; kanban dinámico donde cada tarjeta exige los datos de su etapa (S3 + S7.5) |
+| Reclutamiento: Google Workspace | Completo | OAuth propio (REST, sin SDK), `refresh_token` cifrado AES-256-GCM, Calendar (Meet) + Gmail (Sprint G) |
+| Reclutamiento: agendamiento en cascada | Completo | N entrevistadores × 20 min, eventos + correos + transición automática (S4 + S6) |
+| Reclutamiento: evaluaciones por magic link | Completo | Token propio por email (no Auth), ruta pública `/evaluar/[token]`, RPCs security definer (S5) |
+| Reclutamiento: comité → contratación | Completo | Notas de comité, decisión de la DG con Meet, config de alta, correo interno de altas (S6-S7) |
+| Reclutamiento: ajustes editables | Completo | DG, 7 destinatarios de altas, CC y **cuerpo de las plantillas** desde `/reclutamiento/ajustes`. Cero correos quemados en el código (S7.5 + S9.5) |
+| Reclutamiento: bitácora de correos | Completo | `/reclutamiento/correos` — últimos 200 envíos con filtro y mensaje de error (S9.5) |
+| Reclutamiento: alta en Factorial HR | Completo (sin validar) | `createWithContract` best-effort al contratar, idempotente por `factorial_employee_id`. **Interruptor apagado por defecto**; falta la prueba contra producción (S9) |
+| Reclutamiento: onboarding del candidato | Pendiente | S10 — captura de datos de contratación vía magic link |
+| Notificaciones email (tickets) | Pendiente | Reclutamiento sí manda correos vía Gmail; tickets no notifica nada (TKT-003) |
 | `error.tsx` global | Pendiente | 0 archivos en el proyecto |
 | Tests | Pendiente | No hay framework instalado |
 
@@ -260,11 +291,11 @@ middleware.ts
 
 **Alcance**: gestión de incidencias internas. Levantador crea, responsable atiende, hilo de mensajes, cierre con confirmación, rechazo con motivo.
 
-**Estado**: producción. UX bugs críticos cerrados 2026-05-25.
+**Estado**: producción. UX bugs críticos cerrados 2026-05-25. **2026-07-28**: catálogo Sistemas/TI con prioridad/SLA/modalidad. **2026-08-01**: esa metadata se vuelve operable (listados con filtros, buscador y SLA visible) y se arregla que los adjuntos del hilo no se pudieran abrir.
 
-**Archivos clave**: `app/(dashboard)/tickets/*`, `components/tickets/*`, migraciones 01-04, 07-09, 12.
+**Archivos clave**: `app/(dashboard)/tickets/*`, `components/tickets/*`, **`lib/tickets/sla.ts`** (cálculo puro del SLA, reutilizable), migraciones 01-04, 07-09, 12, 54-55.
 
-**Pendientes**: SEC-001 (Server Actions), RLS-001/002/004/005, UI-003/004.
+**Pendientes**: T-P1/T-P2 (cola por área + estados explícitos), SEC-001 (Server Actions), RLS-001/002/004/005, UI-003/004, TKT-005 (alertas de SLA), paginación de listados.
 
 **Plan de evolución (go-live producción)**: las limitaciones de §5.1.1–5.1.4 (responsable fijo, paridad forzada, estado derivado) se resuelven en la fase **Tickets-Producción** del `PLAN.md` (T-P1 cola por área, T-P2 estados explícitos, T-P3 seed de los 3 tipos, T-P4 seguridad full). Este §5.1 describe el **estado real actual**; el plan de cambio vive en `PLAN.md §2.2`.
 
@@ -297,9 +328,9 @@ tickets (numero bigserial, levantado_por_id, responsable_id FIJO, datos jsonb)
 | **TKT-001** | **Alta** | **La paridad estricta rompe conversaciones reales.** El responsable **no puede enviar dos mensajes seguidos** (ni el usuario): tras una respuesta par, el siguiente orden es impar y el trigger exige que sea el levantador. Un follow-up del agente antes de que conteste el usuario es rechazado con excepción SQL. | `validate_response_order` mig. 04:23-33 / 08:36-44 |
 | **TKT-002** | **Alta** | **Sin reasignación ni transferencia.** El responsable se fija al crear y no hay UI ni flujo para cambiarlo. Si el problema cae en el área equivocada o la persona no está, el ticket queda atascado. (`tickets_update_admin` existe pero ninguna UI lo usa.) | `tickets` schema mig. 01:43 / sin ruta de reasignación |
 | **TKT-003** | **Alta** | **Sin notificaciones.** Nadie se entera de un ticket nuevo, respuesta o cierre salvo que entre a la app y mire los contadores. Para reemplazar WhatsApp/correo esto es central. (Diferido a Resend, PRO-005.) | No hay integración de email/in-app |
-| **TKT-004** | **Media** | **Sin prioridad / urgencia / severidad.** Todos los tickets son iguales; no hay forma de triar. | `tickets` schema sin campo prioridad |
-| **TKT-005** | **Media** | **Sin SLA, fecha de vencimiento ni envejecimiento.** No hay "tickets vencidos" ni alertas de tiempo. | — |
-| **TKT-006** | **Media** | **Sin búsqueda ni filtros en las listas.** `mios`/`asignados` traen todo ordenado por fecha; no se puede filtrar por estatus, área, responsable ni buscar por texto/número. | `mios/page.tsx`, `asignados/page.tsx` |
+| ~~**TKT-004**~~ | ~~Media~~ | ✅ **Resuelto 2026-07-28 / 2026-08-01.** La prioridad es fija **por tipo de problema** (`problem_catalog.prioridad`), no por ticket: quien levanta no la elige, así que nadie puede marcar todo como urgente. Visible al levantar y como chip en listados y detalle. | mig. `20260728130000` · `lib/tickets/sla.ts` |
+| **TKT-005** | **Media** | **Parcial.** El SLA existe como `problem_catalog.sla_min` y se **muestra** (columna "Atención", coloreada por estado, con filtro "Vencidos"). Lo que sigue faltando es lo activo: **no avisa a nadie**, no escala y no hay métrica histórica de cumplimiento. | `lib/tickets/sla.ts` · sin notificaciones |
+| ~~**TKT-006**~~ | ~~Media~~ | ✅ **Resuelto 2026-08-01.** `ticket-list.tsx` (ahora client component) tiene filtros `Activos/Vencidos/Cerrados/Todos` con conteo y buscador sobre número, asunto, área y personas. Falta paginación — hoy se renderiza todo. | `components/tickets/ticket-list.tsx` |
 | **TKT-007** | **Media** | **Sin cola global de administración.** El admin puede leer todos los tickets vía RLS, pero no hay página `/admin/tickets` para verlos/gestionarlos; solo métricas parciales. | `app/(dashboard)/admin/*` sin vista de tickets |
 | **TKT-008** | **Media** | **Sin notas internas.** Todo mensaje es visible para el solicitante; no hay comentario privado entre agentes/admin. | `ticket_responses.tipo` sin tipo "interno" |
 | **TKT-009** | Baja | **Auto-asignación degenerada.** Si el catálogo no tiene `responsable_default_id`, el ticket se asigna al propio creador (levantador = responsable). El modelo de paridad colapsa (misma persona en orden par e impar) y la "solicitud" no llega a nadie. | `ticket-form.tsx:124` |
@@ -319,10 +350,10 @@ tickets (numero bigserial, levantado_por_id, responsable_id FIJO, datos jsonb)
 | Hilo de conversación + adjuntos | ✅ | ✅ (con paridad forzada, ver TKT-001) | Parcial |
 | Asignación a un responsable | ✅ | ✅ (fija, default por catálogo) | Parcial |
 | **Reasignación / transferencia** | ✅ | ❌ | **Gap (TKT-002)** |
-| **Prioridad / urgencia** | ✅ | ❌ | **Gap (TKT-004)** |
-| **SLA / vencimiento / escalación** | ✅ | ❌ | **Gap (TKT-005)** |
+| Prioridad / urgencia | ✅ | ✅ (fija por tipo de problema) | **Paridad** (TKT-004 cerrado) |
+| **SLA / vencimiento / escalación** | ✅ | Parcial (se ve y filtra; no avisa ni escala) | **Gap (TKT-005)** |
 | **Notificaciones (email/in-app)** | ✅ | ❌ | **Gap (TKT-003)** |
-| **Búsqueda y filtros de cola** | ✅ | ❌ | **Gap (TKT-006)** |
+| Búsqueda y filtros de cola | ✅ | ✅ (filtros + buscador; sin paginación) | **Paridad** (TKT-006 cerrado) |
 | **Cola/Bandeja de agente y de admin** | ✅ | Parcial (mios/asignados, sin global) | **Gap (TKT-007)** |
 | **Notas internas (privadas)** | ✅ | ❌ | **Gap (TKT-008)** |
 | Estados de ticket | ✅ | ✅ (derivados, no editables) | Parcial |
@@ -867,6 +898,39 @@ Cierre del pipeline de cartera para producción (mismo día que SEC-002 y CART-0
 | 33 | `20260612160000_alta_empleados_presets.sql` | Áreas + presets de login de 73 empleados |
 | 34 | `20260612160500_tkt_catalogo_incidencias_junta.sql` | Catálogo: 3 incidencias confirmadas en junta (campos dinámicos + responsables default) |
 | 35 | `20260615120000_tkt_borra_catalogo_prueba.sql` | Borra los 4 tipos de problema de prueba (guard anti-FK) |
+| 36 | `20260617120000_cart_015_trazabilidad_procesado.sql` | Trazabilidad del procesado de cartera |
+| 37 | `20260617230820_cart_016_limpieza_datos_prueba.sql` | Limpieza de datos de prueba de cartera |
+| 38 | `20260630120000_rec_001_profiles_acceso.sql` | `profiles.acceso_reclutamiento` |
+| 39 | `20260630120100_rec_002_enums.sql` | Enums `rec_*` (etapa, fuente, revisión, viabilidad) |
+| 40 | `20260630120200_rec_003_tablas.sql` | `rec_vacantes`, `rec_candidatos` + índices |
+| 41 | `20260630120300_rec_004_rls.sql` | RLS `rec_*` + `has_reclutamiento_access()` |
+| 42 | `20260630120400_rec_005_login_presets.sql` | Preset de login + `handle_new_user` (Héctor) |
+| 43 | `20260701120000_rec_006_reclutamiento_bucket.sql` | Bucket `reclutamiento` (CVs) + Storage RLS |
+| 44 | `20260701130000_rec_007_candidato_historial.sql` | `rec_candidato_historial` (auditoría de etapas) |
+| 45 | `20260701130100_rec_008_transicion_etapa.sql` | **RPC `rec_transicion_etapa`** (DAG + descarte + historial) |
+| 46 | `20260702120000_tkt_acceso_tickets_standby.sql` | Acceso a tickets en stand-by; elimina RPC `complete_onboarding` |
+| 47 | `20260707100000_rec_009_enum_agenda.sql` | Enum de plantillas de correo (agendamiento) |
+| 48 | `20260707100100_rec_010_agendamiento.sql` | `rec_sesiones_entrevistas`, `rec_entrevistas`, `rec_plantillas_correo`, `rec_correos_enviados` |
+| 49 | `20260715120000_rec_011_evaluaciones_magic_link.sql` | Magic link por email + RPCs públicas `rec_sesion_por_token` / `rec_submit_evaluacion` |
+| 50 | `20260727120000_rec_012_enum_bienvenida.sql` | Enum plantilla `bienvenida_contratacion` |
+| 51 | `20260727120100_rec_013_comite_contratacion.sql` | `notas_comite`/`fecha_ingreso`, `cc_emails jsonb`, seed bienvenida, bloque dinámico N×20 |
+| 52 | `20260727120200_rec_014_plantilla_rotacion_dinamica.sql` | `update … set cuerpo` de plantilla *(patrón retirado en S9.5)* |
+| 53 | `20260727120300_rec_015_bucket_mime_xlsx.sql` | Permite mime xlsx en el bucket |
+| 54 | `20260728130000_tkt_catalogo_metadata.sql` | **`problem_catalog.prioridad` / `sla_min` / `modalidad`** + recreación de `tickets_with_status` |
+| 55 | `20260728130100_tkt_catalogo_sistemas_ti.sql` | Seed del catálogo Sistemas/TI (6 incidencias con campos dinámicos) |
+| 56 | `20260728140000_rec_016_enum_altas.sql` | Enum plantilla `altas_nuevos_ingresos` |
+| 57 | `20260728140100_rec_017_alta_config.sql` | `rec_alta_config` (1:1 con candidato) + RLS + seed plantilla |
+| 58 | `20260728140200_rec_018_final_dg_meet.sql` | `final_dg_at` / `final_dg_meet_url` |
+| 59 | `20260729100000_rec_019_plantilla_altas_real.sql` | `update … set cuerpo` con el formato real de altas *(patrón retirado en S9.5)* |
+| 60 | `20260730120000_tkt_limpieza_tickets_prueba_2.sql` | 2ª limpieza de tickets de prueba + reinicia `tickets_numero_seq` → 1 |
+| 61 | `20260730130000_rec_020_ajustes.sql` | **`rec_ajustes`** (key/value) + RLS + seed de DG y destinatarios de altas |
+| 62 | `20260730130100_rec_021_vista_requisitos.sql` | **Vista `rec_candidato_requisitos`** con `security_invoker = on` (sin él se salta RLS) |
+| 63 | `20260731144900_rec_022_factorial_employee_id.sql` | `rec_candidatos.factorial_employee_id` (idempotencia del alta en Factorial) |
+| 64 | `20260731160000_rec_023_factorial_sync_toggle.sql` | Clave `factorial` en `rec_ajustes` con `{ sync_activa: false }` — el alta arranca **apagada** |
+
+> **Estado 2026-08-04:** las **64** migraciones locales tienen par remoto (verificado con `supabase migration list`). No hay nada pendiente de `db push`.
+>
+> **Ojo con `database.types.ts`:** el archivo generado se quedó alrededor de la migración 23 y no contiene nada `rec_*`. Nada truena porque `lib/supabase/server.ts` importa de `./types` (el manual), pero el generado hoy **miente** — regenerar con `npm run db:types`.
 
 ---
 
@@ -876,7 +940,7 @@ Cierre del pipeline de cartera para producción (mismo día que SEC-002 y CART-0
 |----------|-----------|
 | ¿Leí package.json, middleware, layouts raíz, dashboard? | Sí |
 | ¿Leí al menos 3 Server Actions / route handlers? | Sí (`acreditados.ts`, `cartera/upload`, `cartera/procesar`) |
-| ¿Revisé las 22 migraciones (al menos las críticas)? | Sí |
+| ¿Revisé las migraciones (al menos las críticas)? | Sí — eran 22 al escribir esto; hoy son **64** y el inventario §11 está completo (actualizado 2026-08-04) |
 | ¿Investigué el legacy y el microservicio? | Sí (README + research.md + plan.md del legacy, código del microservicio completo, schema Supabase) |
 | ¿Distinguí "lo que existe" de "lo que se asume / hay que confirmar"? | Sí — §10 lista preguntas abiertas |
 | ¿Documenté el estado real, no el aspirable? | Sí — Cartera marcada como ETL parcial + dashboards pendientes |
@@ -885,9 +949,11 @@ Cierre del pipeline de cartera para producción (mismo día que SEC-002 y CART-0
 
 ---
 
-## 13. Módulo Reclutamiento *(S1..S7.5 + Sprint G implementados)*
+## 13. Módulo Reclutamiento *(S1..S9.5 + Sprint G implementados)*
 
-> Documentación de research del 4º módulo. **Estado 2026-07-30:** S1 (fundaciones), S2 (vacantes+candidatos), S3 (pipeline/DAG), **Sprint G (Google Workspace)**, **S4 (agendamiento masivo en cascada)**, **S5 (evaluaciones vía magic link)**, **S6 (comité + entrevistadores dinámicos + contratación)**, **S7 (`final_dg` + config de alta + correo interno de altas)** y **S7.5 (destinatarios editables + pipeline dinámico)** entregados. Todo el pipeline `postulado → … → contratado` está cubierto end-to-end y se opera desde el kanban.
+> Documentación de research del 4º módulo. **Estado 2026-08-04:** S1 (fundaciones), S2 (vacantes+candidatos), S3 (pipeline/DAG), **Sprint G (Google Workspace)**, **S4 (agendamiento masivo en cascada)**, **S5 (evaluaciones vía magic link)**, **S6 (comité + entrevistadores dinámicos + contratación)**, **S7 (`final_dg` + config de alta + correo interno de altas)**, **S7.5 (destinatarios editables + pipeline dinámico)**, **S9 (alta automática en Factorial HR — §13.9)** y **S9.5 (plantillas editables + bitácora de correos)** entregados. Todo el pipeline `postulado → … → contratado` está cubierto end-to-end y se opera desde el kanban.
+>
+> **Lo que falta no es código, es validación:** el smoke test end-to-end con correos de prueba nunca se corrió, y el alta en Factorial sigue apagada por interruptor. Pendiente **S10** (onboarding del candidato).
 > El plan de trabajo (modelo de datos, sprints, integraciones) vive en `PLAN.md §8`.
 > Detalle operativo en `docs/reclutamiento/`.
 
@@ -1004,7 +1070,7 @@ CrediFlexi necesita automatizar el tramo de reclutamiento que va de **"el candid
 | **Gmail API** | OAuth de usuario (no service account / no DWD). Scopes `gmail.send` + `gmail.readonly`. Cuenta `reclutamiento@financieracrediflexi.com` | Greenfield | Refresh token encriptado en `rec_credenciales_google`. Setup 1 vez vía `/reclutamiento/admin/conectar-google` |
 | **Calendar API** | Mismo proyecto OAuth, scope `calendar.events`. `attendees` = candidato + 3 entrevistadores; Meet vía `conferenceData.createRequest` | Greenfield | Eventos en el calendar personal de `reclutamiento@` por ahora; calendar compartido = v2 |
 | **Parsing correos plataformas** | Polling Gmail `readonly` cada N min; identificar por sender/asunto (OCC/LinkedIn/Computrabajo); extraer con Gemini Flash + Zod → `rec_candidatos` | Greenfield | **NO scraping.** Webhook Pub/Sub solo si el polling no alcanza |
-| **Factorial API** | — | ❌ v2 | Óscar Carlos (equipo Factorial) compartirá doc |
+| **Factorial API** | Alta de empleado al contratar | ✅ **entregado 2026-07-31 (S9)** | API Key + SDK oficial. Detalle en §13.9 |
 | **Google Cloud Console** | Nuevo proyecto o ampliar el de Gemini: habilitar Gmail + Calendar API, consent screen interno | Greenfield | **Validar al inicio del Sprint G**: si el Workspace restringe OAuth a apps externas, Manuel debe *whitelistear* el `client_id` una vez |
 
 > **Hoy el repo NO tiene integración con Google Workspace** (solo Gemini vía AI SDK + el OAuth de *login* de Supabase). Gmail/Calendar son trabajo nuevo: el mayor riesgo/desconocido del módulo.
@@ -1018,6 +1084,37 @@ CrediFlexi necesita automatizar el tramo de reclutamiento que va de **"el candid
 5. **Workspace OAuth**: validar al inicio del Sprint G si CrediFlexi restringe apps externas; si sí, whitelisting del `client_id` por Manuel (1 conversación, 3 clicks en su admin).
 
 > **Resueltos** (ya no son preguntas abiertas): alcance Gmail+Calendar = **Opción A** · cifrado del `refresh_token` = **Vault si está, `pgcrypto` si no** (§13.6) · pipeline = **1↔1** (N↔N v2) · RLS = **admin ve todo, nadie más entra** (§13.5) · Calendar = **personal de `reclutamiento@`** en MVP (compartido v2). El set de placeholders de plantillas y la caducidad/rotación de magic links se resuelven dentro del Sprint G y S5 respectivamente (no bloquean planeación).
+>
+> **Actualización 2026-07-31 (pregunta 1):** el problema de fondo dejó de ser "conseguir el copy literal". Las plantillas ahora se editan desde `/reclutamiento/ajustes` (S9.5), así que Héctor puede escribirlas él mismo sin migración ni despliegue. Las 4 plantillas seedeadas que ningún flujo envía (`confirmacion_postulacion`, `descarte`, `oferta`, `informativa`) están **deliberadamente ocultas** del editor: mostrarlas haría creer que editarlas cambia algo.
+
+### 13.9 Factorial HR — integración entregada (S9, 2026-07-31)
+
+**Qué resuelve.** El último tramo de retranscripción manual del proceso: hasta ahora, contratar disparaba correos, pero **alguien tenía que teclear al empleado en Factorial a mano**. Ahora `contratarCandidato` lo crea vía API.
+
+**Decisiones cerradas (no re-investigar):**
+
+1. **Auth = API Key, no OAuth2.** Es lo que Factorial documenta para desarrollos internos: la genera un admin en la UI, sin consentimiento por usuario y **sin la caducidad del refresh token** (access 1 h / refresh 1 semana) que se rompería entre contrataciones esporádicas. El SDK la manda como header `x-api-key`.
+   > **Riesgo aceptado y registrado:** la API Key da **acceso total y no se puede acotar por scope**. Es god-mode sobre los datos de RH de la empresa. Vive solo como secret server-side en Vercel (`FACTORIAL_API_KEY`) y nunca toca el cliente. Si se filtra, el radio de daño es toda la cuenta de Factorial — no solo el alta de empleados.
+2. **SDK oficial `@factorialco/api-client`**, no REST a mano. Excepción consciente a la convención del repo (la integración Google sí es REST manual): aquí el SDK está auto-generado del OpenAPI y **tipado**, lo que cerró el mayor unknown de la documentación pública — el body exacto de `createWithContract`.
+3. **El resguardo no es el entorno, es el interruptor.** Nunca se consiguió el entorno demo que preveía el plan. El spike corrió en **solo lectura contra la cuenta real** (solo `GET` de catálogos, seguro) y de paso devolvió los IDs de producción. Lo que impide crear empleados por error es `rec_ajustes.factorial.sync_activa`, que arranca en `false`.
+4. **Idempotencia por candidato.** `rec_candidatos.factorial_employee_id` guarda el id devuelto; si ya tiene valor, el alta no se vuelve a ejecutar. Sin esto, un reintento de contratación duplicaría al empleado en el sistema de nómina.
+5. **Best-effort.** El alta no bloquea la contratación si falla, igual que el correo de altas. Contratar a alguien no puede depender de que un tercero esté disponible.
+
+**Datos reales de CrediFlexi capturados en el spike** (constantes en `lib/factorial/client.ts`, override por env):
+
+| Catálogo | ID |
+|---|---|
+| `company_id` | `355437` |
+| `legal_entity_id` | `380827` |
+| `location_id` | `488730` |
+| teams | 6 |
+| roles / levels | 43 / 52 |
+
+**Hallazgo del spike:** el puesto mapea a **`role_id` + su `level` default**, **no** a `tree_node` — ese endpoint exige un filtro que la documentación no menciona.
+
+**Límite conocido:** el alta cubre empleado + contrato básico. **Salario (en cents) y job title viven en `ContractVersion`**, un segundo paso que no se construyó. Tampoco se capturan equipo ni nivel en la UI. El lugar correcto para esos datos es **S10 (onboarding)**, donde entran una sola vez y limpios, en vez de teclearse en dos sistemas.
+
+**Estado de validación:** código entregado, **no probado contra producción**. Falta encender `sync_activa` y contratar un candidato de prueba verificando que el empleado se crea, que `factorial_employee_id` se persiste y que un reintento no duplica.
 
 ---
 

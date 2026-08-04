@@ -3,11 +3,13 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-07-30.
+> Última actualización: 2026-08-04.
 
 ---
 
 ## 1. Definición de v1.0
+
+> **Nota de alcance (2026-08-04):** esta definición se escribió cuando el repo era *tickets + cartera*. Desde entonces **Reclutamiento** creció hasta ser el módulo más grande y con más automatización externa (Google Workspace + Factorial HR), así que se incorpora explícitamente. La plataforma dejó de ser "una mesa de tickets con un dashboard": es el **sistema operativo interno de CrediFlexi** — cada módulo sustituye un proceso que hoy vive en Excel, WhatsApp o correo.
 
 **Cuándo damos por cerrada la versión actual:**
 
@@ -16,6 +18,8 @@
 3. **Feedback de errores visible** en creación de tickets y adjuntos iniciales mostrados en el hilo. *(✅ hecho 2026-05-25.)*
 4. **Tipos Supabase regenerados** (`supabase gen types`) incluyendo cartera y RPCs.
 5. **Smoke E2E** mínimo (login + crear ticket + crear acreditado + cargar cartera) corriendo en local.
+6. **Reclutamiento operable de punta a punta sin retranscripción**: el pipeline `postulado → contratado` completo desde el kanban (✅ S1–S9), **más** (a) smoke test end-to-end ejecutado con correos de prueba y verificado en `rec_correos_enviados`, y (b) el alta en Factorial validada contra producción con el interruptor encendido. Hoy ambos están pendientes — el código existe, la validación con datos reales no.
+7. **Mesa de tickets con dueño real del trabajo**: cola por área y estados explícitos (T-P1/T-P2). Mientras el ticket se asigne a una persona fija y el estatus se deduzca de la paridad de respuestas, el módulo no soporta un equipo que rota.
 
 **Lo que NO entra en v1.0** (queda para v1.1+):
 - Chat IA en cartera.
@@ -159,15 +163,28 @@ Las 6 incidencias (columna "¿Qué engloba?" → campo `select` guiado dentro de
 
 | # | Ticket | Descripción | Tipo | Estado |
 |---|--------|-------------|------|--------|
-| T-C1 | TKT-023 | **Metadata de catálogo**: columnas `prioridad` (enum `alta`/`media`/`baja`), `sla_min` (int, `null`=variable) y `modalidad` (enum `remoto`/`presencial`/`ambas`) en `problem_catalog`; expuestas en la vista `tickets_with_status`. Aterriza TKT-004 y parte de TKT-005 (prioridad = orden visual; SLA solo referencia). Mig. `20260728130000_tkt_catalogo_metadata.sql` + tipos en `lib/supabase/types.ts`. | Estructural | ✅ código (pend. `db:push`) |
-| T-C2 | TKT-024 | **Seed Sistemas/TI**: reusa área `Sistemas` + 6 incidencias con `campos` (`select` "¿Qué necesitas?" con las viñetas del "¿Qué engloba?" + `ubicacion` incluida solo en tipos presencial/ambas), `prioridad`/`sla_min`/`modalidad`. Ruteo a `uzziel.valdez@financieracrediflexi.com`. Mig. idempotente `20260728130100_tkt_catalogo_sistemas_ti.sql` (patrón de `20260612160500`). | Datos | ✅ código (pend. `db:push`) |
+| T-C1 | TKT-023 | **Metadata de catálogo**: columnas `prioridad` (enum `alta`/`media`/`baja`), `sla_min` (int, `null`=variable) y `modalidad` (enum `remoto`/`presencial`/`ambas`) en `problem_catalog`; expuestas en la vista `tickets_with_status`. Aterriza TKT-004 y parte de TKT-005 (prioridad = orden visual; SLA solo referencia). Mig. `20260728130000_tkt_catalogo_metadata.sql` + tipos en `lib/supabase/types.ts`. | Estructural | ✅ 2026-07-28 (aplicada a remoto) |
+| T-C2 | TKT-024 | **Seed Sistemas/TI**: reusa área `Sistemas` + 6 incidencias con `campos` (`select` "¿Qué necesitas?" con las viñetas del "¿Qué engloba?" + `ubicacion` incluida solo en tipos presencial/ambas), `prioridad`/`sla_min`/`modalidad`. Ruteo a `uzziel.valdez@financieracrediflexi.com`. Mig. idempotente `20260728130100_tkt_catalogo_sistemas_ti.sql` (patrón de `20260612160500`). | Datos | ✅ 2026-07-28 (aplicada a remoto) |
 | T-C3 | TKT-025 | **Editor de catálogo** (`components/admin/catalogo-admin.tsx`): inputs de prioridad, SLA (min) y modalidad al crear/editar tipos. | UI | ✅ 2026-07-28 |
 | T-C4 | TKT-026 | **Form de creación** (`components/tickets/ticket-form.tsx`): badge de prioridad (color) + SLA estimado + chip de modalidad al elegir tipo. `ubicacion` resuelto vía seed (campo incluido por tipo según modalidad), no lógica condicional en el form. | UI | ✅ 2026-07-28 |
-| T-C5 | TKT-027 | *(opcional · usabilidad)* Selector de área con **tarjetas + ícono** en `/tickets/nuevo`, en vez del `<select>` plano. | UI | 🔲 |
+| T-C5 | TKT-027 | *(opcional · usabilidad)* Selector de área con **tarjetas + ícono** en `/tickets/nuevo`, en vez del `<select>` plano. | UI | ✅ 2026-08-01 (`b57d855`) |
 
 > **Decisiones (2026-07-28)**: área = reusar **`Sistemas`** (misma área). Responsable default = **`uzziel.valdez@financieracrediflexi.com`** (rol `usuario` en presets; recibe tickets igual — considerar subirlo a `responsable`). Si aún no ha hecho su primer login, el seed deja `responsable_default_id` en `null` (se configura luego en `/admin/catalogo`). `ubicacion` = **texto libre** (no `select` de sucursales) por ahora.
 >
-> **Pendiente de aplicar**: `npm run db:push` (aplica las 2 migraciones al remoto). Los 3 tipos previos (Tesorería/DS) quedan con defaults `prioridad=media`, `modalidad=ambas`, `sla_min=null`; ajustar su prioridad real en `/admin/catalogo` si se desea.
+> **Estado (2026-08-04)**: las 2 migraciones **ya están aplicadas a remoto** (verificado con `supabase migration list`: los 64 archivos locales tienen par remoto). Los 3 tipos previos (Tesorería/DS) quedaron con defaults `prioridad=media`, `modalidad=ambas`, `sla_min=null`; ajustar su prioridad real en `/admin/catalogo` si se desea.
+
+#### Fase Tickets-Operación Sistemas/TI *(2026-08-01 · la metadata deja de ser decorativa)*
+
+> **Contexto**: TKT-023/024 metieron `prioridad`/`sla_min`/`modalidad` a la BD y los mostraron **al levantar** el ticket, pero ninguna pantalla de seguimiento los leía: los listados y el detalle seguían igual que antes. Un responsable de Sistemas no tenía cómo saber qué atender primero. Este bloque cierra ese hueco **sin tocar la BD** (decisión de alcance del 2026-08-01, para no arriesgar en día de presentación).
+
+| # | Ticket | Descripción | Tipo | Estado |
+|---|--------|-------------|------|--------|
+| T-O1 | TKT-028 | **Módulo de SLA** `lib/tickets/sla.ts` (puro: sin React ni Supabase, para que listados, detalle y métricas futuras usen el mismo cálculo). **Semántica**: el reloj corre **solo mientras `status === 'abierto'`** (la pelota está del lado del área) y arranca en `ultima_respuesta_at ?? created_at`; `por_vencer` = último 25% del SLA. Así "vencido" siempre significa "el área debe algo". | UI/lógica | ✅ 2026-08-01 (`ef72018`) |
+| T-O2 | TKT-029 | **Listados operables** (`ticket-list.tsx` pasa a client component): chip de prioridad, columna "Atención" con el SLA coloreado, filtros `Activos/Vencidos/Cerrados/Todos` con conteo y buscador sobre número/asunto/área/personas. Se elimina la columna Responsable (duplicaba el dato ya visible bajo el asunto). `ahora: number` se pasa **como prop desde el servidor** para que SSR e hidratación coincidan. | UI | ✅ 2026-08-01 (`ef72018`) |
+| T-O3 | TKT-027b | **Levantar ticket con tarjetas**: áreas como chips y tipos de problema como tarjetas que muestran prioridad/tiempo/modalidad **antes** de elegir, colapsando a la tarjeta elegida con un "Cambiar". Sustituye los dos `<select>` encadenados. | UI | ✅ 2026-08-01 (`b57d855`) |
+| T-O4 | TKT-030 | **Fix — los adjuntos del hilo no se podían abrir**. El bucket `ticket-attachments` es privado y `ticket-thread.tsx` los pintaba como `<span>` de texto: la evidencia que subía el solicitante (la captura del error, el artefacto más importante de un ticket de Sistemas) era inaccesible. Ahora el detalle firma todas las rutas en una sola llamada `createSignedUrls(paths, 60 * 10)` y el hilo las renderiza como `<a target="_blank">`, con fallback gris si la firma falla. | Bug | ✅ 2026-08-01 (`80fec4d`) |
+
+> **Fuera de alcance (consciente)**: cola por área y "Tomar ticket" (T-P1/TKT-020) requieren migración de RLS — `tickets_select` solo deja ver tickets propios o asignados (`20260421000002_rls_policies.sql:54-60`) — y una vista global `/tickets/todos` para admin. Ambos se difieren; en la demo se entra con cuenta **admin**, que ve todo vía `is_admin()`. El SLA sigue **sin alertas ni escalación** (TKT-005): solo se ve, no avisa.
 
 ### 2.3 Módulo Score
 
@@ -349,13 +366,25 @@ Las 6 incidencias (columna "¿Qué engloba?" → campo `select` guiado dentro de
 
 ## 5. Próximos Pasos (sesión inmediata)
 
-1. ✅ ~~CART-001 mergeado~~ (commit `7d7d626`).
-2. ✅ ~~OPS-001 implementado + Render LIVE + Vercel apuntando~~ (PR #2, URL `crediflexi-services.onrender.com`).
-3. ✅ ~~Smoke E2E productivo~~ (215 filas, fecha_corte 2026-05-30).
-4. **Cron-job.org wake-up** (Usuario, 5 min) — GET `https://crediflexi-services.onrender.com/health` cada 10 min.
-5. **C2-1 CART-010** (RPC `cartera_resumen`) + **C3-1 DASH-001** (snapshot ejecutivo `/cartera`).
-6. **Decidir scope demo**: ¿cohort (C1-2 + C3-5)? ¿coord/recuperador (C3-2/3)? ¿export Excel (C1-4)?
-7. **Fase IA-A (AI-001..003)**: agente Gemini + tools sobre RPCs (§2.5). Usuario: crear API key de Gemini **con billing activo** y cargarla en Vercel/`.env.local`.
+> Reescrita el **2026-08-04**. La versión anterior listaba como pendientes CART-010, DASH-001 y la Fase IA-A, todos ✅ desde junio en §2.1/§2.5 — el documento se contradecía a sí mismo.
+
+**Bloqueantes de riesgo (antes que cualquier feature):**
+
+1. **Limpiar los destinatarios reales antes del smoke test de Reclutamiento.** La plantilla `bienvenida_contratacion` tiene **3 empleados reales de CrediFlexi** seedeados en CC (`irvin.velazco@`, `cynthia.aguilar@`, `jesus.montellano@`). Contratar un candidato de prueba hoy les manda correo. Con `/reclutamiento/ajustes` ya se puede reapuntar todo (DG, los 7 destinatarios de altas, CC por plantilla) sin desplegar; hacerlo, correr el smoke, verificar `rec_correos_enviados` y **restaurar**.
+2. **Validar el alta en Factorial contra producción.** El interruptor `factorial.sync_activa` arranca en `false` a propósito (`rec_023`). Encenderlo solo tras confirmar que los catálogos de Factorial están completos, y verificar la idempotencia (`rec_candidatos.factorial_employee_id`) reintentando una contratación.
+
+**Trabajo de producto:**
+
+3. **T-P2 / TKT-021 — estados explícitos** en tickets. Es el que más se nota y no depende de que nadie confirme nada: hoy el estatus se deduce de la **paridad** del `orden` de la última respuesta, no existe "en proceso", y esa misma paridad es la que impide dos mensajes seguidos del mismo lado (TKT-001).
+4. **T-P1 / TKT-020 — cola por área** + "Tomar ticket". Requiere migración de RLS (`tickets_select` hoy es propio/asignado/admin). Habilita `/tickets/todos` para admin y desatasca el caso "el responsable se fue de vacaciones".
+5. **T-P4 — seguridad antes de más PII**: RLS-002 (`profiles_select`), RLS-001/005 (participación en adjuntos y Storage), SEC-001 (mutaciones de tickets a Server Actions con Zod servidor).
+6. **S10 — Onboarding del candidato** (§8.12, REC-097..102): captura de datos de contratación vía magic link. Es lo que elimina el Google Form + layout xlsx y alimenta tanto el correo interno de altas como el alta en Factorial con datos limpios.
+
+**Operativo (usuario):**
+
+7. **Cron-job.org wake-up** — GET `https://crediflexi-services.onrender.com/health` cada 10 min, para evitar el cold start de Render Free.
+8. **Regenerar `database.types.ts`** (`npm run db:types`): quedó en la migración 23 de 64 y no incluye nada `rec_*`. Ojo: `lib/supabase/server.ts` importa de `./types` (manual), no de este archivo, por eso nada truena — pero el archivo generado hoy miente.
+9. **Vaciar el bucket `ticket-attachments`** vía Storage API: quedaron huérfanos tras los `delete from tickets` de las migraciones de limpieza.
 
 ---
 
@@ -510,7 +539,25 @@ Digitalizar el flujo de entrevistas que hoy lleva el Gerente de RH en Excel/corr
 | **S6** ✅ 2026-07-27 | Comité + entrevistadores dinámicos + contratación (correo de bienvenida) — ver §8.9 | REC-053..REC-060 ✅ |
 | **S7** ✅ 2026-07-29 | Completar pipeline (`final_dg` = entrevista final DG + `pase_fase3`; `oferta` = config de alta) + correo interno "Altas nuevo ingreso" — ver §8.10 | REC-061..REC-066 ✅ |
 | **S7.5** ✅ 2026-07-30 | Destinatarios editables (`rec_ajustes` + `/reclutamiento/ajustes`) y pipeline dinámico: motor de etapas, formularios en modal, `?candidato=` en `/agendar` — ver §8.11 | REC-067..REC-081 ✅ |
-| **S8** | Onboarding del candidato: captura de datos de contratación vía magic link (sustituye Google Form + layout xlsx); alimenta la tabla del correo interno — ver §8.12 | REC-082..REC-087 |
+| **S9** ✅ 2026-07-31 | **Factorial HR**: alta automática del empleado al contratar (SDK oficial + API Key), idempotencia por `factorial_employee_id`, interruptor de sincronización en Ajustes — ver §8.13 | REC-088..REC-092 ✅ |
+| **S9.5** ✅ 2026-07-31 | **Ajustes ampliado**: plantillas de correo editables desde la UI (fin de los `update … set cuerpo` por migración) + bitácora `/reclutamiento/correos` + navegación de regreso en el módulo — ver §8.14 | REC-093..REC-096 ✅ |
+| **S10** | Onboarding del candidato: captura de datos de contratación vía magic link (sustituye Google Form + layout xlsx); alimenta la tabla del correo interno y el alta en Factorial — ver §8.12 | REC-097..REC-102 |
+
+> ### ⚠ Renumeración de tickets (2026-08-04)
+>
+> Los commits de Factorial del 2026-07-31 se etiquetaron **REC-067..REC-070**, números que **S7.5 ya tenía ocupados** (REC-067 = migración `rec_020`, REC-070 = `lib/reclutamiento/ajustes.ts`). La migración `rec_023` además se comenta a sí misma como "REC-082", que tampoco corresponde.
+>
+> **Se respeta S7.5** (sprint cerrado y documentado) y el trabajo de Factorial se reasigna a **REC-088..REC-092**. Tabla de equivalencia para poder rastrear los mensajes de commit viejos:
+>
+> | Commit | Etiqueta en el mensaje | Número correcto |
+> |---|---|---|
+> | `9d95f5f` | REC-067 | **REC-088** |
+> | `41ccb77` | REC-068 | **REC-089** |
+> | `9e7a9ee` | REC-069 | **REC-090** |
+> | `3c99f97` | REC-070 | **REC-091** |
+> | `84e505b` | *(sin etiqueta; el SQL dice REC-082)* | **REC-092** |
+>
+> No se reescribe historia de git ni se editan las migraciones ya aplicadas: la equivalencia vive aquí.
 
 **S6 — alcance ampliado (2026-07-27):** además de la vista de comité original, S6 incluye entrevistadores dinámicos (N, no 3 fijos), transición automática a `en_revision` al abrir el perfil, campo de comentarios del comité, registro de la decisión de la DG (Javier) y la automatización del correo de bienvenida al contratar (con adjuntos fijos y CC configurable). Detalle completo en §8.9.
 
@@ -657,7 +704,7 @@ No se permite saltar etapas, retroceder, ni salir de un estado terminal (`contra
    - **Destinatarios internos** (rol fijo por etiqueta, correo editable): RH/firmas y bienvenida *(hoy Brendoli)*, Correos electrónicos *(hoy Julio)*, Inducción *(hoy Jesús Montellano)*, Alta Yunius *(hoy Diana)*, Alta HubSpot *(hoy Rolando)*, Jefe directo, CC adicional *(hoy Nohemi)*.
 3. **Destinatarios: default prellenado pero fácil de cambiar.** Los correos por rol se guardan como default (en `rec_plantillas_correo.cc_emails` extendido o una config nueva) y se **prellenan**; el admin los edita al momento si cambia. Requisito explícito: **que sea fácil cambiarlos**.
 4. **Correo interno "Altas nuevos ingresos"** (nueva plantilla `altas_nuevos_ingresos`, código de enum en su propia migración): se dispara al pasar `oferta → contratado`, junto con la bienvenida al candidato. Las **líneas de tareas se arman por rol según lo marcado** (si marcó inducción → sale la línea de inducción con fecha/Meet; si marcó HubSpot → la de HubSpot; etc.). Incluye los datos básicos del candidato (nombre, puesto/vacante, zona/plaza, jefe directo, fecha de inicio, equipo, sistemas).
-5. **Datos básicos ahora; tabla completa después.** El correo interno se manda con lo que ya se tiene sin depender de S8. La "tabla bonita" de datos personales (fecha nac, domicilio, escolaridad…) se **enriquece cuando S8 capture esos datos** (dejar el gancho en el render de la plantilla).
+5. **Datos básicos ahora; tabla completa después.** El correo interno se manda con lo que ya se tiene sin depender del onboarding. La "tabla bonita" de datos personales (fecha nac, domicilio, escolaridad…) se **enriquece cuando S10 capture esos datos** (dejar el gancho en el render de la plantilla).
 
 **Tickets (borrador, refinar al arrancar S7):**
 
@@ -678,7 +725,7 @@ No se permite saltar etapas, retroceder, ni salir de un estado terminal (`contra
 
 ### 8.11 S7.5 — Destinatarios editables + pipeline dinámico (plan y cierre 2026-07-30)
 
-> **Completado ✅ 2026-07-30 (REC-067..081).** Sprint correctivo detectado en el smoke test de S7: los correos vivían quemados en el código y el kanban movía tarjetas sin ejecutar nada. Se intercala entre S7 y S8; S8 se recorre a REC-082+ y S9 (Factorial) a REC-088+.
+> **Completado ✅ 2026-07-30 (REC-067..081).** Sprint correctivo detectado en el smoke test de S7: los correos vivían quemados en el código y el kanban movía tarjetas sin ejecutar nada. Se intercaló entre S7 y el onboarding. *(La renumeración que anunciaba esta nota quedó obsoleta al entregarse Factorial y Ajustes-ampliado antes que el onboarding — ver el aviso de renumeración en §8.4: S9 = REC-088..092, S9.5 = REC-093..096, S10 onboarding = REC-097..102.)*
 
 **Origen:** revisión de Uzziel (2026-07-30). Dos problemas: (1) `DG_EMAIL`, `DG_NOMBRE` y los 7 destinatarios de altas eran constantes en `lib/schemas/reclutamiento.ts` — no se podían cambiar sin desplegar, y probar el flujo implicaba mandarle correos reales a media empresa; (2) el botón "→ siguiente etapa" del kanban solo llamaba a la RPC: cambiaba de columna sin pedir datos ni disparar la acción real, que vivía escondida en `/agendar` y `/comite`.
 
@@ -720,9 +767,9 @@ No se permite saltar etapas, retroceder, ni salir de un estado terminal (`contra
 
 **Fuera de alcance de S7.5:** drag & drop en el kanban, retroceso de etapas, catálogo de entrevistadores, historial visible de ajustes.
 
-### 8.12 S8 — Onboarding del candidato (captura de datos) (plan 2026-07-28)
+### 8.12 S10 — Onboarding del candidato (captura de datos) (plan 2026-07-28 · renumerado 2026-08-04)
 
-> **Plan, aún sin implementar.** Sustituye el envío del Google Form + layout xlsx por la captura de los datos de contratación directamente en la plataforma vía magic link. El correo de bienvenida (S6) sigue como fallback hasta que S8 esté listo. Alimenta la "tabla completa" del correo interno de altas (S7).
+> **Plan, aún sin implementar.** *(Era "S8, REC-082..087"; renumerado a **S10, REC-097..102** cuando S9/S9.5 se entregaron antes — ver el aviso de renumeración en §8.4.)* Sustituye el envío del Google Form + layout xlsx por la captura de los datos de contratación directamente en la plataforma vía magic link. El correo de bienvenida (S6) sigue como fallback hasta que S10 esté listo. Alimenta la "tabla completa" del correo interno de altas (S7) **y el alta en Factorial (S9)**, que hoy se conforma con nombre/apellido/email/teléfono.
 
 **Origen:** ajuste solicitado por Uzziel (2026-07-28). Pain point: hoy el candidato llena un Excel (`FORMATO LAYOUT DATOS.xlsx`) y un Google Form de Gente y Cultura, y alguien retranscribe eso. Capturándolo estructurado se elimina la transcripción y se valida en el punto de captura.
 
@@ -742,41 +789,63 @@ No se permite saltar etapas, retroceder, ni salir de un estado terminal (`contra
 
 **Tickets (borrador):** migración `rec_datos_contratacion` + magic link/RPC; tipos + `onboardingSchema`; ruta pública `/onboarding/[token]` + submit; vista RH/admin de revisión; enriquecer el correo interno de altas (S7) con la tabla completa; gancho export xlsx (solo documentar).
 
-**Fuera de alcance de S8:** generación real del xlsx, carga de documentos escaneados (INE/acta/comprobante) salvo que se decida, integración con nómina/IMSS, portal con login.
+**Fuera de alcance de S10:** generación real del xlsx, carga de documentos escaneados (INE/acta/comprobante) salvo que se decida, integración con nómina/IMSS, portal con login.
 
-### 8.13 S9 — Integración con Factorial HR (alta automática de empleados) (plan 2026-07-30)
+### 8.13 S9 — Integración con Factorial HR (alta automática de empleados) ✅ 2026-07-31
 
-> **Plan, aún sin implementar.** Al pasar un candidato a `contratado`, además del correo interno de altas (S7), dar de alta al empleado automáticamente en **Factorial HR** vía su API pública. Cierra el loop "candidato → empleado" sin retranscripción manual.
+> **Entregado.** *(Plan 2026-07-30, implementado 2026-07-31 — REC-088..092.)* Al pasar un candidato a `contratado`, además del correo interno de altas (S7), se da de alta al empleado automáticamente en **Factorial HR** vía su API pública. Cierra el loop "candidato → empleado" sin retranscripción manual.
+>
+> **El interruptor arranca APAGADO.** `rec_ajustes.factorial.sync_activa = false` (`rec_023`): la contratación funciona completa (correos incluidos) y el alta en Factorial solo ocurre cuando alguien la enciende a propósito desde `/reclutamiento/ajustes`. Es deliberado — mientras no se valide contra producción, no queremos crear empleados reales por error.
 
 **Origen:** propuesta de Uzziel (2026-07-30). Investigación de la API de Factorial hecha por IA externa con acceso a la doc + confirmación directa del SDK oficial en GitHub (`factorialco/factorial-api-sdks`). El patrón es casi idéntico a la integración Google ya existente (`lib/google/`), por lo que el molde arquitectónico ya está probado en el repo.
 
 **Decisiones de arquitectura (ya tomadas, no re-investigar):**
 1. **Auth = API Key (no OAuth2).** Es el camino que Factorial documenta para *"internal company developments"*: la genera un admin en la UI, sin consentimiento por usuario, **sin la caducidad de refresh token de OAuth** (access 1 h / refresh 1 semana → se rompería entre contrataciones esporádicas). El SDK la manda como header **`x-api-key`**. Tradeoff aceptado y registrado como riesgo: la API Key da **acceso total y no se puede acotar por scope** → god-mode; va como secret **solo server-side** en Vercel (`FACTORIAL_API_KEY`), nunca en cliente.
 2. **SDK = `@factorialco/api-client` (no REST a mano).** Auto-generado del OpenAPI, **tipado**, `apiKey`/`token`/`baseUrl` de primera clase, paginación por cursor. El SDK tipado elimina el mayor unknown de la doc (el body exacto de `create_with_contract` lo valida TypeScript). Se fija a una versión por fecha de API: `npm install @factorialco/api-client@2026-07-01`. (Excepción consciente a la convención "sin SDK" de Google: aquí el SDK oficial resuelve los huecos "NO DOCUMENTADO" de la doc pública.)
-3. **Entorno demo primero.** `FACTORIAL_BASE_URL` apunta al host demo (`api.eu2.demo.factorial.dev`) para el spike; producción es el default (`api.factorialhr.com`). El demo se pide al account manager de Factorial (da empresa demo + credenciales).
-4. **Alta en dos pasos.** `client.employees.employees.createWithContract` crea **empleado + contrato básico** (obligatorios: `company_id`, `name`, `last_name`, personal email; opcionales: fechas de contrato, manager_id, legal_entity, team_id, location_id, job catalog level uuid, domicilio, bancarios, etc.). **Salario (en cents) y job_title viven en `ContractVersion`**, no en el body del alta → posible follow-up con `client.contracts.contractVersions`. Confirmar en demo.
-5. **Disparo best-effort.** En `contratarCandidato`, tras la contratación y el correo de altas, llamada al alta en Factorial que **no bloquea** la contratación si falla (igual que el correo de altas). Bitácora del resultado + idempotencia por `candidato_id` para no duplicar empleados en reintentos.
-6. **Catálogos preexisten.** El alta referencia por ID: legal entity (la financiera), `locations/locations` (sucursales/plazas), `teams`, `job_catalog/tree_nodes` (levels). Setup **único y manual** en Factorial antes de poder crear empleados; luego se leen los IDs vía el SDK.
+3. ~~**Entorno demo primero.**~~ **Corregido en la implementación:** nunca se consiguió el entorno demo. El spike corrió en **solo lectura contra la cuenta real de CrediFlexi**, que era seguro (solo `GET` de catálogos) y además devolvió los IDs de producción de una vez. `FACTORIAL_BASE_URL` queda como override opcional; el default del SDK (`api.factorialhr.com`) es el que se usa. El resguardo contra escrituras accidentales no es el host, es el **interruptor `sync_activa`**.
+4. **Alta en dos pasos.** `client.employees.employees.createWithContract` crea **empleado + contrato básico**. **Salario (en cents) y job_title viven en `ContractVersion`**, no en el body del alta. *Confirmado en el spike:* el alta implementada es solo el primer paso; el follow-up con `client.contracts.contractVersions` **no se construyó** (ver "Fuera de alcance").
+5. **Disparo best-effort.** En `contratarCandidato`, tras la contratación y el correo de altas, llamada al alta en Factorial que **no bloquea** la contratación si falla (igual que el correo de altas). Idempotencia por candidato para no duplicar empleados en reintentos.
+6. **Catálogos preexisten.** El alta referencia por ID: legal entity (la financiera), `locations/locations`, `teams`, `job_catalog`. Setup **único y manual** en Factorial; luego se leen los IDs vía el SDK.
 
-**Arquitectura (molde de `lib/google/`):**
-- `lib/factorial/client.ts` — wrapper del SDK con la API Key desde env; helpers para leer catálogos y crear empleado+contrato.
-- Secret `FACTORIAL_API_KEY` en Vercel (server-side). No hay OAuth flow ni tabla de credenciales (a diferencia de Google): la API Key es una env var estática.
-- Extensión de `rec_alta_config` (o tabla nueva `rec_factorial_alta`) con los campos contractuales/organizativos que hoy no se capturan (legal entity, location, team, job level, salario en cents, tipo de contrato, jornada). `fecha_ingreso` ya existe en `rec_candidatos`.
+**Arquitectura entregada:**
+- **`lib/factorial/client.ts`** (74 líneas) — wrapper del SDK. Expone `crearEmpleadoConContrato(alta)`; los IDs de catálogo son constantes con override por env (`FACTORIAL_COMPANY_ID` `355437`, `FACTORIAL_LEGAL_ENTITY_ID` `380827`, `FACTORIAL_LOCATION_ID` `488730` — obtenidos en el spike). Lanza si falta `FACTORIAL_API_KEY`, si Factorial responde `error`, o si no devuelve id. Tolera que el SDK envuelva el recurso en `{ data }` o lo devuelva directo.
+- Secret `FACTORIAL_API_KEY` en Vercel (server-side). No hay OAuth flow ni tabla de credenciales (a diferencia de Google): es una env var estática.
+- **No se creó** `rec_factorial_alta` ni se extendió `rec_alta_config`. El alta se conforma con lo que ya existe en `rec_candidatos` (nombre/apellidos, email, teléfono, `fecha_ingreso`). Capturar salario, equipo y nivel de puesto queda para **S10** (onboarding), que es donde el dato entra limpio en vez de teclearse dos veces.
 
-**Tickets (borrador, refinar al arrancar S9):**
-- **REC-088** — Spike: instalar `@factorialco/api-client`, `lib/factorial/client.ts` mínimo + script que (con credencial demo) liste catálogos e imprima la firma tipada de `createWithContract` para cerrar los últimos "NO DOCUMENTADO" con datos reales.
-- **REC-089** — Setup de catálogos en Factorial (legal entity, locations, teams, job catalog levels) + mapeo a los datos del candidato.
-- **REC-090** — Migración: extender `rec_alta_config` (o `rec_factorial_alta`) con campos contractuales + tabla/columna de bitácora de sincronización (idempotencia por `candidato_id`).
-- **REC-091** — UI: campos de alta Factorial en el `AltaConfigForm` (etapa `oferta`) con selects poblados de catálogos.
-- **REC-092** — `contratarCandidato`: alta best-effort en Factorial (empleado + contrato, follow-up de salario/puesto si aplica) + bitácora + toast diferenciado.
-- **REC-093** — Verificación en demo end-to-end, docs (PLAN §8.13 / RESEARCH §13) y bump de fechas.
+**Tickets entregados:**
 
-**Bloqueantes (acción humana/organizacional, no de investigación):**
-1. Solicitar el **entorno demo** al account manager de Factorial (empresa demo + credenciales).
-2. Confirmar que el plan de Factorial de la financiera **expone API Key** (un admin la genera en la UI).
-3. **Setup único de catálogos** en Factorial (legal entity, locations, job catalog levels) antes de crear empleados.
+| Ticket | Commit | Qué se hizo |
+|---|---|---|
+| **REC-088** ✅ | `9d95f5f` | **Spike de solo lectura** (`scripts/factorial-explorar.mjs`, 110 líneas). Conexión verificada vía `x-api-key`. Capturó los IDs reales: company `355437`, legal_entity `380827`, location `488730`, **6 teams, 43 roles + 52 levels**. Hallazgo clave: el puesto mapea a **`role_id` + su `level` default**, NO a `tree_node` (que exige filtro). |
+| **REC-089** ✅ | `41ccb77` | `lib/factorial/client.ts` con el SDK oficial `@factorialco/api-client`. |
+| **REC-090** ✅ | `9e7a9ee` | Migración `rec_022`: columna `rec_candidatos.factorial_employee_id text`. **Idempotencia** — `NULL` = sin alta; con valor, no se vuelve a crear. |
+| **REC-091** ✅ | `3c99f97` | `contratarCandidato` llama al alta best-effort y persiste el id; `contratacion-form.tsx` pide nombre y apellidos **por separado** (Factorial los exige así, y partir un `nombre_completo` a la adivina produce empleados mal dados de alta); el `Result` gana `factorialCreado` para el toast diferenciado. |
+| **REC-092** ✅ | `84e505b` | Migración `rec_023`: clave `factorial` en `rec_ajustes` con `{ sync_activa: false }` + interruptor en `/reclutamiento/ajustes`. Apagar el alta ya no requiere desplegar. |
+| — | `e414a4d` | **Fix:** `contratarCandidato` tronaba al llegar al alta (`lib/actions/comite.ts` + tipos). |
 
-**Fuera de alcance de S9:** sincronización bidireccional completa (webhooks de alta/baja hechas en Factorial), ATS de Factorial (mover candidato a `hired` por API), ausencias/documentos vía API. Son extensiones posibles (scopes `recruitment`/`time_off`/`documents` existen) pero quedan como backlog.
+**Bloqueantes — resueltos:**
+1. ~~Entorno demo~~ → no se usó; el spike de solo lectura contra producción lo sustituyó.
+2. ~~Confirmar que el plan expone API Key~~ → **sí**, verificado con conexión real.
+3. ~~Setup de catálogos~~ → los que necesita el alta básica ya existen (legal entity, location, teams, roles/levels).
+
+**Pendiente de validación (no de código):** encender `sync_activa` y contratar un candidato de prueba contra producción, comprobando que (a) el empleado se crea, (b) `factorial_employee_id` queda persistido y (c) un reintento **no** duplica. Hasta que eso pase, S9 es código entregado pero **no probado end-to-end**.
+
+**Fuera de alcance de S9:** el follow-up de `ContractVersion` (salario en cents + job title), la captura de equipo/nivel en la UI, sincronización bidireccional (webhooks de alta/baja hechas en Factorial), ATS de Factorial (mover candidato a `hired` por API), ausencias/documentos. Son extensiones posibles (los scopes existen) pero quedan como backlog.
+
+### 8.14 S9.5 — Ajustes ampliado: plantillas editables + bitácora de correos ✅ 2026-07-31
+
+> **Entregado** (REC-093..096). Continuación natural de S7.5: si los **destinatarios** ya se editaban desde la UI, el **contenido** de los correos no tenía por qué seguir cambiándose con migraciones.
+
+**El problema:** `rec_plantillas_correo` guarda asunto y cuerpo desde el inicio, pero la única forma de cambiarlos era una migración — `rec_014` y `rec_019` son literalmente `update … set cuerpo = …`. Cada corrección de una coma en un correo exigía un archivo SQL, un `db push` y un despliegue.
+
+| Ticket | Commit | Qué se hizo |
+|---|---|---|
+| **REC-093** ✅ | `b037425` | **`lib/reclutamiento/plantillas.ts`** (165 líneas, módulo puro): catálogo de las plantillas con `label`, `cuando` se envía, si el envío **realmente pasa `cc`** a Gmail, las variables disponibles con su descripción y cuáles son **requeridas**. Decisión: se exponen **solo las 6 que algún flujo manda**. `confirmacion_postulacion`, `descarte`, `oferta` e `informativa` están seedeadas pero ningún flujo las envía — mostrarlas haría creer que editarlas cambia algo. |
+| **REC-094** ✅ | `b037425` | **`plantillas-editor.tsx`** (192 líneas) + `guardarPlantilla` en `lib/actions/ajustes.ts`. Valida contra las variables requeridas: no se puede guardar una invitación a entrevista sin `{{fecha}}`. `ajustes-panel.tsx` adelgaza 66 líneas al ceder el bloque de CC al editor. |
+| **REC-095** ✅ | `c0b669e` | **Bitácora `/reclutamiento/correos`** (151 líneas): últimos 200 envíos de `rec_correos_enviados` con filtro Todos/Con error/Enviados, plantilla legible vía `plantillaMeta()`, destinatario, fecha y el mensaje de error cuando falló. Entrada en el sidebar. Antes, un correo que no llegaba solo se podía diagnosticar con SQL. |
+| **REC-096** ✅ | `60bb72b`, `38cccf6` | **Navegación de regreso** en todo el módulo (el pipeline dejó de ser un camino de una sola dirección) + confirmación visible al guardar las notas del comité, con enlace al pipeline. |
+
+**Fuera de alcance de S9.5:** previsualización del correo con datos reales, historial de versiones de plantilla, reenvío desde la bitácora, plantillas HTML con diseño (hoy son texto plano).
 
 ---
 
