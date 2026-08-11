@@ -9,6 +9,7 @@ import {
 import TicketThread from '@/components/tickets/ticket-thread'
 import ResponseComposer from '@/components/tickets/response-composer'
 import ControlEstado from '@/components/tickets/control-estado'
+import TicketHistorial, { type HistorialRow } from '@/components/tickets/ticket-historial'
 import { guiaDelTicket } from '@/lib/tickets/guia'
 
 // Etiquetas para datos legacy (tickets viejos sin entrada en `datos`)
@@ -35,23 +36,46 @@ export default async function TicketDetailPage({ params }: { params: { numero: s
   if (!rawTicket) notFound()
   const ticket = rawTicket as unknown as TicketWithStatus
 
-  const [{ data: rawResponses }, { data: attachments }, { data: catalogo }] = await Promise.all([
-    supabase
-      .from('ticket_responses')
-      .select('*, profiles(nombre_completo, rol)')
-      .eq('ticket_id', ticket.id)
-      .order('orden', { ascending: true }),
-    supabase
-      .from('ticket_attachments')
-      .select('*')
-      .eq('ticket_id', ticket.id),
-    supabase
-      .from('problem_catalog')
-      .select('campos')
-      .eq('id', ticket.problem_catalog_id)
-      .single(),
-  ])
+  const [{ data: rawResponses }, { data: attachments }, { data: catalogo }, { data: rawHistorial }] =
+    await Promise.all([
+      supabase
+        .from('ticket_responses')
+        .select('*, profiles(nombre_completo, rol)')
+        .eq('ticket_id', ticket.id)
+        .order('orden', { ascending: true }),
+      supabase
+        .from('ticket_attachments')
+        .select('*')
+        .eq('ticket_id', ticket.id),
+      supabase
+        .from('problem_catalog')
+        .select('campos')
+        .eq('id', ticket.problem_catalog_id)
+        .single(),
+      supabase
+        .from('ticket_historial')
+        .select('id, actor_id, evento, a_estado, a_responsable_id, created_at')
+        .eq('ticket_id', ticket.id)
+        .order('created_at', { ascending: true }),
+    ])
   const campos = ((catalogo?.campos as ProblemField[] | null) ?? [])
+
+  // Nombres de todos los que aparecen en la bitácora (actores y destinatarios
+  // de reasignación), en una sola consulta.
+  const historial = (rawHistorial ?? []) as unknown as HistorialRow[]
+  const nombresHistorial: Record<string, string> = {}
+  const idsHistorial = Array.from(new Set(
+    historial.flatMap(h => [h.actor_id, h.a_responsable_id]).filter((v): v is string => v != null),
+  ))
+  if (idsHistorial.length > 0) {
+    const { data: perfiles } = await supabase
+      .from('profiles')
+      .select('id, nombre_completo')
+      .in('id', idsHistorial)
+    for (const p of (perfiles ?? []) as { id: string; nombre_completo: string }[]) {
+      nombresHistorial[p.id] = p.nombre_completo
+    }
+  }
 
   // El bucket es privado: sin URL firmada el adjunto no se puede abrir.
   // Se firman todos de una vez porque la página se renderiza en cada visita.
@@ -210,6 +234,8 @@ export default async function TicketDetailPage({ params }: { params: { numero: s
           ))}
         </div>
       )}
+
+      <TicketHistorial rows={historial} nombres={nombresHistorial} />
 
       {/* Hilo de respuestas */}
       <TicketThread
