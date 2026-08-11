@@ -4,7 +4,16 @@
 
 export type UserRole = 'admin' | 'responsable' | 'usuario'
 export type ResponseType = 'mensaje' | 'terminado_responsable' | 'terminado_usuario' | 'rechazo_responsable'
-export type TicketStatus = 'abierto' | 'contestado' | 'terminado' | 'cerrado' | 'rechazado'
+// Estado explícito del ticket (columna `tickets.estado`, enum `ticket_estado`).
+// Sustituye al estatus que se derivaba de la paridad de las respuestas: ya no
+// existe 'contestado' y 'terminado' se llama ahora 'resuelto'.
+export type TicketStatus =
+  | 'abierto'      // en la cola o recién tomado
+  | 'en_revision'  // alguien lo está atendiendo
+  | 'programado'   // validado, entra en la siguiente tanda
+  | 'resuelto'     // el responsable terminó, falta confirmación
+  | 'cerrado'
+  | 'rechazado'
 
 export type ProblemFieldType = 'text' | 'textarea' | 'number' | 'select' | 'date'
 
@@ -56,14 +65,17 @@ export interface TicketWithStatus {
   id: string
   numero: number
   problem_catalog_id: string
+  area_id: string
   levantado_por_id: string
-  responsable_id: string
+  /** NULL mientras el ticket sigue en la cola del área, sin tomar. */
+  responsable_id: string | null
   grupo: string | null
   cliente: string | null
   ciclo_cliente: string | null
   datos: TicketDatos
   created_at: string
   closed_at: string | null
+  estado: TicketStatus
   status: TicketStatus
   area_nombre: string
   problema_nombre: string
@@ -71,7 +83,8 @@ export interface TicketWithStatus {
   sla_min: number | null
   modalidad: TicketModalidad
   levantado_por_nombre: string
-  responsable_nombre: string
+  /** NULL si nadie lo ha tomado. */
+  responsable_nombre: string | null
   ultima_respuesta_at: string | null
 }
 
@@ -188,34 +201,42 @@ export interface Database {
           id: string
           numero: number
           problem_catalog_id: string
+          area_id: string
           levantado_por_id: string
-          responsable_id: string
+          responsable_id: string | null
           grupo: string | null
           cliente: string | null
           ciclo_cliente: string | null
           created_at: string
           closed_at: string | null
           datos: TicketDatos
+          estado: TicketStatus
         }
         Insert: {
           problem_catalog_id: string
+          /** Opcional: un trigger lo rellena desde el catálogo si no viene. */
+          area_id?: string
           levantado_por_id: string
-          responsable_id: string
+          /** Omitir para que el ticket nazca en la cola del área, sin dueño. */
+          responsable_id?: string | null
           grupo?: string | null
           cliente?: string | null
           ciclo_cliente?: string | null
           closed_at?: string | null
           datos?: TicketDatos
+          estado?: TicketStatus
         }
         Update: {
           problem_catalog_id?: string
+          area_id?: string
           levantado_por_id?: string
-          responsable_id?: string
+          responsable_id?: string | null
           grupo?: string | null
           cliente?: string | null
           ciclo_cliente?: string | null
           closed_at?: string | null
           datos?: TicketDatos
+          estado?: TicketStatus
         }
         Relationships: []
       }
@@ -778,14 +799,16 @@ export interface Database {
           id: string
           numero: number
           problem_catalog_id: string
+          area_id: string
           levantado_por_id: string
-          responsable_id: string
+          responsable_id: string | null
           grupo: string | null
           cliente: string | null
           ciclo_cliente: string | null
           datos: TicketDatos
           created_at: string
           closed_at: string | null
+          estado: TicketStatus
           status: TicketStatus
           area_nombre: string
           problema_nombre: string
@@ -793,7 +816,7 @@ export interface Database {
           sla_min: number | null
           modalidad: TicketModalidad
           levantado_por_nombre: string
-          responsable_nombre: string
+          responsable_nombre: string | null
           ultima_respuesta_at: string | null
         }
         Relationships: []
@@ -807,6 +830,24 @@ export interface Database {
       has_reclutamiento_access: {
         Args: Record<string, never>
         Returns: boolean
+      }
+      es_de_area: {
+        Args: { p_area_id: string }
+        Returns: boolean
+      }
+      // TKT-031: self-assign de un ticket de la cola del área.
+      tkt_tomar_ticket: {
+        Args: { p_ticket_id: string }
+        Returns: undefined
+      }
+      // TKT-032: cambio de estado controlado (valida transición y permisos).
+      tkt_cambiar_estado: {
+        Args: {
+          p_ticket_id: string
+          p_estado: TicketStatus
+          p_motivo?: string | null
+        }
+        Returns: undefined
       }
       rec_transicion_etapa: {
         Args: {

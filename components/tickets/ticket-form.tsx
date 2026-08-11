@@ -164,7 +164,11 @@ export default function TicketForm({ areas, catalog, userId, initialAreaId, init
       .insert({
         problem_catalog_id: selectedProblem.id,
         levantado_por_id: userId,
-        responsable_id: selectedProblem.responsable_default_id ?? userId,
+        // Sin responsable: el ticket nace en la cola de su área y lo toma
+        // quien pueda atenderlo (TKT-031). Antes se asignaba al
+        // `responsable_default_id` del catálogo o, si el catálogo no tenía
+        // uno, a quien levantaba el ticket — que se quedaba atendiéndose solo.
+        // El `area_id` lo pone un trigger a partir del tipo de problema.
         grupo,
         cliente,
         ciclo_cliente,

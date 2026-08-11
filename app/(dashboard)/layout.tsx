@@ -31,19 +31,29 @@ export default async function DashboardLayout({
 
   if (!tieneAlgunAcceso) redirect('/stand-by')
 
-  // Contadores para el sidebar
-  const [{ count: miosCount }, { count: asignadosCount }] = await Promise.all([
-    supabase
-      .from('tickets')
-      .select('*', { count: 'exact', head: true })
-      .eq('levantado_por_id', user.id)
-      .is('closed_at', null),
-    supabase
-      .from('tickets')
-      .select('*', { count: 'exact', head: true })
-      .eq('responsable_id', user.id)
-      .is('closed_at', null),
-  ])
+  // Contadores para el sidebar. El de la cola cuenta solo lo que NADIE ha
+  // tomado: es la cifra que exige acción del área, no el total del área.
+  const [{ count: miosCount }, { count: asignadosCount }, { count: colaCount }] =
+    await Promise.all([
+      supabase
+        .from('tickets')
+        .select('*', { count: 'exact', head: true })
+        .eq('levantado_por_id', user.id)
+        .is('closed_at', null),
+      supabase
+        .from('tickets')
+        .select('*', { count: 'exact', head: true })
+        .eq('responsable_id', user.id)
+        .is('closed_at', null),
+      profile.area_id
+        ? supabase
+            .from('tickets')
+            .select('*', { count: 'exact', head: true })
+            .eq('area_id', profile.area_id)
+            .is('responsable_id', null)
+            .is('closed_at', null)
+        : Promise.resolve({ count: 0 }),
+    ])
 
   return (
     <div className="flex min-h-screen bg-white">
@@ -52,6 +62,7 @@ export default async function DashboardLayout({
         counts={{
           mios: miosCount ?? 0,
           asignados: asignadosCount ?? 0,
+          cola: colaCount ?? 0,
         }}
       />
       <main className="flex-1 min-w-0 w-full max-w-[1100px]">

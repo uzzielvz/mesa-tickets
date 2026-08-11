@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import {
   Menu, X, ChevronDown,
-  LayoutDashboard, Ticket, Inbox, Tags, FolderTree,
+  LayoutDashboard, Ticket, Inbox, Tags, FolderTree, Plus, Users2,
   Users, UserPlus, Gauge,
   PieChart, Building2, UserSearch, AlertTriangle, Layers, Upload, KeyRound,
   BarChart3, Briefcase, Kanban, CalendarClock, ClipboardCheck, Settings, Send,
@@ -19,7 +19,7 @@ type Profile = Database['public']['Tables']['profiles']['Row']
 
 interface SidebarProps {
   profile: Profile
-  counts?: { mios: number; asignados: number }
+  counts?: { mios: number; asignados: number; cola: number }
 }
 
 interface NavItemProps {
@@ -154,11 +154,29 @@ function NavContent({
         onToggle={() => setTicketsOpen(v => !v)}
       >
         <NavItem
+          href="/tickets/nuevo"
+          label="Nuevo ticket"
+          icon={Plus}
+          active={pathname === '/tickets/nuevo'}
+          onClick={onNav}
+        />
+        <NavItem
           href="/tickets/mios"
           label="Mis tickets"
           icon={Ticket}
           count={counts?.mios}
           active={pathname === '/tickets/mios'}
+          onClick={onNav}
+        />
+        {/* La cola es del área, no de un rol: el técnico de Sistemas que la
+            atiende tiene rol `usuario` en los presets. Gatearla por rol la
+            escondería justo de quien la necesita. */}
+        <NavItem
+          href="/tickets/area"
+          label="Cola del área"
+          icon={Users2}
+          count={counts?.cola}
+          active={pathname === '/tickets/area'}
           onClick={onNav}
         />
         {isResponsable && (

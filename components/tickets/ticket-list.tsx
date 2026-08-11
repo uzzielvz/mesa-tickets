@@ -13,7 +13,8 @@ interface Ticket {
   status: string
   problema_nombre: string
   area_nombre: string
-  responsable_nombre: string
+  /** NULL mientras nadie lo haya tomado de la cola. */
+  responsable_nombre: string | null
   levantado_por_nombre: string
   prioridad: TicketPrioridad
   sla_min: number | null
@@ -72,7 +73,7 @@ export default function TicketList({
       if (!q) return true
       return [
         String(t.numero), t.problema_nombre, t.area_nombre,
-        t.responsable_nombre, t.levantado_por_nombre,
+        t.responsable_nombre ?? '', t.levantado_por_nombre,
       ].some(v => v.toLowerCase().includes(q))
     })
   }, [conSla, filtro, busqueda])
@@ -170,7 +171,9 @@ export default function TicketList({
               <span className="text-[11.5px] text-ink-400 truncate">
                 {t.area_nombre}
                 {' · '}
-                {showResponsable ? t.responsable_nombre : t.levantado_por_nombre}
+                {showResponsable
+                  ? (t.responsable_nombre ?? 'Sin asignar')
+                  : t.levantado_por_nombre}
               </span>
             </div>
 
