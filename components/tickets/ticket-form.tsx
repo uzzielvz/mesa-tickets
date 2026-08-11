@@ -30,6 +30,20 @@ const modalidadLabel: Record<TicketModalidad, string> = { remoto: 'Remoto', pres
 const chipClass = 'text-[11px] px-1.5 py-[1px] rounded-full border font-medium'
 const slaLabel = (min: number | null) => (min == null ? 'Tiempo variable' : `~${min} min`)
 
+/**
+ * Ejemplos concretos de lo que cubre un tipo ("cambio de tinta", "no sirve
+ * el escáner"…). Salen de las opciones del primer campo select del catálogo
+ * — ahí viven las viñetas del "¿Qué engloba?" — y si el tipo no tiene, de la
+ * leyenda. Todo editable en /admin/catalogo, sin desplegar.
+ */
+function ejemplosDe(item: CatalogItem): string | null {
+  const opciones = (item.campos ?? [])
+    .find(f => f.type === 'select' && (f.options ?? []).length > 0)
+    ?.options
+  if (opciones && opciones.length > 0) return opciones.join(' · ')
+  return item.leyenda?.trim() || null
+}
+
 /** Prioridad, tiempo estimado y modalidad de un tipo de problema. */
 function MetaChips({ item }: { item: CatalogItem }) {
   return (
@@ -354,17 +368,25 @@ export default function TicketForm({ areas, catalog, userId, initialAreaId, init
                     {g.area.nombre}
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {g.tipos.map(c => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => handleProblemChange(c.id)}
-                        className="text-left bg-white border border-[#ECECEC] rounded-md px-3 py-2.5 flex flex-col gap-1.5 hover:border-orange hover:bg-surface-hover transition-colors"
-                      >
-                        <span className="text-[13px] font-medium text-ink-900">{c.nombre}</span>
-                        <MetaChips item={c} />
-                      </button>
-                    ))}
+                    {g.tipos.map(c => {
+                      const ejemplos = ejemplosDe(c)
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => handleProblemChange(c.id)}
+                          className="text-left bg-white border border-[#ECECEC] rounded-md px-3 py-2.5 flex flex-col gap-1.5 hover:border-orange hover:bg-surface-hover transition-colors"
+                        >
+                          <span className="text-[13px] font-medium text-ink-900">{c.nombre}</span>
+                          {ejemplos && (
+                            <span className="text-[11.5px] text-ink-400 leading-snug line-clamp-2">
+                              {ejemplos}
+                            </span>
+                          )}
+                          <MetaChips item={c} />
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
               ))
