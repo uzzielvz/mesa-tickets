@@ -88,13 +88,13 @@ export function guiaDelTicket(g: GuiaInput): Guia | null {
       if (g.esLevantador) {
         return {
           titulo: `${g.responsableNombre} marcó tu ticket como resuelto`,
-          cuerpo: 'Revisa si quedó solucionado. Abajo puedes confirmar el cierre, o reabrirlo con un comentario si el problema sigue.',
+          cuerpo: 'Revisa si quedó solucionado. Abajo puedes confirmar el cierre, o reabrirlo con un comentario si el problema sigue. Si no haces nada, se cerrará solo en 3 días.',
         }
       }
       if (g.esResponsable) {
         return {
           titulo: 'Esperando confirmación del usuario',
-          cuerpo: 'El ticket se cerrará cuando quien lo levantó confirme que quedó resuelto.',
+          cuerpo: 'Se cerrará cuando quien lo levantó confirme que quedó resuelto, o solo a los 3 días sin respuesta.',
         }
       }
       return {

@@ -172,6 +172,9 @@ export function correoResuelto(t: TicketCorreoInfo, responsable: string): Correo
       [
         'Revisa si quedó solucionado.',
         'Dentro del ticket puedes <b>confirmar el cierre</b> o <b>reabrirlo con un comentario</b> si el problema sigue.',
+        // La expectativa se pone aquí, no cuando el ticket ya se cerró solo:
+        // enterarse después se siente arbitrario.
+        'Si no nos dices nada, el ticket se cerrará solo en 3 días.',
       ],
       t.numero,
     ),
