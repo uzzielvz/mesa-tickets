@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import { Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { notificarRespuesta } from '@/lib/actions/tickets'
 
@@ -188,53 +189,67 @@ export default function ResponseComposer({
   }
 
   return (
-    <div className="border border-[#ECECEC] rounded-md p-4 flex flex-col gap-3">
-      <textarea
-        value={contenido}
-        onChange={e => setContenido(e.target.value)}
-        placeholder="Escribe tu respuesta..."
-        rows={4}
-        className="bg-white border border-[#ECECEC] rounded px-3 py-[7px] text-[13px] text-ink-900 placeholder:text-ink-400 outline-none focus:border-orange focus:ring-[3px] focus:ring-orange/15 transition-all resize-none w-full"
-      />
-
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <input
-          type="file"
-          multiple
-          accept="image/*,.pdf"
-          onChange={e => setFiles(e.target.files)}
-          className="text-[12px] text-ink-500 file:mr-2 file:py-[4px] file:px-3 file:rounded file:border file:border-[#ECECEC] file:text-[11.5px] file:font-medium file:text-ink-700 file:bg-white hover:file:bg-surface-hover file:cursor-pointer"
-        />
-
-        <div className="flex gap-2 flex-wrap">
-          {esResponsable && !isTerminado && (
-            <>
-              <button
-                onClick={() => setShowRechazo(true)}
-                disabled={loading}
-                className="bg-transparent border border-red-200 text-red-700 text-[12.5px] font-medium rounded px-[14px] py-[7px] transition-colors hover:bg-red-50 disabled:opacity-50"
-              >
-                Rechazar solicitud
-              </button>
-              <button
-                onClick={() => submitResponse('terminado_responsable')}
-                disabled={loading}
-                className="bg-transparent border border-[#ECECEC] text-ink-900 text-[12.5px] font-medium rounded px-[14px] py-[7px] transition-colors hover:bg-surface-hover disabled:opacity-50"
-              >
-                Marcar como resuelto
-              </button>
-            </>
-          )}
-
+    <div className="flex flex-col gap-3">
+      {/* Las acciones que cierran el ticket van FUERA de la caja de texto y
+          son un solo clic. Antes vivían dentro del textarea, y aunque nunca
+          exigieron escribir, la pantalla daba a entender que sí. */}
+      {esResponsable && !isTerminado && (
+        <div className="flex flex-wrap gap-2">
           <button
-            onClick={() => submitResponse('mensaje')}
-            disabled={loading || !contenido.trim()}
-            className="bg-orange hover:bg-orange-dark text-white text-[12.5px] font-medium rounded px-[14px] py-[7px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => submitResponse('terminado_responsable')}
+            disabled={loading}
+            className="flex items-center gap-1.5 bg-orange hover:bg-orange-dark text-white text-[12.5px] font-medium rounded px-[14px] py-[7px] transition-colors disabled:opacity-50"
           >
-            {loading ? 'Enviando...' : 'Responder'}
+            <Check size={13} />
+            {loading ? 'Guardando…' : 'Resolver'}
+          </button>
+          <button
+            onClick={() => setShowRechazo(true)}
+            disabled={loading}
+            className="bg-transparent border border-red-200 text-red-700 text-[12.5px] font-medium rounded px-[14px] py-[7px] transition-colors hover:bg-red-50 disabled:opacity-50"
+          >
+            Rechazar
           </button>
         </div>
-      </div>
+      )}
+
+      {/* Escribir es opcional: plegado por default para quien atiende, abierto
+          para quien reportó, que normalmente entra justo a eso. */}
+      <details open={!esResponsable} className="border border-[#ECECEC] rounded-md group">
+        <summary className="px-4 py-2.5 text-[12.5px] font-medium text-ink-500 cursor-pointer select-none hover:text-ink-900 transition-colors list-none flex items-center gap-1.5">
+          <span className="text-[10px] transition-transform group-open:rotate-90">▶</span>
+          Escribir un mensaje
+          <span className="text-ink-400 font-normal">(opcional)</span>
+        </summary>
+
+        <div className="px-4 pb-4 pt-1 flex flex-col gap-3">
+          <textarea
+            value={contenido}
+            onChange={e => setContenido(e.target.value)}
+            placeholder="Escribe tu respuesta..."
+            rows={4}
+            className="bg-white border border-[#ECECEC] rounded px-3 py-[7px] text-[13px] text-ink-900 placeholder:text-ink-400 outline-none focus:border-orange focus:ring-[3px] focus:ring-orange/15 transition-all resize-none w-full"
+          />
+
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <input
+              type="file"
+              multiple
+              accept="image/*,.pdf"
+              onChange={e => setFiles(e.target.files)}
+              className="text-[12px] text-ink-500 file:mr-2 file:py-[4px] file:px-3 file:rounded file:border file:border-[#ECECEC] file:text-[11.5px] file:font-medium file:text-ink-700 file:bg-white hover:file:bg-surface-hover file:cursor-pointer"
+            />
+
+            <button
+              onClick={() => submitResponse('mensaje')}
+              disabled={loading || !contenido.trim()}
+              className="bg-navy hover:bg-navy/90 text-white text-[12.5px] font-medium rounded px-[14px] py-[7px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Enviando...' : 'Responder'}
+            </button>
+          </div>
+        </div>
+      </details>
     </div>
   )
 }

@@ -82,6 +82,8 @@ export interface TicketWithStatus {
   prioridad: TicketPrioridad
   sla_min: number | null
   modalidad: TicketModalidad
+  /** Nombre del botón de pausa de este tipo. NULL = sin pausa. */
+  etiqueta_pausa: string | null
   levantado_por_nombre: string
   /** NULL si nadie lo ha tomado. */
   responsable_nombre: string | null
@@ -167,6 +169,8 @@ export interface Database {
           prioridad: TicketPrioridad
           sla_min: number | null
           modalidad: TicketModalidad
+          /** Botón de pausa de este tipo (TKT-044). NULL = sin pausa. */
+          etiqueta_pausa: string | null
         }
         Insert: {
           area_id: string
@@ -182,6 +186,7 @@ export interface Database {
           prioridad?: TicketPrioridad
           sla_min?: number | null
           modalidad?: TicketModalidad
+          etiqueta_pausa?: string | null
         }
         Update: {
           area_id?: string
@@ -197,6 +202,7 @@ export interface Database {
           prioridad?: TicketPrioridad
           sla_min?: number | null
           modalidad?: TicketModalidad
+          etiqueta_pausa?: string | null
         }
         Relationships: []
       }
@@ -836,6 +842,7 @@ export interface Database {
           prioridad: TicketPrioridad
           sla_min: number | null
           modalidad: TicketModalidad
+          etiqueta_pausa: string | null
           levantado_por_nombre: string
           responsable_nombre: string | null
           ultima_respuesta_at: string | null

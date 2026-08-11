@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Hand, Undo2 } from 'lucide-react'
+import { Hand, Undo2, Pause, Play } from 'lucide-react'
 import { cambiarEstado, reasignarTicket, tomarTicket } from '@/lib/actions/tickets'
 import type { TicketStatus } from '@/lib/supabase/types'
 
@@ -19,39 +19,35 @@ interface Props {
   areaNombre: string
   /** NULL = sigue en la cola del área. */
   responsableId: string | null
-  /** Quien mira pertenece al área que atiende (o es admin). */
+  /** Quien mira pertenece al área que atiende, la supervisa, o es admin. */
   puedeTomar: boolean
   /** Quien mira es el responsable actual (o admin). */
   puedeMoverEstado: boolean
   /** Gente del área (sin el responsable actual), para "Pasar a…". */
   companeros: CompaneroArea[]
+  /**
+   * Nombre del botón de pausa para este tipo de problema, del catálogo.
+   * NULL = este tipo no tiene pausa; el flujo es tomar → resolver.
+   */
+  etiquetaPausa: string | null
 }
 
-// Solo los pasos intermedios: terminar, rechazar y confirmar el cierre ya
-// viven en el composer, donde el mensaje al solicitante va junto con la acción.
-const PASOS: { estado: TicketStatus; label: string; ayuda: string }[] = [
-  {
-    estado: 'en_revision',
-    label: 'En revisión',
-    ayuda: 'Lo estás atendiendo ahora.',
-  },
-  {
-    estado: 'programado',
-    label: 'Programado',
-    ayuda: 'Validado; entra en la siguiente tanda. Pausa el reloj del SLA.',
-  },
-]
-
 export default function ControlEstado({
-  ticketId, numero, estado, areaNombre, responsableId, puedeTomar, puedeMoverEstado, companeros,
+  ticketId, numero, estado, areaNombre, responsableId,
+  puedeTomar, puedeMoverEstado, companeros, etiquetaPausa,
 }: Props) {
   const router = useRouter()
   const [pendiente, startTransition] = useTransition()
   const [accion, setAccion] = useState<string | null>(null)
 
   const sinTomar = responsableId === null
+  const pausado = estado === 'programado'
 
-  function ejecutar(nombre: string, fn: () => Promise<{ ok: true } | { ok: false; error: string }>, exito: string) {
+  function ejecutar(
+    nombre: string,
+    fn: () => Promise<{ ok: true } | { ok: false; error: string }>,
+    exito: string,
+  ) {
     setAccion(nombre)
     startTransition(async () => {
       const res = await fn()
@@ -95,36 +91,48 @@ export default function ControlEstado({
 
   if (!puedeMoverEstado) return null
 
-  const disponibles = PASOS.filter(p => p.estado !== estado)
-
   return (
     <div className="mx-5 md:mx-9 mb-5 border border-[#ECECEC] rounded-md px-4 py-3 flex flex-col gap-3">
-      {disponibles.length > 0 && (
-        <div>
-          <p className="text-[11.5px] text-ink-400 mb-2">Mover el estado</p>
-          <div className="flex flex-wrap items-center gap-2">
-            {disponibles.map(p => (
-              <button
-                key={p.estado}
-                type="button"
-                title={p.ayuda}
-                onClick={() => ejecutar(
-                  p.estado,
-                  () => cambiarEstado(ticketId, p.estado, undefined, numero),
-                  `Ticket #${numero}: ${p.label}`,
-                )}
-                disabled={pendiente}
-                className="text-[12.5px] font-medium rounded border border-[#ECECEC] px-[14px] py-[6px] text-ink-900 hover:bg-surface-hover hover:border-orange transition-colors disabled:opacity-50"
-              >
-                {accion === p.estado ? 'Guardando…' : p.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Pausa: solo si este tipo de problema la necesita. Un estado que
+            nadie va a filtrar no merece existir — para lo demás está el hilo. */}
+        {etiquetaPausa && !pausado && (
+          <button
+            type="button"
+            title="Detiene el reloj del SLA: la demora deja de contar contra el área."
+            onClick={() => ejecutar(
+              'pausar',
+              () => cambiarEstado(ticketId, 'programado', undefined, numero),
+              `Ticket #${numero}: ${etiquetaPausa}`,
+            )}
+            disabled={pendiente}
+            className="flex items-center gap-1.5 text-[12.5px] font-medium rounded border border-[#ECECEC] px-[14px] py-[6px] text-ink-900 hover:bg-surface-hover hover:border-orange transition-colors disabled:opacity-50"
+          >
+            <Pause size={12} />
+            {accion === 'pausar' ? 'Guardando…' : etiquetaPausa}
+          </button>
+        )}
+
+        {pausado && (
+          <button
+            type="button"
+            title="Vuelve a poner el reloj en marcha."
+            onClick={() => ejecutar(
+              'reanudar',
+              () => cambiarEstado(ticketId, 'en_revision', undefined, numero),
+              `Ticket #${numero} reanudado`,
+            )}
+            disabled={pendiente}
+            className="flex items-center gap-1.5 text-[12.5px] font-medium rounded border border-[#ECECEC] px-[14px] py-[6px] text-ink-900 hover:bg-surface-hover hover:border-orange transition-colors disabled:opacity-50"
+          >
+            <Play size={12} />
+            {accion === 'reanudar' ? 'Guardando…' : 'Reanudar'}
+          </button>
+        )}
+      </div>
 
       {/* Reasignación: el ticket no es de nadie de por vida. */}
-      <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[#F5F5F5]">
+      <div className={`flex flex-wrap items-center gap-2 ${etiquetaPausa || pausado ? 'pt-2 border-t border-[#F5F5F5]' : ''}`}>
         <button
           type="button"
           title="El ticket vuelve a la cola para que otra persona lo tome."

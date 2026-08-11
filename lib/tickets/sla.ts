@@ -25,6 +25,8 @@ interface TicketSlaInput {
   status: string
   sla_min: number | null
   created_at: string
+  /** Cómo llama este tipo de problema a su pausa (TKT-044). */
+  etiqueta_pausa?: string | null
 }
 
 /** "40 min", "1 h 5 min", "2 h". */
@@ -52,7 +54,7 @@ export function calcularSla(t: TicketSlaInput, ahora: number): Sla {
   }
   if (!RELOJ_CORRIENDO.has(t.status)) {
     const etiqueta = t.status === 'programado'
-      ? 'En espera de la siguiente tanda'
+      ? (t.etiqueta_pausa ?? 'En pausa')
       : `SLA ${formatoDuracion(t.sla_min)}`
     return { estado: 'no_aplica', minutos: null, etiqueta }
   }

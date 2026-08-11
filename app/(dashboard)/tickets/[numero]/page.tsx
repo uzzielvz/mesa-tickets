@@ -132,17 +132,20 @@ export default async function TicketDetailPage({ params }: { params: { numero: s
   // La RPC lo revalida del lado del servidor; esto solo decide qué se pinta.
   const { data: perfil } = await supabase
     .from('profiles')
-    .select('area_id, rol')
+    .select('area_id, rol, supervisa_tickets')
     .eq('id', user.id)
     .single()
-  const p = perfil as { area_id: string | null; rol: string } | null
+  const p = perfil as { area_id: string | null; rol: string; supervisa_tickets: boolean } | null
   const esAdmin = p?.rol === 'admin'
-  const puedeTomar = esAdmin || (p?.area_id != null && p.area_id === ticket.area_id)
+  // Quien supervisa la mesa puede tomar de cualquier cola (TKT-043): ver una
+  // cola atascada sin poder destrabarla no sirve de nada.
+  const supervisa = esAdmin || p?.supervisa_tickets === true
+  const puedeTomar = supervisa || (p?.area_id != null && p.area_id === ticket.area_id)
 
   // Gente del área para "Pasar a…". Solo hace falta si quien mira puede
   // reasignar; para el resto es una query gratis que no se usa.
   let companeros: { id: string; nombre: string }[] = []
-  if ((esResponsable || esAdmin) && !isClosed) {
+  if ((esResponsable || supervisa) && !isClosed) {
     const { data: gente } = await supabase
       .from('profiles')
       .select('id, nombre_completo')
@@ -220,8 +223,9 @@ export default async function TicketDetailPage({ params }: { params: { numero: s
           areaNombre={ticket.area_nombre}
           responsableId={ticket.responsable_id}
           puedeTomar={puedeTomar}
-          puedeMoverEstado={esResponsable || esAdmin}
+          puedeMoverEstado={esResponsable || supervisa}
           companeros={companeros}
+          etiquetaPausa={ticket.etiqueta_pausa}
         />
       )}
 

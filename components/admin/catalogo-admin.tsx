@@ -13,7 +13,7 @@ interface CatalogItem {
   requiere_grupo: boolean; requiere_cliente: boolean
   requiere_ciclo: boolean; requiere_evidencia: boolean; activo: boolean
   campos: ProblemField[] | null
-  prioridad: TicketPrioridad; sla_min: number | null; modalidad: TicketModalidad
+  prioridad: TicketPrioridad; sla_min: number | null; modalidad: TicketModalidad; etiqueta_pausa: string | null
 }
 interface Area { id: string; nombre: string }
 interface Profile { id: string; nombre_completo: string }
@@ -30,6 +30,7 @@ interface FormState {
   campos: ProblemField[]
   prioridad: TicketPrioridad
   sla_min: string
+  etiqueta_pausa: string
   modalidad: TicketModalidad
 }
 
@@ -42,6 +43,7 @@ const BLANK: FormState = {
   campos: [],
   prioridad: 'media',
   sla_min: '',
+  etiqueta_pausa: '',
   modalidad: 'ambas',
 }
 
@@ -62,6 +64,7 @@ export default function CatalogoAdmin({ catalog, areas, profiles }: { catalog: C
       campos: item.campos ?? [],
       prioridad: item.prioridad,
       sla_min: item.sla_min?.toString() ?? '',
+      etiqueta_pausa: item.etiqueta_pausa ?? '',
       modalidad: item.modalidad,
     })
     setEditing(item.id)
@@ -106,6 +109,7 @@ export default function CatalogoAdmin({ catalog, areas, profiles }: { catalog: C
       campos: form.campos,
       prioridad: form.prioridad,
       sla_min: form.sla_min.trim() === '' ? null : Number(form.sla_min),
+      etiqueta_pausa: form.etiqueta_pausa.trim() === '' ? null : form.etiqueta_pausa.trim(),
       modalidad: form.modalidad,
     }
     const { error } = editing
@@ -196,6 +200,24 @@ export default function CatalogoAdmin({ catalog, areas, profiles }: { catalog: C
                 <option value="ambas">Ambas</option>
               </select>
             </div>
+          </div>
+
+          {/* Pausa opcional del flujo (TKT-044). Vacío = el ticket va directo
+              de tomar a resolver, que es lo que quieren los tipos operativos. */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] font-medium text-ink-700">Botón de pausa</label>
+            <input
+              type="text"
+              value={form.etiqueta_pausa}
+              onChange={e => setForm(f => ({ ...f, etiqueta_pausa: e.target.value }))}
+              placeholder="Vacío = sin pausa (tomar → resolver)"
+              className={inputClass}
+            />
+            <p className="text-[11.5px] text-ink-400">
+              Cómo se llama la espera en este tipo: «Entra en el siguiente corte»,
+              «Esperando al usuario»… Detiene el reloj del SLA. Déjalo vacío si el
+              problema se resuelve de una sola vez.
+            </p>
           </div>
 
           <FieldsBuilder
