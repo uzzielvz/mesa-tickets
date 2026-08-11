@@ -103,14 +103,27 @@ async function emailsDelArea(supabase: Supa, areaId: string, excluir: string[]):
     .map(p => p.email as string)
 }
 
+/** Nombre visible del remitente. Las notificaciones son de la plataforma. */
+const REMITENTE = 'Mesa de Ayuda CrediFlexi'
+
 async function enviar(supabase: Supa, to: string[], correo: Correo): Promise<void> {
   if (to.length === 0) return
   try {
     // La credencial viaja cifrada; solo el servidor tiene la llave.
-    const { data: cifrado } = await supabase.rpc('tkt_credencial_google')
-    if (!cifrado) return // sin cuenta conectada: silencio, no error
-    const accessToken = await accessTokenDesdeRefresh(descifrar(cifrado as unknown as string))
-    await enviarCorreo(accessToken, { to, subject: correo.subject, html: correo.html })
+    const { data } = await supabase.rpc('tkt_credencial_google')
+    const cred = (data as unknown as { refresh_token: string; email: string | null }[] | null)?.[0]
+    if (!cred?.refresh_token) return // sin cuenta conectada: silencio, no error
+
+    const accessToken = await accessTokenDesdeRefresh(descifrar(cred.refresh_token))
+    // Con dirección conocida se firma el From y el destinatario ve
+    // "Mesa de Ayuda CrediFlexi" en vez del nombre del titular de la cuenta.
+    const from = cred.email ? `${REMITENTE} <${cred.email}>` : undefined
+    await enviarCorreo(accessToken, {
+      to,
+      subject: correo.subject,
+      html: correo.html,
+      ...(from ? { from } : {}),
+    })
   } catch (e) {
     console.error('[tickets] notificación no enviada:', e)
   }

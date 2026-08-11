@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { intercambiarCode } from '@/lib/google/client'
+import { intercambiarCode, correoDeLaCuenta } from '@/lib/google/client'
 import { cifrar } from '@/lib/google/crypto'
 
 // Callback del OAuth de Google: intercambia el code, cifra el refresh_token y
@@ -39,6 +39,24 @@ export async function GET(req: NextRequest) {
 
     const uso = usoCookie
 
+    // Quién autorizó de verdad. Google es la fuente de verdad, no lo que
+    // diga el usuario.
+    let emailCuenta: string | null = null
+    try {
+      emailCuenta = await correoDeLaCuenta(tokens.access_token)
+    } catch {
+      emailCuenta = null
+    }
+
+    // El remitente de la mesa de tickets es una identidad de la PLATAFORMA,
+    // no la cuenta de quien esté configurando. Se valida aquí, en el punto de
+    // escritura: aunque alguien con permisos abra ?uso=tickets, si no autorizó
+    // con la cuenta de plataforma no se guarda como emisora de tickets.
+    const remitenteTickets = (process.env.TICKETS_SENDER_EMAIL ?? '').toLowerCase().trim()
+    if (uso === 'tickets' && remitenteTickets && emailCuenta !== remitenteTickets) {
+      return volver('google_error=cuenta_no_autorizada')
+    }
+
     // El índice único por `uso` impide dos credenciales para el mismo módulo:
     // se libera la anterior antes de guardar la nueva.
     if (uso !== 'ambos') {
@@ -57,6 +75,7 @@ export async function GET(req: NextRequest) {
           refresh_token: cifrar(tokens.refresh_token),
           scope: tokens.scope ?? null,
           uso,
+          email: emailCuenta,
           actualizado_at: new Date().toISOString(),
         },
         { onConflict: 'profile_id' },

@@ -776,6 +776,8 @@ export interface Database {
           scope: string | null
           /** 'reclutamiento' | 'tickets' | 'ambos' (comodín) — TKT-046. */
           uso: string
+          /** Dirección de la cuenta que autorizó (TKT-047). */
+          email: string | null
           actualizado_at: string
         }
         Insert: {
@@ -783,12 +785,14 @@ export interface Database {
           refresh_token: string
           scope?: string | null
           uso?: string
+          email?: string | null
           actualizado_at?: string
         }
         Update: {
           refresh_token?: string
           scope?: string | null
           uso?: string
+          email?: string | null
           actualizado_at?: string
         }
         Relationships: []
@@ -893,7 +897,7 @@ export interface Database {
       // servidor). Una cuenta emisora por módulo; `ambos` es el comodín.
       tkt_credencial_google: {
         Args: Record<string, never>
-        Returns: string | null
+        Returns: { refresh_token: string; email: string | null }[]
       }
       rec_credencial_google: {
         Args: Record<string, never>

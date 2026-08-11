@@ -126,6 +126,16 @@ export async function crearEventoMeet(accessToken: string, ev: EventoMeetInput):
 
 // ── Gmail ───────────────────────────────────────────────────────────────────
 
+/** Dirección de la cuenta autenticada. Sirve para validar quién autorizó. */
+export async function correoDeLaCuenta(accessToken: string): Promise<string> {
+  const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/profile', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  if (!res.ok) throw new Error(`Gmail profile falló: ${res.status} ${await res.text()}`)
+  const data = await res.json()
+  return String(data.emailAddress ?? '').toLowerCase()
+}
+
 export interface CorreoAdjunto {
   filename: string
   mimeType: string
@@ -138,6 +148,13 @@ export interface CorreoInput {
   subject: string
   html: string
   adjuntos?: CorreoAdjunto[]
+  /**
+   * Header `From` completo, p.ej. `Mesa de Ayuda <plataformas@…>`. Gmail no
+   * deja mentir sobre el buzón: la dirección debe ser la de la cuenta
+   * autenticada o un alias verificado suyo. Sin esto, el destinatario ve el
+   * nombre del titular de la cuenta.
+   */
+  from?: string
 }
 
 export interface CorreoResult {
@@ -159,6 +176,7 @@ export async function enviarCorreo(accessToken: string, correo: CorreoInput): Pr
   if (adjuntos.length === 0) {
     // Correo simple: solo cuerpo HTML.
     mime = [
+      ...(correo.from ? [`From: ${correo.from}`] : []),
       `To: ${correo.to.join(', ')}`,
       ...ccHeader,
       `Subject: ${encodeSubject(correo.subject)}`,
@@ -172,6 +190,7 @@ export async function enviarCorreo(accessToken: string, correo: CorreoInput): Pr
     // multipart/mixed: cuerpo HTML + uno o más adjuntos (p.ej. los CV).
     const boundary = `mea_${crypto.randomUUID()}`
     const partes: string[] = [
+      ...(correo.from ? [`From: ${correo.from}`] : []),
       `To: ${correo.to.join(', ')}`,
       ...ccHeader,
       `Subject: ${encodeSubject(correo.subject)}`,
