@@ -100,16 +100,12 @@ export async function agendarSesion(raw: unknown): Promise<Result<{
 
   // 1) Credencial de Google (la cuenta emisora más reciente).
   const { data: cred } = await supabase
-    .from('rec_credenciales_google')
-    .select('refresh_token')
-    .order('actualizado_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+    .rpc('rec_credencial_google')
   if (!cred) return { ok: false, error: 'Conecta una cuenta de Google antes de agendar.' }
 
   let accessToken: string
   try {
-    accessToken = await accessTokenDesdeRefresh(descifrar((cred as { refresh_token: string }).refresh_token))
+    accessToken = await accessTokenDesdeRefresh(descifrar(cred as unknown as string))
   } catch {
     return { ok: false, error: 'La conexión con Google expiró. Reconecta la cuenta e intenta de nuevo.' }
   }

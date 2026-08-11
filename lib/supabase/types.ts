@@ -774,17 +774,21 @@ export interface Database {
           profile_id: string
           refresh_token: string
           scope: string | null
+          /** 'reclutamiento' | 'tickets' | 'ambos' (comodín) — TKT-046. */
+          uso: string
           actualizado_at: string
         }
         Insert: {
           profile_id: string
           refresh_token: string
           scope?: string | null
+          uso?: string
           actualizado_at?: string
         }
         Update: {
           refresh_token?: string
           scope?: string | null
+          uso?: string
           actualizado_at?: string
         }
         Relationships: []
@@ -885,9 +889,13 @@ export interface Database {
         }
         Returns: undefined
       }
-      // TKT-039: refresh_token de Google CIFRADO (la llave vive solo en el
-      // servidor). Para que cualquier usuario dispare notificaciones.
+      // TKT-039/046: refresh_token de Google CIFRADO (la llave vive solo en el
+      // servidor). Una cuenta emisora por módulo; `ambos` es el comodín.
       tkt_credencial_google: {
+        Args: Record<string, never>
+        Returns: string | null
+      }
+      rec_credencial_google: {
         Args: Record<string, never>
         Returns: string | null
       }

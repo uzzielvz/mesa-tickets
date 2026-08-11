@@ -8,8 +8,12 @@ import { cifrar } from '@/lib/google/crypto'
 // emisora de eventos/correos (reconectable en cualquier momento).
 
 export async function GET(req: NextRequest) {
+  // Se vuelve al módulo desde el que se pidió conectar, no siempre a
+  // reclutamiento: la cuenta emisora ya es por módulo (TKT-046).
+  const usoCookie = req.cookies.get('google_oauth_uso')?.value ?? 'ambos'
+  const destino = usoCookie === 'tickets' ? '/tickets/area' : '/reclutamiento/agendar'
   const volver = (query: string) =>
-    NextResponse.redirect(new URL(`/reclutamiento/agendar?${query}`, req.url))
+    NextResponse.redirect(new URL(`${destino}?${query}`, req.url))
 
   const url = new URL(req.url)
   const code = url.searchParams.get('code')
@@ -33,6 +37,18 @@ export async function GET(req: NextRequest) {
       return volver('google_error=sin_refresh_token')
     }
 
+    const uso = usoCookie
+
+    // El índice único por `uso` impide dos credenciales para el mismo módulo:
+    // se libera la anterior antes de guardar la nueva.
+    if (uso !== 'ambos') {
+      await supabase
+        .from('rec_credenciales_google')
+        .update({ uso: 'ambos' })
+        .eq('uso', uso)
+        .neq('profile_id', user.id)
+    }
+
     const { error } = await supabase
       .from('rec_credenciales_google')
       .upsert(
@@ -40,6 +56,7 @@ export async function GET(req: NextRequest) {
           profile_id: user.id,
           refresh_token: cifrar(tokens.refresh_token),
           scope: tokens.scope ?? null,
+          uso,
           actualizado_at: new Date().toISOString(),
         },
         { onConflict: 'profile_id' },

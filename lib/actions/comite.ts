@@ -212,16 +212,12 @@ export async function pasarAFinalDG(raw: unknown): Promise<Result<{ meetUrl: str
 
   // 4) Credencial de Google.
   const { data: cred } = await supabase
-    .from('rec_credenciales_google')
-    .select('refresh_token')
-    .order('actualizado_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+    .rpc('rec_credencial_google')
   if (!cred) return { ok: false, error: 'Conecta una cuenta de Google antes de pasar con la DG.' }
 
   let accessToken: string
   try {
-    accessToken = await accessTokenDesdeRefresh(descifrar((cred as { refresh_token: string }).refresh_token))
+    accessToken = await accessTokenDesdeRefresh(descifrar(cred as unknown as string))
   } catch {
     return { ok: false, error: 'La conexión con Google expiró. Reconecta la cuenta e intenta de nuevo.' }
   }
@@ -355,18 +351,14 @@ export async function contratarCandidato(
   const tpl = tplData as { asunto: string; cuerpo: string } | null
   if (!tpl) return { ok: false, error: 'Falta la plantilla de bienvenida (bienvenida_contratacion).' }
 
-  // 3) Credencial de Google (cuenta emisora más reciente).
+  // 3) Credencial de Google (la del módulo; ver TKT-046).
   const { data: cred } = await supabase
-    .from('rec_credenciales_google')
-    .select('refresh_token')
-    .order('actualizado_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+    .rpc('rec_credencial_google')
   if (!cred) return { ok: false, error: 'Conecta una cuenta de Google antes de contratar.' }
 
   let accessToken: string
   try {
-    accessToken = await accessTokenDesdeRefresh(descifrar((cred as { refresh_token: string }).refresh_token))
+    accessToken = await accessTokenDesdeRefresh(descifrar(cred as unknown as string))
   } catch {
     return { ok: false, error: 'La conexión con Google expiró. Reconecta la cuenta e intenta de nuevo.' }
   }
