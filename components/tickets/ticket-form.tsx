@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
+import { notificarTicketNuevo } from '@/lib/actions/tickets'
 import type { ProblemField, TicketDatos, TicketPrioridad, TicketModalidad } from '@/lib/supabase/types'
 
 interface Area { id: string; nombre: string }
@@ -274,6 +275,10 @@ export default function TicketForm({ areas, catalog, userId, initialAreaId, init
         toast.error(`No se subieron: ${fallidos.join(', ')}`)
       }
     }
+
+    // Fire-and-forget: el correo al área no puede retrasar la navegación
+    // ni convertir un envío fallido en un ticket "fallido".
+    void notificarTicketNuevo(ticket.id).catch(() => {})
 
     toast.success(`Ticket #${ticket.numero} creado`)
     router.push(`/tickets/${ticket.numero}`)

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
+import { notificarRespuesta } from '@/lib/actions/tickets'
 
 interface Props {
   ticketId: string
@@ -95,6 +96,9 @@ export default function ResponseComposer({
       rechazo_responsable: 'Solicitud rechazada',
     }
     toast.success(toastMsg[tipo])
+
+    // Avisar a la contraparte del hilo (best-effort, sin bloquear la UI).
+    void notificarRespuesta(ticketId, tipo).catch(() => {})
 
     setContenido('')
     setFiles(null)

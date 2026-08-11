@@ -284,6 +284,23 @@ export interface Database {
         Update: never
         Relationships: []
       }
+      // Bitácora del ticket (TKT-038). Solo escriben los triggers.
+      ticket_historial: {
+        Row: {
+          id: string
+          ticket_id: string
+          actor_id: string | null
+          evento: 'creado' | 'tomado' | 'devuelto' | 'reasignado' | 'cambio_estado'
+          de_estado: TicketStatus | null
+          a_estado: TicketStatus | null
+          de_responsable_id: string | null
+          a_responsable_id: string | null
+          created_at: string
+        }
+        Insert: never
+        Update: never
+        Relationships: []
+      }
       acreditados: {
         Row: {
           id: string
@@ -856,6 +873,12 @@ export interface Database {
           p_nuevo_responsable?: string | null
         }
         Returns: undefined
+      }
+      // TKT-039: refresh_token de Google CIFRADO (la llave vive solo en el
+      // servidor). Para que cualquier usuario dispare notificaciones.
+      tkt_credencial_google: {
+        Args: Record<string, never>
+        Returns: string | null
       }
       rec_transicion_etapa: {
         Args: {

@@ -2,7 +2,15 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import type { TicketStatus } from '@/lib/supabase/types'
+import { descifrar } from '@/lib/google/crypto'
+import { accessTokenDesdeRefresh, enviarCorreo } from '@/lib/google/client'
+import {
+  correoCerrado, correoDevuelto, correoProgramado, correoRechazado,
+  correoRespuesta, correoResuelto, correoTePasaron, correoTicketNuevo,
+  correoTomado, type Correo, type TicketCorreoInfo,
+} from '@/lib/tickets/correos'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database, TicketStatus } from '@/lib/supabase/types'
 
 type Result = { ok: true } | { ok: false; error: string }
 
@@ -32,6 +40,124 @@ function revalidar(numero?: number) {
   if (numero != null) revalidatePath(`/tickets/${numero}`)
 }
 
+// ─── Notificaciones por correo ─────────────────────────────────────────────
+// Best-effort SIEMPRE: un Gmail caído jamás bloquea tomar, mover o crear un
+// ticket. El error se registra en el log del servidor y la vida sigue.
+
+type Supa = SupabaseClient<Database>
+
+interface TicketNotif extends TicketCorreoInfo {
+  id: string
+  area_id: string
+  levantado_por_id: string
+  responsable_id: string | null
+  responsable_nombre: string | null
+}
+
+async function ticketParaNotificar(supabase: Supa, ticketId: string): Promise<TicketNotif | null> {
+  const { data } = await supabase
+    .from('tickets_with_status')
+    .select('id, numero, area_id, problema_nombre, area_nombre, levantado_por_id, levantado_por_nombre, responsable_id, responsable_nombre, prioridad, sla_min')
+    .eq('id', ticketId)
+    .single()
+  if (!data) return null
+  const t = data as unknown as {
+    id: string; numero: number; area_id: string; problema_nombre: string
+    area_nombre: string; levantado_por_id: string; levantado_por_nombre: string
+    responsable_id: string | null; responsable_nombre: string | null
+    prioridad: TicketCorreoInfo['prioridad']; sla_min: number | null
+  }
+  return {
+    id: t.id,
+    numero: t.numero,
+    area_id: t.area_id,
+    problema: t.problema_nombre,
+    area: t.area_nombre,
+    levantadoPor: t.levantado_por_nombre,
+    levantado_por_id: t.levantado_por_id,
+    responsable_id: t.responsable_id,
+    responsable_nombre: t.responsable_nombre,
+    prioridad: t.prioridad,
+    slaMin: t.sla_min,
+  }
+}
+
+async function emailDe(supabase: Supa, profileId: string): Promise<string | null> {
+  const { data } = await supabase.from('profiles').select('email').eq('id', profileId).single()
+  return (data as { email: string | null } | null)?.email ?? null
+}
+
+/** Emails del área, excluyendo a quien no debe recibir (p.ej. el autor). */
+async function emailsDelArea(supabase: Supa, areaId: string, excluir: string[]): Promise<string[]> {
+  const { data } = await supabase
+    .from('profiles')
+    .select('id, email')
+    .eq('area_id', areaId)
+  return ((data ?? []) as { id: string; email: string | null }[])
+    .filter(p => p.email && !excluir.includes(p.id))
+    .map(p => p.email as string)
+}
+
+async function enviar(supabase: Supa, to: string[], correo: Correo): Promise<void> {
+  if (to.length === 0) return
+  try {
+    // La credencial viaja cifrada; solo el servidor tiene la llave.
+    const { data: cifrado } = await supabase.rpc('tkt_credencial_google')
+    if (!cifrado) return // sin cuenta conectada: silencio, no error
+    const accessToken = await accessTokenDesdeRefresh(descifrar(cifrado as unknown as string))
+    await enviarCorreo(accessToken, { to, subject: correo.subject, html: correo.html })
+  } catch (e) {
+    console.error('[tickets] notificación no enviada:', e)
+  }
+}
+
+/**
+ * Llamada por el form tras crear el ticket (fire-and-forget desde el
+ * cliente). Avisa a toda el área que hay un ticket nuevo sin tomar.
+ */
+export async function notificarTicketNuevo(ticketId: string): Promise<void> {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const t = await ticketParaNotificar(supabase, ticketId)
+  if (!t) return
+  const destinos = await emailsDelArea(supabase, t.area_id, [t.levantado_por_id])
+  await enviar(supabase, destinos, correoTicketNuevo(t))
+}
+
+/**
+ * Llamada por el composer tras insertar una respuesta. Avisa a la
+ * contraparte del hilo; el tipo decide el texto.
+ */
+export async function notificarRespuesta(
+  ticketId: string,
+  tipo: 'mensaje' | 'terminado_responsable' | 'terminado_usuario' | 'rechazo_responsable',
+): Promise<void> {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const t = await ticketParaNotificar(supabase, ticketId)
+  if (!t) return
+
+  const soyLevantador = user.id === t.levantado_por_id
+  // La contraparte: si escribió el solicitante, avisar al responsable y viceversa.
+  const destinoId = soyLevantador ? t.responsable_id : t.levantado_por_id
+  if (!destinoId || destinoId === user.id) return
+  const email = await emailDe(supabase, destinoId)
+  if (!email) return
+
+  const autor = soyLevantador ? t.levantadoPor : (t.responsable_nombre ?? t.area)
+  const correo =
+    tipo === 'terminado_responsable' ? correoResuelto(t, autor)
+    : tipo === 'rechazo_responsable' ? correoRechazado(t)
+    : tipo === 'terminado_usuario' ? correoCerrado(t)
+    : correoRespuesta(t, autor)
+
+  await enviar(supabase, [email], correo)
+}
+
 /** Self-assign: alguien del área saca el ticket de la cola. */
 export async function tomarTicket(ticketId: string, numero?: number): Promise<Result> {
   const supabase = createClient()
@@ -40,6 +166,13 @@ export async function tomarTicket(ticketId: string, numero?: number): Promise<Re
 
   const { error } = await supabase.rpc('tkt_tomar_ticket', { p_ticket_id: ticketId })
   if (error) return { ok: false, error: traducir(error.message, 'No se pudo tomar el ticket.') }
+
+  // Avisar al solicitante que su ticket ya tiene manos (best-effort).
+  const t = await ticketParaNotificar(supabase, ticketId)
+  if (t && t.levantado_por_id !== user.id) {
+    const email = await emailDe(supabase, t.levantado_por_id)
+    if (email) await enviar(supabase, [email], correoTomado(t, t.responsable_nombre ?? 'Alguien del área'))
+  }
 
   revalidar(numero)
   return { ok: true }
@@ -63,6 +196,17 @@ export async function cambiarEstado(
   })
   if (error) return { ok: false, error: traducir(error.message, 'No se pudo cambiar el estado.') }
 
+  // "Programado" es una promesa al solicitante: avísale. Los demás pasos por
+  // aquí (en_revision) no ameritan correo; resuelto/rechazado avisan desde el
+  // composer, que es su camino real.
+  if (estado === 'programado') {
+    const t = await ticketParaNotificar(supabase, ticketId)
+    if (t && t.levantado_por_id !== user.id) {
+      const email = await emailDe(supabase, t.levantado_por_id)
+      if (email) await enviar(supabase, [email], correoProgramado(t))
+    }
+  }
+
   revalidar(numero)
   return { ok: true }
 }
@@ -81,11 +225,28 @@ export async function reasignarTicket(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'No autenticado' }
 
+  // El nombre de quien suelta/pasa, antes de que el ticket cambie de manos.
+  const antes = await ticketParaNotificar(supabase, ticketId)
+
   const { error } = await supabase.rpc('tkt_reasignar_ticket', {
     p_ticket_id: ticketId,
     p_nuevo_responsable: nuevoResponsableId,
   })
   if (error) return { ok: false, error: traducir(error.message, 'No se pudo reasignar el ticket.') }
+
+  const t = await ticketParaNotificar(supabase, ticketId)
+  if (t) {
+    if (nuevoResponsableId === null) {
+      // Volvió a la cola: toda el área debe enterarse o el ticket se pudre.
+      const destinos = await emailsDelArea(supabase, t.area_id, [user.id, t.levantado_por_id])
+      await enviar(supabase, destinos, correoDevuelto(t))
+    } else if (nuevoResponsableId !== user.id) {
+      const email = await emailDe(supabase, nuevoResponsableId)
+      if (email) {
+        await enviar(supabase, [email], correoTePasaron(t, antes?.responsable_nombre ?? 'Un compañero'))
+      }
+    }
+  }
 
   revalidar(numero)
   return { ok: true }
