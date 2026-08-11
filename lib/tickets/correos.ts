@@ -111,13 +111,41 @@ export function correoTomado(t: TicketCorreoInfo, responsable: string): Correo {
   }
 }
 
-/** Al solicitante: tu ticket quedó programado. */
-export function correoProgramado(t: TicketCorreoInfo): Correo {
+/**
+ * Al solicitante: el ticket entró en pausa. El texto lo pone la ETIQUETA del
+ * tipo, no una frase fija: la misma pausa se llama "Entra en el siguiente
+ * corte" en Tesorería y "Esperando al usuario" en Call Center, y decirle
+ * "no necesitas hacer nada" a quien sí tiene que contestar es peor que no
+ * mandar nada.
+ */
+export function correoPausa(t: TicketCorreoInfo, etiqueta: string): Correo {
   return {
-    subject: `Tu ticket #${t.numero} quedó programado`,
+    subject: `Tu ticket #${t.numero}: ${etiqueta.toLowerCase()}`,
     html: envolver(
-      'Tu solicitud fue validada',
-      ['Se aplicará en la siguiente tanda o corte. No necesitas hacer nada más por ahora.'],
+      etiqueta,
+      [
+        `<b>${t.problema}</b> pasó a «${etiqueta}».`,
+        'Ábrelo para ver el detalle y si necesitan algo de tu parte.',
+      ],
+      t.numero,
+    ),
+  }
+}
+
+/**
+ * Al solicitante cuando el ticket se cerró SIN pedirle confirmación: los
+ * presenciales cierran directo porque el técnico estuvo ahí y el usuario ya
+ * vio que quedó. Aquí no se le pide ninguna acción.
+ */
+export function correoResueltoDirecto(t: TicketCorreoInfo, responsable: string): Correo {
+  return {
+    subject: `Tu ticket #${t.numero} quedó resuelto`,
+    html: envolver(
+      `${responsable} resolvió tu ticket`,
+      [
+        `<b>${t.problema}</b> quedó atendido y el ticket se cerró.`,
+        'Si el problema vuelve, levanta uno nuevo y quedará ligado al historial del área.',
+      ],
       t.numero,
     ),
   }

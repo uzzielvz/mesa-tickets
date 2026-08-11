@@ -5,9 +5,9 @@ import { createClient } from '@/lib/supabase/server'
 import { descifrar } from '@/lib/google/crypto'
 import { accessTokenDesdeRefresh, enviarCorreo } from '@/lib/google/client'
 import {
-  correoCerrado, correoDevuelto, correoProgramado, correoRechazado,
-  correoRespuesta, correoResuelto, correoTePasaron, correoTicketNuevo,
-  correoTomado, type Correo, type TicketCorreoInfo,
+  correoCerrado, correoDevuelto, correoPausa, correoRechazado,
+  correoRespuesta, correoResuelto, correoResueltoDirecto, correoTePasaron,
+  correoTicketNuevo, correoTomado, type Correo, type TicketCorreoInfo,
 } from '@/lib/tickets/correos'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database, TicketStatus } from '@/lib/supabase/types'
@@ -52,12 +52,14 @@ interface TicketNotif extends TicketCorreoInfo {
   levantado_por_id: string
   responsable_id: string | null
   responsable_nombre: string | null
+  estado: string
+  etiqueta_pausa: string | null
 }
 
 async function ticketParaNotificar(supabase: Supa, ticketId: string): Promise<TicketNotif | null> {
   const { data } = await supabase
     .from('tickets_with_status')
-    .select('id, numero, area_id, problema_nombre, area_nombre, levantado_por_id, levantado_por_nombre, responsable_id, responsable_nombre, prioridad, sla_min')
+    .select('id, numero, area_id, problema_nombre, area_nombre, levantado_por_id, levantado_por_nombre, responsable_id, responsable_nombre, prioridad, sla_min, estado, etiqueta_pausa')
     .eq('id', ticketId)
     .single()
   if (!data) return null
@@ -66,6 +68,7 @@ async function ticketParaNotificar(supabase: Supa, ticketId: string): Promise<Ti
     area_nombre: string; levantado_por_id: string; levantado_por_nombre: string
     responsable_id: string | null; responsable_nombre: string | null
     prioridad: TicketCorreoInfo['prioridad']; sla_min: number | null
+    estado: string; etiqueta_pausa: string | null
   }
   return {
     id: t.id,
@@ -79,6 +82,8 @@ async function ticketParaNotificar(supabase: Supa, ticketId: string): Promise<Ti
     responsable_nombre: t.responsable_nombre,
     prioridad: t.prioridad,
     slaMin: t.sla_min,
+    estado: t.estado,
+    etiqueta_pausa: t.etiqueta_pausa,
   }
 }
 
@@ -149,8 +154,11 @@ export async function notificarRespuesta(
   if (!email) return
 
   const autor = soyLevantador ? t.levantadoPor : (t.responsable_nombre ?? t.area)
+  // En los presenciales el trigger ya cerró el ticket: pedirle al usuario que
+  // confirme algo que ya está cerrado sería mentirle.
   const correo =
-    tipo === 'terminado_responsable' ? correoResuelto(t, autor)
+    tipo === 'terminado_responsable'
+      ? (t.estado === 'cerrado' ? correoResueltoDirecto(t, autor) : correoResuelto(t, autor))
     : tipo === 'rechazo_responsable' ? correoRechazado(t)
     : tipo === 'terminado_usuario' ? correoCerrado(t)
     : correoRespuesta(t, autor)
@@ -196,14 +204,16 @@ export async function cambiarEstado(
   })
   if (error) return { ok: false, error: traducir(error.message, 'No se pudo cambiar el estado.') }
 
-  // "Programado" es una promesa al solicitante: avísale. Los demás pasos por
-  // aquí (en_revision) no ameritan correo; resuelto/rechazado avisan desde el
-  // composer, que es su camino real.
+  // La pausa es lo único que amerita correo desde aquí: cambia lo que el
+  // solicitante debe esperar (o hacer). Reanudar no le aporta nada, y
+  // resuelto/rechazado avisan desde el composer, que es su camino real.
   if (estado === 'programado') {
     const t = await ticketParaNotificar(supabase, ticketId)
     if (t && t.levantado_por_id !== user.id) {
       const email = await emailDe(supabase, t.levantado_por_id)
-      if (email) await enviar(supabase, [email], correoProgramado(t))
+      if (email) {
+        await enviar(supabase, [email], correoPausa(t, t.etiqueta_pausa ?? 'En pausa'))
+      }
     }
   }
 
