@@ -58,6 +58,11 @@ interface Props {
 
 const inputClass = 'bg-white border border-[#ECECEC] rounded px-3 py-[7px] text-[13px] text-ink-900 placeholder:text-ink-400 outline-none focus:border-orange focus:ring-[3px] focus:ring-orange/15 transition-all'
 
+// Acentos fuera: "camaras" tiene que encontrar "Cámaras".
+function normalizar(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+}
+
 export default function TicketForm({ areas, catalog, userId, initialAreaId, initialProblemId }: Props) {
   const router = useRouter()
 
@@ -66,35 +71,42 @@ export default function TicketForm({ areas, catalog, userId, initialAreaId, init
     catalog.find(
       c => c.id === initialProblemId && (!initialAreaId || c.area_id === initialAreaId),
     ) ?? null
-  const initialArea =
-    initialProblem?.area_id ??
-    (initialAreaId && areas.some(a => a.id === initialAreaId) ? initialAreaId : '')
 
-  const [selectedArea, setSelectedArea] = useState(initialArea)
   const [selectedProblem, setSelectedProblem] = useState<CatalogItem | null>(initialProblem)
+  const [busqueda, setBusqueda] = useState('')
   const [datos, setDatos] = useState<TicketDatos>({})
   const [comentario, setComentario] = useState('')
   const [files, setFiles] = useState<FileList | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const [areaError, setAreaError] = useState('')
   const [problemError, setProblemError] = useState('')
   const [comentarioError, setComentarioError] = useState('')
   const [evidenciaError, setEvidenciaError] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
-  const filteredCatalog = catalog.filter(c => c.area_id === selectedArea)
+  const areaNombre = (id: string) => areas.find(a => a.id === id)?.nombre ?? ''
   const campos: ProblemField[] = selectedProblem?.campos ?? []
 
-  function handleAreaChange(areaId: string) {
-    setSelectedArea(areaId)
-    setSelectedProblem(null)
-    setDatos({})
-    setAreaError('')
-    setProblemError('')
-    setEvidenciaError('')
-    setFieldErrors({})
-  }
+  // El usuario describe su síntoma; el área es una consecuencia, no una
+  // decisión. Se busca sobre nombre, instrucciones, área y hasta las opciones
+  // de los campos select (ahí viven frases como "instalar impresora").
+  const q = normalizar(busqueda.trim())
+  const visibles = q === ''
+    ? catalog
+    : catalog.filter(c => {
+        const texto = [
+          c.nombre,
+          c.leyenda,
+          areaNombre(c.area_id),
+          ...(c.campos ?? []).flatMap(f => f.options ?? []),
+        ].join(' ')
+        return normalizar(texto).includes(q)
+      })
+
+  // Agrupadas por área, en el orden del catálogo de áreas.
+  const grupos = areas
+    .map(a => ({ area: a, tipos: visibles.filter(c => c.area_id === a.id) }))
+    .filter(g => g.tipos.length > 0)
 
   function handleProblemChange(problemId: string) {
     const problem = catalog.find(c => c.id === problemId) ?? null
@@ -112,7 +124,6 @@ export default function TicketForm({ areas, catalog, userId, initialAreaId, init
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!selectedArea) { setAreaError('Selecciona un área'); return }
     if (!selectedProblem) { setProblemError('Selecciona un tipo de problema'); return }
 
     // Validar campos dinámicos
@@ -284,70 +295,85 @@ export default function TicketForm({ areas, catalog, userId, initialAreaId, init
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5 pt-2">
+      {/* Un solo paso: el usuario describe su problema, no adivina el
+          organigrama. El área es un dato de la tarjeta y el ruteo a la cola
+          sale del tipo elegido. */}
       <div className="flex flex-col gap-2">
-        <label className="text-[12.5px] font-medium text-ink-700">¿Qué área te puede ayudar?</label>
-        <div className="flex flex-wrap gap-1.5">
-          {areas.map(a => (
+        <label className="text-[12.5px] font-medium text-ink-700">¿Cuál es el problema?</label>
+
+        {selectedProblem ? (
+          // Ya elegido: se colapsa a una tarjeta para que el formulario no crezca de más.
+          <div className="border border-orange rounded-md px-3 py-2.5 flex items-start justify-between gap-3">
+            <div className="flex flex-col gap-1.5 min-w-0">
+              <span className="text-[13px] font-medium text-ink-900">{selectedProblem.nombre}</span>
+              <MetaChips item={selectedProblem} />
+              <span className="text-[11.5px] text-ink-400">
+                Lo atiende {areaNombre(selectedProblem.area_id)}
+              </span>
+            </div>
             <button
-              key={a.id}
               type="button"
-              onClick={() => handleAreaChange(a.id)}
-              className={`
-                text-[12.5px] font-medium rounded-full border px-3 py-[5px] transition-colors
-                ${selectedArea === a.id
-                  ? 'bg-navy text-white border-navy'
-                  : 'bg-white text-ink-700 border-[#ECECEC] hover:bg-surface-hover'}
-              `}
+              onClick={() => handleProblemChange('')}
+              className="shrink-0 text-[12px] font-medium text-orange hover:underline"
             >
-              {a.nombre}
+              Cambiar
             </button>
-          ))}
-        </div>
-        {areaError && <p className="text-[12px] text-red-600">{areaError}</p>}
-      </div>
+          </div>
+        ) : (
+          <>
+            <input
+              type="text"
+              value={busqueda}
+              onChange={e => setBusqueda(e.target.value)}
+              placeholder="Busca: impresora, red, accesos, ficha…"
+              autoFocus
+              className={inputClass}
+            />
 
-      {selectedArea && (
-        <div className="flex flex-col gap-2">
-          <label className="text-[12.5px] font-medium text-ink-700">Elige el tipo de problema</label>
-
-          {selectedProblem ? (
-            // Ya elegido: se colapsa a una tarjeta para que el formulario no crezca de más.
-            <div className="border border-orange rounded-md px-3 py-2.5 flex items-start justify-between gap-3">
-              <div className="flex flex-col gap-1.5 min-w-0">
-                <span className="text-[13px] font-medium text-ink-900">{selectedProblem.nombre}</span>
-                <MetaChips item={selectedProblem} />
-              </div>
-              <button
-                type="button"
-                onClick={() => handleProblemChange('')}
-                className="shrink-0 text-[12px] font-medium text-orange hover:underline"
-              >
-                Cambiar
-              </button>
-            </div>
-          ) : filteredCatalog.length === 0 ? (
-            <p className="text-[12.5px] text-ink-400">
-              Esta área todavía no tiene tipos de problema configurados.
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {filteredCatalog.map(c => (
+            {grupos.length === 0 ? (
+              <div className="border border-[#ECECEC] rounded-md px-4 py-5 text-center">
+                <p className="text-[12.5px] text-ink-500">
+                  Nada coincide con «{busqueda.trim()}».
+                </p>
+                <p className="text-[12px] text-ink-400 mt-1">
+                  Elige el tipo que más se parezca y explica el detalle en el comentario —
+                  el área lo redirige si hace falta.
+                </p>
                 <button
-                  key={c.id}
                   type="button"
-                  onClick={() => handleProblemChange(c.id)}
-                  className="text-left bg-white border border-[#ECECEC] rounded-md px-3 py-2.5 flex flex-col gap-1.5 hover:border-orange hover:bg-surface-hover transition-colors"
+                  onClick={() => setBusqueda('')}
+                  className="mt-2 text-[12px] font-medium text-orange hover:underline"
                 >
-                  <span className="text-[13px] font-medium text-ink-900">{c.nombre}</span>
-                  <MetaChips item={c} />
+                  Ver todos los tipos
                 </button>
-              ))}
-            </div>
-          )}
+              </div>
+            ) : (
+              grupos.map(g => (
+                <div key={g.area.id} className="flex flex-col gap-2">
+                  <p className="text-[11px] uppercase tracking-[0.3px] text-ink-400 font-medium mt-1">
+                    {g.area.nombre}
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {g.tipos.map(c => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => handleProblemChange(c.id)}
+                        className="text-left bg-white border border-[#ECECEC] rounded-md px-3 py-2.5 flex flex-col gap-1.5 hover:border-orange hover:bg-surface-hover transition-colors"
+                      >
+                        <span className="text-[13px] font-medium text-ink-900">{c.nombre}</span>
+                        <MetaChips item={c} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
+          </>
+        )}
 
-          {problemError && <p className="text-[12px] text-red-600">{problemError}</p>}
-        </div>
-      )}
+        {problemError && <p className="text-[12px] text-red-600">{problemError}</p>}
+      </div>
 
       {selectedProblem && (
         <div className="bg-surface-sidebar border border-[#ECECEC] rounded-md px-4 py-3">
