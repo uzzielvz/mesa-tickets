@@ -1,10 +1,12 @@
 # RESEARCH CONSOLIDADO — mea-tickets (CrediFlexi Operaciones)
 
 > Documento vivo. Single source of truth del estado real del repo.
-> Última actualización: 2026-08-10.
+> Última actualización: 2026-08-11.
 > Para el plan de trabajo activo ver `PLAN.md`.
 
 ---
+
+> **Foco activo (2026-08-11): Mesa de Tickets.** Reclutamiento, Cartera, Score y Factorial están **en pausa** — desplegados y operables, sin desarrollo nuevo. Este documento sigue describiendo los cinco módulos porque el contexto no caduca; la cola de trabajo vigente vive en `PLAN.md §0`.
 
 ## 1. Resumen Ejecutivo
 
@@ -984,7 +986,7 @@ Cierre del pipeline de cartera para producción (mismo día que SEC-002 y CART-0
 
 ---
 
-## 13. Módulo Reclutamiento *(S1..S9.5 + Sprint G implementados)*
+## 13. Módulo Reclutamiento *(S1..S9.5 + Sprint G implementados — ⏸ en pausa desde 2026-08-11)*
 
 > Documentación de research del 4º módulo. **Estado 2026-08-04:** S1 (fundaciones), S2 (vacantes+candidatos), S3 (pipeline/DAG), **Sprint G (Google Workspace)**, **S4 (agendamiento masivo en cascada)**, **S5 (evaluaciones vía magic link)**, **S6 (comité + entrevistadores dinámicos + contratación)**, **S7 (`final_dg` + config de alta + correo interno de altas)**, **S7.5 (destinatarios editables + pipeline dinámico)**, **S9 (alta automática en Factorial HR — §13.9)** y **S9.5 (plantillas editables + bitácora de correos)** entregados. Todo el pipeline `postulado → … → contratado` está cubierto end-to-end y se opera desde el kanban.
 >

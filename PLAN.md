@@ -3,7 +3,45 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-08-10.
+> Última actualización: 2026-08-11.
+
+---
+
+## 0. Foco actual — punto de partida (2026-08-11)
+
+> **Esta sección manda sobre el resto del documento.** Si algo de §1–§8 contradice lo de aquí, gana esto.
+
+**Decisión (2026-08-11):** el trabajo se concentra en **Mesa de Tickets**. Reclutamiento, Cartera, Score y Factorial quedan **en pausa** — sin desarrollo nuevo. Siguen desplegados y funcionando; lo que se detiene es construir sobre ellos.
+
+### Vía activa — Mesa de Tickets
+
+Estado: el módulo cerró el 2026-08-10 su salto de **individual a de equipo** (cola por área, estados explícitos, reasignación, bitácora, notificaciones, guía contextual, alta sin elegir área). Detalle en §2.2 fase *Tickets-Equipo* y en `RESEARCH §5.1.7`.
+
+**Lo que sigue, en orden:**
+
+| # | Qué | Por qué primero |
+|---|---|---|
+| 1 | **Verificar un envío real de correo** | TKT-039 está entregado pero **nunca se vio llegar un correo**. Es funcionalidad declarada sin evidencia; hasta probarlo no se puede prometer a nadie. Hacerlo entre dos cuentas propias. |
+| 2 | **Smoke end-to-end con clicks** | Levantar → cae en la cola → tomar → responder con adjunto → Programado → Resuelto → confirmar. Nada del 2026-08-10 se probó contra datos reales. |
+| 3 | **Revisar `area_id` en `/admin/usuarios`** | La RLS nueva deja que **todo el que tenga un área vea todos los tickets de esa área**. Correcto para una cola, pero exige la lista limpia. |
+| 4 | **Métricas sobre la bitácora** | % de cumplimiento de SLA, tiempo de primera respuesta, tiempo real por estado, carga por técnico. Los datos se acumulan desde el 2026-08-10; antes no hay con qué reconstruirlos. |
+| 5 | **T-P4 — seguridad de escritura** | `profiles_select using (true)` y las mutaciones de crear/responder que aún salen del navegador (SEC-001, RLS-001/002/004/005). |
+| 6 | **TKT-007 cola global de admin · TKT-008 notas internas · paginación** | Los gaps que quedan del benchmark. |
+
+**Deuda menor viva:** plantillas de correo y frases frecuentes de tickets viven en el código (las de Reclutamiento sí se editan desde Ajustes); el SLA no acumula pausas — con `ticket_historial` ya hay con qué calcularlo bien.
+
+### Vías en pausa — cómo quedaron congeladas
+
+**Reclutamiento** — completo de `postulado` a `contratado` (S1–S9.5). **No está validado**: el smoke test end-to-end nunca se corrió.
+> ⚠️ **Peligro al pausar:** la plantilla `bienvenida_contratacion` tiene **3 empleados reales de CrediFlexi seedeados en CC** (`irvin.velazco@`, `cynthia.aguilar@`, `jesus.montellano@`). El módulo sigue en línea: si alguien contrata a un candidato, les llega correo. **Antes de dejarlo solo**, reapuntar los destinatarios desde `/reclutamiento/ajustes` o confirmar que nadie va a operarlo.
+
+**Factorial HR** — entregado (S9), **apagado a propósito**: `rec_ajustes.factorial.sync_activa = false`. Así se queda. Para reanudar: encender el interruptor y validar alta + idempotencia (`factorial_employee_id`) contra producción.
+
+**Cartera** — paridad con el legacy alcanzada (ETL, 5 RPCs, 5 dashboards, asistente Gemini). Pendientes al reanudar: `loan_amortizacion_individual` sigue vacía (bloquea drill-down y liquidación anticipada) y faltan los endpoints GET (CART-015). Operativo del usuario: el wake-up de cron-job.org contra Render Free.
+
+**Score** — estable, sin pendientes urgentes (DB-001/002 robustez).
+
+**Condición para reanudar cualquiera:** que la vía de tickets llegue al punto 4 de su lista, o que un pendiente de la vía pausada se vuelva urgente por el negocio.
 
 ---
 
@@ -293,6 +331,8 @@ Las 6 incidencias (columna "¿Qué engloba?" → campo `select` guiado dentro de
 
 ## 3. Backlog Priorizado (orden de ejecución sugerido)
 
+> **Histórico.** Esta sección es la ruta crítica de mayo-junio 2026 (demo ejecutiva de Cartera); se conserva como registro de cómo se ejecutó. **La cola de trabajo vigente está en §0.**
+
 ### 3.1 Ruta crítica para demo ejecutiva (~7 días desde 2026-05-28)
 
 | Día | Acción | Owner | Notas |
@@ -383,28 +423,15 @@ Las 6 incidencias (columna "¿Qué engloba?" → campo `select` guiado dentro de
 
 ---
 
-## 5. Próximos Pasos (sesión inmediata)
+## 5. Próximos Pasos
 
-> Reescrita el **2026-08-04**. La versión anterior listaba como pendientes CART-010, DASH-001 y la Fase IA-A, todos ✅ desde junio en §2.1/§2.5 — el documento se contradecía a sí mismo.
+> **Movido a §0** el 2026-08-11, cuando el trabajo se enfocó en Mesa de Tickets. Mantener aquí una segunda lista de prioridades es exactamente cómo este documento se desfasó antes: dos listas que se contradicen y ninguna confiable.
+>
+> **La cola de trabajo viva vive en §0.** Aquí solo quedan los pendientes operativos que dependen del usuario y no de una vía de desarrollo:
 
-**Bloqueantes de riesgo (antes que cualquier feature):**
-
-1. **Limpiar los destinatarios reales antes del smoke test de Reclutamiento.** La plantilla `bienvenida_contratacion` tiene **3 empleados reales de CrediFlexi** seedeados en CC (`irvin.velazco@`, `cynthia.aguilar@`, `jesus.montellano@`). Contratar un candidato de prueba hoy les manda correo. Con `/reclutamiento/ajustes` ya se puede reapuntar todo (DG, los 7 destinatarios de altas, CC por plantilla) sin desplegar; hacerlo, correr el smoke, verificar `rec_correos_enviados` y **restaurar**.
-2. **Validar el alta en Factorial contra producción.** El interruptor `factorial.sync_activa` arranca en `false` a propósito (`rec_023`). Encenderlo solo tras confirmar que los catálogos de Factorial están completos, y verificar la idempotencia (`rec_candidatos.factorial_employee_id`) reintentando una contratación.
-
-**Trabajo de producto:**
-
-3. ✅ ~~T-P2 / TKT-021 — estados explícitos~~ · ✅ ~~T-P1 / TKT-020 — cola por área~~ · ✅ ~~TKT-002 reasignación~~ · ✅ ~~TKT-003 notificaciones~~ — todo hecho 2026-08-10 (fase Tickets-Equipo, §2.2).
-4. **Verificar los correos de tickets con un envío real.** T-E5 está entregado pero **nunca se vio llegar un correo**. Hacerlo con un ticket entre dos cuentas propias antes de que lo vea el área completa. Es el pendiente de mayor riesgo del módulo.
-5. **Métricas sobre la bitácora**: % de cumplimiento de SLA, tiempo de primera respuesta, tiempo real por estado, carga por técnico. Los datos empezaron a acumularse el 2026-08-10 con `ticket_historial`; antes de esa fecha no hay con qué reconstruirlos.
-6. **T-P4 — seguridad antes de más PII**: RLS-002 (`profiles_select`), RLS-001/005 (participación en adjuntos y Storage), SEC-001 (mutaciones de tickets a Server Actions con Zod servidor).
-7. **S10 — Onboarding del candidato** (§8.12, REC-097..102): captura de datos de contratación vía magic link. Es lo que elimina el Google Form + layout xlsx y alimenta tanto el correo interno de altas como el alta en Factorial con datos limpios.
-
-**Operativo (usuario):**
-
-8. **Cron-job.org wake-up** — GET `https://crediflexi-services.onrender.com/health` cada 10 min, para evitar el cold start de Render Free.
-9. ✅ ~~Regenerar `database.types.ts`~~ — hecho 2026-08-04 (`8bcec2e`). **Convertirlo en hábito:** `npm run db:types` después de cada `db push`, si no el espejo vuelve a desfasarse en silencio (nada lo importa, así que nada truena para avisar).
-10. **Vaciar el bucket `ticket-attachments`** vía Storage API: quedaron huérfanos tras los `delete from tickets` de las migraciones de limpieza.
+1. **Cron-job.org wake-up** — GET `https://crediflexi-services.onrender.com/health` cada 10 min, para evitar el cold start de Render Free (Cartera).
+2. **Vaciar el bucket `ticket-attachments`** vía Storage API: quedaron huérfanos tras los `delete from tickets` de las migraciones de limpieza.
+3. **Hábito, no ticket:** `npm run db:types` después de cada `db push`. Nada importa `database.types.ts`, así que cuando se desfasa nada truena para avisar.
 
 ---
 
@@ -488,7 +515,9 @@ Prefijos consistentes en `RESEARCH-CONSOLIDADO.md` §6/§7 y aquí:
 
 ---
 
-## 8. Módulo Reclutamiento *(S1–S3 entregados — en desarrollo)*
+## 8. Módulo Reclutamiento *(S1–S9.5 entregados — ⏸ EN PAUSA desde 2026-08-11)*
+
+> **En pausa.** Sin desarrollo nuevo; el módulo sigue desplegado y operable. Antes de dejarlo solo, revisar el peligro de los destinatarios reales en `bienvenida_contratacion` (§0). Lo que falta no es código sino **validación**: el smoke test end-to-end nunca se corrió y el alta en Factorial sigue apagada por interruptor. Todo lo de abajo queda como estaba, listo para reanudar.
 
 > Detalle de contexto, stakeholders, flujo as-is y pain points en `RESEARCH-CONSOLIDADO.md §13`. Esta sección es el plan de ejecución (modelo de datos, arquitectura, sprints).
 
