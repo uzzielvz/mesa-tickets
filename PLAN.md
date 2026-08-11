@@ -3,7 +3,7 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-08-04.
+> Última actualización: 2026-08-10.
 
 ---
 
@@ -179,12 +179,31 @@ Las 6 incidencias (columna "¿Qué engloba?" → campo `select` guiado dentro de
 
 | # | Ticket | Descripción | Tipo | Estado |
 |---|--------|-------------|------|--------|
-| T-O1 | TKT-028 | **Módulo de SLA** `lib/tickets/sla.ts` (puro: sin React ni Supabase, para que listados, detalle y métricas futuras usen el mismo cálculo). **Semántica**: el reloj corre **solo mientras `status === 'abierto'`** (la pelota está del lado del área) y arranca en `ultima_respuesta_at ?? created_at`; `por_vencer` = último 25% del SLA. Así "vencido" siempre significa "el área debe algo". | UI/lógica | ✅ 2026-08-01 (`ef72018`) |
+| T-O1 | TKT-028 | **Módulo de SLA** `lib/tickets/sla.ts` (puro: sin React ni Supabase, para que listados, detalle y métricas futuras usen el mismo cálculo). `por_vencer` = último 25% del SLA. *(Semántica revisada el 2026-08-10 con los estados explícitos — ver T-P2.)* | UI/lógica | ✅ 2026-08-01 (`ef72018`) |
 | T-O2 | TKT-029 | **Listados operables** (`ticket-list.tsx` pasa a client component): chip de prioridad, columna "Atención" con el SLA coloreado, filtros `Activos/Vencidos/Cerrados/Todos` con conteo y buscador sobre número/asunto/área/personas. Se elimina la columna Responsable (duplicaba el dato ya visible bajo el asunto). `ahora: number` se pasa **como prop desde el servidor** para que SSR e hidratación coincidan. | UI | ✅ 2026-08-01 (`ef72018`) |
 | T-O3 | TKT-027b | **Levantar ticket con tarjetas**: áreas como chips y tipos de problema como tarjetas que muestran prioridad/tiempo/modalidad **antes** de elegir, colapsando a la tarjeta elegida con un "Cambiar". Sustituye los dos `<select>` encadenados. | UI | ✅ 2026-08-01 (`b57d855`) |
 | T-O4 | TKT-030 | **Fix — los adjuntos del hilo no se podían abrir**. El bucket `ticket-attachments` es privado y `ticket-thread.tsx` los pintaba como `<span>` de texto: la evidencia que subía el solicitante (la captura del error, el artefacto más importante de un ticket de Sistemas) era inaccesible. Ahora el detalle firma todas las rutas en una sola llamada `createSignedUrls(paths, 60 * 10)` y el hilo las renderiza como `<a target="_blank">`, con fallback gris si la firma falla. | Bug | ✅ 2026-08-01 (`80fec4d`) |
 
-> **Fuera de alcance (consciente)**: cola por área y "Tomar ticket" (T-P1/TKT-020) requieren migración de RLS — `tickets_select` solo deja ver tickets propios o asignados (`20260421000002_rls_policies.sql:54-60`) — y una vista global `/tickets/todos` para admin. Ambos se difieren; en la demo se entra con cuenta **admin**, que ve todo vía `is_admin()`. El SLA sigue **sin alertas ni escalación** (TKT-005): solo se ve, no avisa.
+> **Fuera de alcance (consciente) el 2026-08-01**: cola por área y "Tomar ticket" (T-P1/TKT-020) requerían migración de RLS. **Se entregaron el 2026-08-10** — ver la fase siguiente.
+
+#### Fase Tickets-Equipo *(2026-08-10 · de "app donde registro" a "sistema que persigue el trabajo")*
+
+> **Contexto**: la mesa funcionaba para una persona que abre la app. No para un **equipo**. El ticket nacía con dueño fijo de por vida, el estatus se deducía de la paridad de respuestas y nadie se enteraba de nada si no entraba a mirar. Esta fase cierra las tres cosas y con ellas los gaps estructurales más viejos del módulo.
+
+| # | Ticket | Descripción | Tipo | Estado |
+|---|--------|-------------|------|--------|
+| T-E1 | TKT-031/033/035 | **Cola por área** (T-P1). Ver la fila T-P1 arriba. | Estructural | ✅ 2026-08-10 |
+| T-E2 | TKT-032/034/036/037 | **Estados explícitos** (T-P2). Ver la fila T-P2 arriba. | Estructural | ✅ 2026-08-10 |
+| T-E3 | TKT-002 | **Soltar y reasignar**. RPC `tkt_reasignar_ticket`: sin destinatario devuelve el ticket a la cola (`en_revision` → `abierto`; **`programado` se conserva** — la validación no se pierde por cambiar de manos), con destinatario lo pasa a alguien del área. Solo el responsable actual o admin mueven, y el destino debe pertenecer al área: pasarlo fuera lo dejaría en una cola que esa persona no ve. Mig. `20260810140000`. | Estructural | ✅ 2026-08-10 (`3fb9b86`) |
+| T-E4 | TKT-038 | **Bitácora** `ticket_historial` + **dos triggers sobre `tickets`** (INSERT → `creado`; UPDATE → `tomado`/`devuelto`/`reasignado`/`cambio_estado`, derivando el evento de qué columna cambió). Se eligió trigger sobre instrumentar las RPCs para capturar **todo** camino de escritura, incluidos los cierres que disparan las respuestas. **Sin política de insert**: solo los triggers (security definer) escriben, un cliente no puede fabricar historia. UI plegable en el detalle. Mig. `20260810150000`. | Estructural | ✅ 2026-08-10 (`59d7238`) |
+| T-E5 | TKT-039 | **Notificaciones por correo** (cierra TKT-003). 9 avisos: ticket nuevo → área, tomado → solicitante, respuesta → contraparte, resuelto/rechazado/cerrado/programado → quien corresponda, devuelto → área, reasignado → nuevo responsable. Reusa `lib/google` (Gmail probado en producción por Reclutamiento), **no** se construyó motor nuevo. **Todo best-effort**: un Gmail caído nunca bloquea crear, tomar o mover. Mig. `20260810150100` + `lib/tickets/correos.ts`. | Funcional | ✅ 2026-08-10 (`941c863`) · **sin verificar envío real** |
+| T-E6 | TKT-040 | **Guía contextual** `lib/tickets/guia.ts` (puro, patrón `candidato-guia`): el detalle explica a cada quien qué significa el estado y qué sigue, según sea solicitante, responsable o tercero. | UI | ✅ 2026-08-10 (`ea905f3`) |
+| T-E7 | TKT-041 | **Resumen del área** encima de la cola: sin tomar / vencidos / en curso / cerrados hoy. "Vencidos" en rojo **solo cuando existe** — en verde permanente sería ruido, en rojo permanente, alarma. | UI | ✅ 2026-08-10 (`5113ed7`) |
+| T-E8 | TKT-042 | **Levantar sin adivinar el área** (cierra TKT-006 del todo). Desaparece el paso "¿Qué área te puede ayudar?": la gente piensa en síntomas, no en organigramas, y el área siempre fue **consecuencia** del tipo (el trigger de TKT-031 la deriva). Buscador insensible a acentos sobre nombre/leyenda/área/**opciones de los selects** (ahí viven frases como "instalar impresora"), tarjetas agrupadas por área con **ejemplos concretos** tomados del catálogo, y **atajos frecuentes** en el lenguaje del usuario ("No tengo acceso a Yunius…") anclados por fragmento de nombre para que renombrar un tipo nunca deje un link muerto. | UI | ✅ 2026-08-10 (`1224558`, `352ec34`, `d5ff9a2`) |
+
+> **Riesgo abierto de T-E5**: la RPC `tkt_credencial_google` expone el `refresh_token` a cualquier autenticado porque las notificaciones las dispara cualquier usuario (un comercial levantando un ticket) y `rec_credenciales_google` es admin/Reclutamiento. **El token viaja cifrado (AES-256-GCM) y la llave vive solo en el entorno del servidor**, así que quien la llame obtiene un blob indescifrable. Riesgo acotado y aceptado; revisar si se amplía la superficie.
+>
+> **Deuda conocida**: (a) los correos **nunca se han enviado de verdad** — la ruta es la misma que Reclutamiento usa a diario, pero falta verlo llegar; (b) las plantillas de tickets viven en el código, a diferencia de las de Reclutamiento — si el patrón funciona, se mueven a BD con un editor como el de `/reclutamiento/ajustes`; (c) las frases frecuentes también están en código; (d) el SLA **no acumula pausas** (un ticket reabierto vuelve a contar contra su hora original) — con la bitácora de T-E4 ya hay con qué calcularlo bien.
 
 ### 2.3 Módulo Score
 
@@ -375,16 +394,17 @@ Las 6 incidencias (columna "¿Qué engloba?" → campo `select` guiado dentro de
 
 **Trabajo de producto:**
 
-3. ✅ ~~T-P2 / TKT-021 — estados explícitos~~ — hecho 2026-08-10.
-4. ✅ ~~T-P1 / TKT-020 — cola por área~~ — hecho 2026-08-10. Pendiente derivado: reasignación manual entre personas (TKT-002) y `/tickets/todos` global para admin.
-5. **T-P4 — seguridad antes de más PII**: RLS-002 (`profiles_select`), RLS-001/005 (participación en adjuntos y Storage), SEC-001 (mutaciones de tickets a Server Actions con Zod servidor).
-6. **S10 — Onboarding del candidato** (§8.12, REC-097..102): captura de datos de contratación vía magic link. Es lo que elimina el Google Form + layout xlsx y alimenta tanto el correo interno de altas como el alta en Factorial con datos limpios.
+3. ✅ ~~T-P2 / TKT-021 — estados explícitos~~ · ✅ ~~T-P1 / TKT-020 — cola por área~~ · ✅ ~~TKT-002 reasignación~~ · ✅ ~~TKT-003 notificaciones~~ — todo hecho 2026-08-10 (fase Tickets-Equipo, §2.2).
+4. **Verificar los correos de tickets con un envío real.** T-E5 está entregado pero **nunca se vio llegar un correo**. Hacerlo con un ticket entre dos cuentas propias antes de que lo vea el área completa. Es el pendiente de mayor riesgo del módulo.
+5. **Métricas sobre la bitácora**: % de cumplimiento de SLA, tiempo de primera respuesta, tiempo real por estado, carga por técnico. Los datos empezaron a acumularse el 2026-08-10 con `ticket_historial`; antes de esa fecha no hay con qué reconstruirlos.
+6. **T-P4 — seguridad antes de más PII**: RLS-002 (`profiles_select`), RLS-001/005 (participación en adjuntos y Storage), SEC-001 (mutaciones de tickets a Server Actions con Zod servidor).
+7. **S10 — Onboarding del candidato** (§8.12, REC-097..102): captura de datos de contratación vía magic link. Es lo que elimina el Google Form + layout xlsx y alimenta tanto el correo interno de altas como el alta en Factorial con datos limpios.
 
 **Operativo (usuario):**
 
-7. **Cron-job.org wake-up** — GET `https://crediflexi-services.onrender.com/health` cada 10 min, para evitar el cold start de Render Free.
-8. ✅ ~~Regenerar `database.types.ts`~~ — hecho 2026-08-04 (`8bcec2e`). **Convertirlo en hábito:** `npm run db:types` después de cada `db push`, si no el espejo vuelve a desfasarse en silencio (nada lo importa, así que nada truena para avisar).
-9. **Vaciar el bucket `ticket-attachments`** vía Storage API: quedaron huérfanos tras los `delete from tickets` de las migraciones de limpieza.
+8. **Cron-job.org wake-up** — GET `https://crediflexi-services.onrender.com/health` cada 10 min, para evitar el cold start de Render Free.
+9. ✅ ~~Regenerar `database.types.ts`~~ — hecho 2026-08-04 (`8bcec2e`). **Convertirlo en hábito:** `npm run db:types` después de cada `db push`, si no el espejo vuelve a desfasarse en silencio (nada lo importa, así que nada truena para avisar).
+10. **Vaciar el bucket `ticket-attachments`** vía Storage API: quedaron huérfanos tras los `delete from tickets` de las migraciones de limpieza.
 
 ---
 

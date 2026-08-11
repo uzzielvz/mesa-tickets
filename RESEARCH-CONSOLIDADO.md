@@ -1,7 +1,7 @@
 # RESEARCH CONSOLIDADO — mea-tickets (CrediFlexi Operaciones)
 
 > Documento vivo. Single source of truth del estado real del repo.
-> Última actualización: 2026-08-04.
+> Última actualización: 2026-08-10.
 > Para el plan de trabajo activo ver `PLAN.md`.
 
 ---
@@ -16,7 +16,7 @@
 
 **Estado por módulo** (detalle en §5):
 
-1. **Mesa de Tickets** — producción. Base de captura **superior al promedio** (formularios dinámicos sin código, cierre confirmado, rechazo con motivo). Prioridad, SLA visible, filtros y búsqueda cerrados el 2026-08-01. Lo que sigue faltando es el **ciclo de vida operativo**: sin notificaciones, sin reasignación, conversación con paridad forzada y responsable fijo por persona. Benchmark y no-negociables en §5.1.2–5.1.6.
+1. **Mesa de Tickets** — producción, y desde el **2026-08-10 es una herramienta de equipo**: el ticket vive en la cola de su área hasta que alguien lo toma, avanza por estados explícitos, se puede soltar o pasar, deja bitácora y **avisa por correo**. Con eso caen los tres gaps estructurales más viejos (TKT-001 paridad, TKT-002 reasignación, TKT-003 notificaciones). Queda abierto: verificar un envío real de correo, la cola global de admin (TKT-007), notas internas (TKT-008) y la seguridad de escritura. Arquitectura en §5.1.7, benchmark en §5.1.3.
 2. **Score Crediticio** — producción, modelo HM replicado.
 3. **Onboarding + presets** — producción.
 4. **Cartera Individual** — completo de punta a punta: ETL (upload → microservicio en Render → staging), capa de consulta (5 RPCs) y 5 dashboards, más el asistente Gemini con tools. Pendiente: `loan_amortizacion_individual` sigue vacía (bloquea drill-down y liquidación anticipada) y faltan los endpoints GET (CART-015).
@@ -26,12 +26,13 @@
 - **`FACTORIAL_API_KEY` es god-mode**: la API Key de Factorial no se puede acotar por scope, así que da acceso total a los datos de RH de la empresa. Solo server-side, nunca en cliente (§13.9).
 - **Destinatarios reales seedeados**: `bienvenida_contratacion` tiene 3 empleados de CrediFlexi en CC. Cualquier prueba de contratación les manda correo si no se reapunta antes desde `/reclutamiento/ajustes`.
 - Seguridad RLS: `attachments_insert` no valida participación; `profiles_select using (true)` expone PII.
-- Mutaciones de tickets desde el cliente — seguridad 100% en RLS.
-- Tickets: ciclo de vida operativo incompleto (notificar, reasignar, cola por área) — ver no-negociables §5.1.4.
+- Mutaciones de tickets desde el cliente — seguridad 100% en RLS. Las acciones nuevas (tomar, cambiar estado, reasignar, notificar) **sí** son Server Actions sobre RPCs `security definer`; crear ticket y responder siguen saliendo del navegador.
+- **La cola de un área la ve todo el que tenga esa `area_id`** — correcto para una cola, pero obliga a mantener `/admin/usuarios` limpio.
+- Correos de tickets **entregados pero nunca verificados** con un envío real.
 - `database.types.ts` congelado en la migración 23 de 64 (no truena porque el código usa `types.ts` manual, pero el archivo generado miente).
 - Sin tests, sin CI, sin `error.tsx` global.
 
-**Recomendación inmediata**: la plataforma ya no tiene un solo eje. Cartera alcanzó paridad con el legacy; **el trabajo de mayor valor ahora es cerrar la brecha entre "implementado" y "probado"** en Reclutamiento (smoke test con correos propios, validación de Factorial), y darle a Tickets el ciclo de vida que le falta (cola por área + estados explícitos). Endurecer RLS sigue siendo transversal y pendiente.
+**Recomendación inmediata**: la plataforma ya no tiene un solo eje, y a esta altura **el patrón dominante del repo es el mismo en los tres módulos: la deuda ya no es de código, es de verificación.** Cartera alcanzó paridad con el legacy; Reclutamiento opera end-to-end pero su smoke test nunca se corrió y el alta en Factorial sigue apagada; Tickets ganó cola, estados, bitácora y notificaciones el 2026-08-10, pero **ningún correo se ha visto llegar**. El trabajo de mayor valor es cerrar esa brecha antes de construir más. Endurecer RLS sigue siendo transversal y pendiente.
 
 ---
 
@@ -152,7 +153,8 @@ middleware.ts
 | Login presets (operadores Score) | Completo | `login_presets` + trigger `handle_new_user` |
 | Mesa de tickets (crear/responder/rechazar/cerrar) | Completo | Cliente Supabase + RLS + triggers |
 | Tickets — prioridad, SLA visible, filtros y búsqueda | Completo | `problem_catalog` (mig. 54) + `lib/tickets/sla.ts` |
-| Tickets — cola por área / estados explícitos | Pendiente | Responsable fijo por persona; estatus derivado de la paridad (T-P1/T-P2) |
+| Tickets — cola por área, estados, reasignación | Completo | `area_id` + RPCs `tkt_*`; RLS por pertenencia al área |
+| Tickets — bitácora y notificaciones | Completo (correos sin verificar) | `ticket_historial` por trigger + 9 avisos vía Gmail |
 | Campos dinámicos por catálogo | Completo | `problem_catalog.campos` jsonb + `tickets.datos` jsonb |
 | Rechazo responsable | Completo | enum `rechazo_responsable` + triggers + vista |
 | Score Crediticio (CRUD + modelo) | Completo | Server Actions + RPC `guardar_evaluacion_promotor` |
@@ -266,7 +268,10 @@ middleware.ts
 | Cartera: dashboards | Completo | `/cartera` (resumen), `/cartera/coordinacion`, `/cartera/recuperador`, `/cartera/mora`, `/cartera/cohort` — sobre RPCs `cartera_*`. Placeholders `cobranza`/`riesgo` retirados. |
 | Cartera: Asistente IA | Completo (IA-A) | Agente real Gemini `gemini-2.5-flash` + 6 tools sobre RPCs (mora seudonimizada), modo mock (`AI_ASSISTANT_MOCK`), logging tokens/costo. **Widget flotante** (FAB + panel con pantalla completa) en todas las páginas de cartera; `/cartera/chat` → redirect. (AI-001..004, PLAN §2.5) |
 | Tickets: prioridad / SLA / modalidad | Completo | Metadata en `problem_catalog` (mig. 54) visible al levantar **y** en seguimiento: chip de prioridad, columna "Atención" coloreada, filtros y buscador. Cálculo en `lib/tickets/sla.ts`. **Sin alertas ni escalación** (TKT-005) |
-| Tickets: cola por área / estados explícitos | Pendiente | Responsable fijo por persona; estatus derivado de la paridad de respuestas (T-P1/T-P2) |
+| Tickets: cola por área + tomar/reasignar | Completo | `tickets.area_id`, `responsable_id` nullable, RPCs `tkt_tomar_ticket` / `tkt_reasignar_ticket`, pantalla `/tickets/area` |
+| Tickets: estados explícitos | Completo | Enum `ticket_estado`; se acabó la paridad de respuestas y con ella TKT-001 |
+| Tickets: bitácora de cambios | Completo | `ticket_historial` por trigger — base de las métricas de tiempo real |
+| Tickets: notificaciones por correo | Completo (sin verificar) | 9 avisos vía Gmail (`lib/google`), best-effort. **Falta ver llegar un correo real** |
 | Reclutamiento: vacantes + candidatos | Completo | CRUD, CV a Storage, fuente, revisión de CV con motivo (S1-S2) |
 | Reclutamiento: pipeline (DAG) | Completo | RPC `rec_transicion_etapa` + historial; kanban dinámico donde cada tarjeta exige los datos de su etapa (S3 + S7.5) |
 | Reclutamiento: Google Workspace | Completo | OAuth propio (REST, sin SDK), `refresh_token` cifrado AES-256-GCM, Calendar (Meet) + Gmail (Sprint G) |
@@ -277,7 +282,7 @@ middleware.ts
 | Reclutamiento: bitácora de correos | Completo | `/reclutamiento/correos` — últimos 200 envíos con filtro y mensaje de error (S9.5) |
 | Reclutamiento: alta en Factorial HR | Completo (sin validar) | `createWithContract` best-effort al contratar, idempotente por `factorial_employee_id`. **Interruptor apagado por defecto**; falta la prueba contra producción (S9) |
 | Reclutamiento: onboarding del candidato | Pendiente | S10 — captura de datos de contratación vía magic link |
-| Notificaciones email (tickets) | Pendiente | Reclutamiento sí manda correos vía Gmail; tickets no notifica nada (TKT-003) |
+| Métricas de SLA / tiempo por técnico | Pendiente | Ya hay con qué (`ticket_historial` desde 2026-08-10); falta la vista |
 | `error.tsx` global | Pendiente | 0 archivos en el proyecto |
 | Tests | Pendiente | No hay framework instalado |
 
@@ -291,11 +296,11 @@ middleware.ts
 
 **Alcance**: gestión de incidencias internas. Levantador crea, responsable atiende, hilo de mensajes, cierre con confirmación, rechazo con motivo.
 
-**Estado**: producción. UX bugs críticos cerrados 2026-05-25. **2026-07-28**: catálogo Sistemas/TI con prioridad/SLA/modalidad. **2026-08-01**: esa metadata se vuelve operable (listados con filtros, buscador y SLA visible) y se arregla que los adjuntos del hilo no se pudieran abrir.
+**Estado**: producción. UX bugs críticos cerrados 2026-05-25. **2026-07-28**: catálogo Sistemas/TI con prioridad/SLA/modalidad. **2026-08-01**: esa metadata se vuelve operable (listados con filtros, buscador y SLA visible) y se arregla que los adjuntos del hilo no se pudieran abrir. **2026-08-10 — el módulo pasa de individual a de equipo**: cola por área con self-assign, estados explícitos (muere la paridad), reasignación, bitácora por trigger, notificaciones por correo, guía contextual y un `/tickets/nuevo` donde el usuario **ya no elige área**.
 
-**Archivos clave**: `app/(dashboard)/tickets/*`, `components/tickets/*`, **`lib/tickets/sla.ts`** (cálculo puro del SLA, reutilizable), migraciones 01-04, 07-09, 12, 54-55.
+**Archivos clave**: `app/(dashboard)/tickets/*`, `components/tickets/*`, **`lib/tickets/{sla,guia,correos}.ts`** (los tres puros y reutilizables), `lib/actions/tickets.ts`, migraciones 01-04, 07-09, 12, 54-55, **65-69**.
 
-**Pendientes**: T-P1/T-P2 (cola por área + estados explícitos), SEC-001 (Server Actions), RLS-001/002/004/005, UI-003/004, TKT-005 (alertas de SLA), paginación de listados.
+**Pendientes**: verificar un envío real de correo, métricas sobre la bitácora, SEC-001 (Server Actions), RLS-001/002/004/005, UI-003/004, TKT-007 (cola global de admin), TKT-008 (notas internas), paginación de listados.
 
 **Plan de evolución (go-live producción)**: las limitaciones de §5.1.1–5.1.4 (responsable fijo, paridad forzada, estado derivado) se resuelven en la fase **Tickets-Producción** del `PLAN.md` (T-P1 cola por área, T-P2 estados explícitos, T-P3 seed de los 3 tipos, T-P4 seguridad full). Este §5.1 describe el **estado real actual**; el plan de cambio vive en `PLAN.md §2.2`.
 
@@ -325,9 +330,9 @@ tickets (numero bigserial, levantado_por_id, responsable_id FIJO, datos jsonb)
 
 | ID | Sev. | Hallazgo | Evidencia |
 |----|------|----------|-----------|
-| **TKT-001** | **Alta** | **La paridad estricta rompe conversaciones reales.** El responsable **no puede enviar dos mensajes seguidos** (ni el usuario): tras una respuesta par, el siguiente orden es impar y el trigger exige que sea el levantador. Un follow-up del agente antes de que conteste el usuario es rechazado con excepción SQL. | `validate_response_order` mig. 04:23-33 / 08:36-44 |
-| **TKT-002** | **Alta** | **Sin reasignación ni transferencia.** El responsable se fija al crear y no hay UI ni flujo para cambiarlo. Si el problema cae en el área equivocada o la persona no está, el ticket queda atascado. (`tickets_update_admin` existe pero ninguna UI lo usa.) | `tickets` schema mig. 01:43 / sin ruta de reasignación |
-| **TKT-003** | **Alta** | **Sin notificaciones.** Nadie se entera de un ticket nuevo, respuesta o cierre salvo que entre a la app y mire los contadores. Para reemplazar WhatsApp/correo esto es central. (Diferido a Resend, PRO-005.) | No hay integración de email/in-app |
+| ~~**TKT-001**~~ | ~~Alta~~ | ✅ **Resuelto 2026-08-10** al quitar la paridad de `validate_response_order` (mig. `20260810120100`). Ambos lados pueden escribir las veces que haga falta. *Texto original:* **La paridad estricta rompe conversaciones reales.** El responsable **no puede enviar dos mensajes seguidos** (ni el usuario): tras una respuesta par, el siguiente orden es impar y el trigger exige que sea el levantador. Un follow-up del agente antes de que conteste el usuario es rechazado con excepción SQL. | `validate_response_order` mig. 04:23-33 / 08:36-44 |
+| ~~**TKT-002**~~ | ~~Alta~~ | ✅ **Resuelto 2026-08-10.** RPC `tkt_reasignar_ticket`: "Devolver a la cola" y "Pasar a…" (solo gente del área). Devolver un `en_revision` lo regresa a `abierto`; **`programado` se conserva** — la validación del trabajo no se pierde por cambiar de manos. | mig. `20260810140000` · `control-estado.tsx` |
+| ~~**TKT-003**~~ | ~~Alta~~ | ✅ **Resuelto 2026-08-10** (sin Resend: se reusó Gmail vía `lib/google`, ya probado por Reclutamiento). 9 avisos por correo, todos best-effort. **Pendiente: nunca se ha verificado un envío real.** | mig. `20260810150100` · `lib/tickets/correos.ts` |
 | ~~**TKT-004**~~ | ~~Media~~ | ✅ **Resuelto 2026-07-28 / 2026-08-01.** La prioridad es fija **por tipo de problema** (`problem_catalog.prioridad`), no por ticket: quien levanta no la elige, así que nadie puede marcar todo como urgente. Visible al levantar y como chip en listados y detalle. | mig. `20260728130000` · `lib/tickets/sla.ts` |
 | **TKT-005** | **Media** | **Parcial.** El SLA existe como `problem_catalog.sla_min` y se **muestra** (columna "Atención", coloreada por estado, con filtro "Vencidos"). Lo que sigue faltando es lo activo: **no avisa a nadie**, no escala y no hay métrica histórica de cumplimiento. | `lib/tickets/sla.ts` · sin notificaciones |
 | ~~**TKT-006**~~ | ~~Media~~ | ✅ **Resuelto 2026-08-01.** `ticket-list.tsx` (ahora client component) tiene filtros `Activos/Vencidos/Cerrados/Todos` con conteo y buscador sobre número, asunto, área y personas. Falta paginación — hoy se renderiza todo. | `components/tickets/ticket-list.tsx` |
@@ -347,20 +352,20 @@ tickets (numero bigserial, levantado_por_id, responsable_id FIJO, datos jsonb)
 | Capacidad estándar (helpdesk interno) | Mercado | mea-tickets | Veredicto |
 |---|---|---|---|
 | Crear ticket con categoría/formulario | ✅ | ✅ (catálogo + campos dinámicos jsonb) | **Paridad — y bien resuelto** |
-| Hilo de conversación + adjuntos | ✅ | ✅ (con paridad forzada, ver TKT-001) | Parcial |
-| Asignación a un responsable | ✅ | ✅ (fija, default por catálogo) | Parcial |
-| **Reasignación / transferencia** | ✅ | ❌ | **Gap (TKT-002)** |
+| Hilo de conversación + adjuntos | ✅ | ✅ | **Paridad** |
+| Asignación a un responsable | ✅ | ✅ (cola por área + self-assign) | **Paridad** |
+| Reasignación / transferencia | ✅ | ✅ (devolver a la cola o pasar a alguien del área) | **Paridad** (TKT-002 cerrado) |
 | Prioridad / urgencia | ✅ | ✅ (fija por tipo de problema) | **Paridad** (TKT-004 cerrado) |
 | **SLA / vencimiento / escalación** | ✅ | Parcial (se ve y filtra; no avisa ni escala) | **Gap (TKT-005)** |
-| **Notificaciones (email/in-app)** | ✅ | ❌ | **Gap (TKT-003)** |
+| Notificaciones (email) | ✅ | ✅ (9 avisos vía Gmail, best-effort) | **Paridad** (TKT-003 cerrado, sin verificar envío) |
 | Búsqueda y filtros de cola | ✅ | ✅ (filtros + buscador; sin paginación) | **Paridad** (TKT-006 cerrado) |
-| **Cola/Bandeja de agente y de admin** | ✅ | Parcial (mios/asignados, sin global) | **Gap (TKT-007)** |
+| **Cola/Bandeja de agente y de admin** | ✅ | Parcial (mios/asignados/**cola del área**, sin global de admin) | **Gap parcial (TKT-007)** |
 | **Notas internas (privadas)** | ✅ | ❌ | **Gap (TKT-008)** |
-| Estados de ticket | ✅ | ✅ (derivados, no editables) | Parcial |
+| Estados de ticket | ✅ | ✅ (explícitos, los controla el responsable) | **Paridad** |
 | Cierre con confirmación del solicitante | A veces | ✅ (mejor que el promedio) | **Ventaja propia** |
 | Rechazo con motivo obligatorio | A veces | ✅ | **Ventaja propia** |
 | Campos dinámicos por tipo (sin código) | A veces (planes altos) | ✅ | **Ventaja propia** |
-| Historial/auditoría de cambios | ✅ | Parcial (solo el hilo; la asignación nunca cambia) | Gap menor |
+| Historial/auditoría de cambios | ✅ | ✅ (`ticket_historial` por trigger: creado/tomado/devuelto/reasignado/cambio de estado) | **Paridad** (desde 2026-08-10) |
 | Respuestas predefinidas / macros | ✅ | ❌ | Opcional interno |
 | Reportes / dashboards | ✅ | Parcial (métricas admin) | Opcional interno |
 | Base de conocimiento | ✅ | ❌ | Fuera de alcance interno |
@@ -394,6 +399,29 @@ tickets (numero bigserial, levantado_por_id, responsable_id FIJO, datos jsonb)
 #### 5.1.5 Recomendación de orden
 
 Si el objetivo es "sólido y que sume valor" como reemplazo operativo real: **1) liberar la conversación (TKT-001) + endurecer seguridad de escritura (SEC-001/RLS-*) → 2) notificaciones (TKT-003) → 3) reasignación (TKT-002) → 4) búsqueda/filtros + cola admin (TKT-006/007) → 5) prioridad + SLA básico (TKT-004/005)**. Los puntos 1-3 son los que convierten el módulo de "demo bonita" en herramienta de uso diario.
+
+> **Estado al 2026-08-10:** de esa lista quedan abiertos **la seguridad de escritura** (SEC-001/RLS-*, punto 1b) y **la cola global de admin** (TKT-007). Todo lo demás está entregado. El orden resultó bueno: los puntos 1-3 sí fueron los que cambiaron la naturaleza del módulo.
+
+#### 5.1.7 Modelo de equipo — arquitectura entregada (2026-08-10)
+
+**Qué cambió de fondo.** El módulo estaba diseñado para *una persona*: el ticket nacía con dueño fijo, el estatus se deducía y nadie se enteraba de nada sin abrir la app. Ahora está diseñado para un **equipo que rota**.
+
+**Decisiones cerradas (no re-litigar):**
+
+1. **El ticket pertenece a un área, no a una persona.** `tickets.area_id` está **desnormalizado** a propósito (podría derivarse de `problem_catalog`): la política RLS se evalúa por fila y un join ahí se paga caro, y tener el área en el ticket permitirá transferirlo entre áreas sin reescribir su tipo de problema. Un trigger lo rellena en el insert, así que el front —que todavía escribe con el cliente Supabase— **no puede crear un ticket sin cola** aunque lo intente.
+2. **`responsable_id` nullable = está en la cola.** El self-assign va por **RPC `security definer`**, no por política UPDATE: una política lo bastante amplia para permitir el self-assign también abriría la puerta a editar otras columnas. Mismo criterio para cambiar estado y reasignar. Es el patrón de `rec_transicion_etapa`.
+3. **La cola se gatea por pertenencia al área, no por rol.** El técnico de Sistemas que la atiende tiene rol `usuario` en los presets; gatearla por rol la escondería justo de quien la necesita.
+   > **Consecuencia a vigilar:** cualquiera con `profiles.area_id` = un área ve **todos** los tickets de esa área. Es el modelo correcto para una cola, pero exige que `/admin/usuarios` mantenga las áreas limpias.
+4. **El estado es una columna, no una inferencia.** Enum `ticket_estado`. Con eso muere la regla de paridad de `validate_response_order` (TKT-001) y aparece el "en proceso" que nunca existió. Los tipos de respuesta preexistentes (`terminado_*`, `rechazo_*`) **sincronizan el estado por trigger**, así que el front viejo siguió funcionando durante la migración.
+5. **La bitácora se llena por trigger, no desde las acciones.** Instrumentar las RPCs habría dejado fuera los cierres, que los dispara el trigger de las respuestas. Con triggers sobre `tickets`, ningún camino de escritura la esquiva —ni un update manual de admin— y el evento se deriva de *qué columna cambió*. `ticket_historial` no tiene política de insert: solo los triggers escriben, un cliente no puede fabricar historia.
+6. **Las notificaciones reusan Gmail, no se agregó Resend.** `lib/google` ya mandaba correos en producción para Reclutamiento. Todo envío es **best-effort**: un Gmail caído nunca bloquea crear, tomar o mover un ticket.
+   > **Riesgo registrado:** las notificaciones las dispara cualquier usuario, pero `rec_credenciales_google` solo la leen admin/Reclutamiento. La RPC `tkt_credencial_google` devuelve el `refresh_token` **cifrado (AES-256-GCM)**; la llave vive solo en el entorno del servidor, así que quien la llame obtiene un blob indescifrable.
+
+**Semántica del SLA (revisada).** El reloj corre mientras el área debe algo — `abierto` o `en_revision` — y se mide desde `created_at`. `programado` lo **pausa** a propósito: el trabajo ya se validó y espera a la siguiente tanda, así que la demora dejó de ser del técnico; `resuelto` también, porque ahí la pelota es del solicitante. **Las pausas no se acumulan**: un ticket reabierto vuelve a contar contra su hora original. Es la lectura estricta y defendible; acumular exige reconstruir desde `ticket_historial`, que es justo lo que la bitácora habilita.
+
+**El usuario no elige área.** `/tickets/nuevo` es un solo paso. La gente piensa en síntomas, no en organigramas, y el área siempre fue consecuencia del tipo de problema. Buscador insensible a acentos que indexa **también las opciones de los campos select** (ahí viven las frases reales: "instalar impresora"), tarjetas con ejemplos concretos tomados del catálogo, y atajos frecuentes anclados por fragmento de nombre para que renombrar un tipo nunca deje un link muerto.
+
+**Deuda consciente:** las plantillas de correo y las frases frecuentes de tickets viven en el código, a diferencia de las de Reclutamiento, que se editan desde Ajustes. **Y los correos nunca se han enviado de verdad** — la ruta es la misma que Reclutamiento usa a diario, pero falta verlo llegar.
 
 #### 5.1.6 Validación de requisitos (de dónde sale cada no-negociable)
 
@@ -927,8 +955,13 @@ Cierre del pipeline de cartera para producción (mismo día que SEC-002 y CART-0
 | 62 | `20260730130100_rec_021_vista_requisitos.sql` | **Vista `rec_candidato_requisitos`** con `security_invoker = on` (sin él se salta RLS) |
 | 63 | `20260731144900_rec_022_factorial_employee_id.sql` | `rec_candidatos.factorial_employee_id` (idempotencia del alta en Factorial) |
 | 64 | `20260731160000_rec_023_factorial_sync_toggle.sql` | Clave `factorial` en `rec_ajustes` con `{ sync_activa: false }` — el alta arranca **apagada** |
+| 65 | `20260810120000_tkt_cola_por_area.sql` | **Cola por área**: `tickets.area_id` (backfill + trigger de relleno), `responsable_id` nullable, `es_de_area()`, RLS ampliada en tickets/respuestas/adjuntos, RPC `tkt_tomar_ticket` |
+| 66 | `20260810120100_tkt_estados_explicitos.sql` | **Estados explícitos**: enum `ticket_estado` + columna con backfill, `validate_response_order` sin paridad, RPC `tkt_cambiar_estado`, vista recreada con `left join profiles` |
+| 67 | `20260810140000_tkt_reasignacion.sql` | RPC `tkt_reasignar_ticket` (devolver a la cola / pasar a alguien del área) |
+| 68 | `20260810150000_tkt_historial.sql` | **Bitácora** `ticket_historial` + triggers `log_ticket_creado` / `log_ticket_cambio` |
+| 69 | `20260810150100_tkt_notif_credencial.sql` | RPC `tkt_credencial_google` — refresh_token **cifrado** para que cualquier usuario dispare notificaciones |
 
-> **Estado 2026-08-04:** las **64** migraciones locales tienen par remoto (verificado con `supabase migration list`). No hay nada pendiente de `db push`.
+> **Estado 2026-08-10:** las **69** migraciones locales tienen par remoto. No hay nada pendiente de `db push`.
 >
 > **Ojo con los dos archivos de tipos.** `lib/supabase/database.types.ts` (1738 líneas) es el **espejo autogenerado** (`npm run db:types`); `lib/supabase/types.ts` (838 líneas) es el **manual de dominio/UI**. `client.ts` y `server.ts` importan `Database` del **manual**, no del generado — por eso el generado puede estar desfasado sin que truene nada.
 >
@@ -942,7 +975,7 @@ Cierre del pipeline de cartera para producción (mismo día que SEC-002 y CART-0
 |----------|-----------|
 | ¿Leí package.json, middleware, layouts raíz, dashboard? | Sí |
 | ¿Leí al menos 3 Server Actions / route handlers? | Sí (`acreditados.ts`, `cartera/upload`, `cartera/procesar`) |
-| ¿Revisé las migraciones (al menos las críticas)? | Sí — eran 22 al escribir esto; hoy son **64** y el inventario §11 está completo (actualizado 2026-08-04) |
+| ¿Revisé las migraciones (al menos las críticas)? | Sí — eran 22 al escribir esto; hoy son **69** y el inventario §11 está completo (actualizado 2026-08-10) |
 | ¿Investigué el legacy y el microservicio? | Sí (README + research.md + plan.md del legacy, código del microservicio completo, schema Supabase) |
 | ¿Distinguí "lo que existe" de "lo que se asume / hay que confirmar"? | Sí — §10 lista preguntas abiertas |
 | ¿Documenté el estado real, no el aspirable? | Sí — Cartera marcada como ETL parcial + dashboards pendientes |
