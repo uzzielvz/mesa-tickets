@@ -9,6 +9,7 @@ import {
 import TicketThread from '@/components/tickets/ticket-thread'
 import ResponseComposer from '@/components/tickets/response-composer'
 import ControlEstado from '@/components/tickets/control-estado'
+import { guiaDelTicket } from '@/lib/tickets/guia'
 
 // Etiquetas para datos legacy (tickets viejos sin entrada en `datos`)
 const LEGACY_LABELS: Record<string, string> = {
@@ -113,6 +114,20 @@ export default async function TicketDetailPage({ params }: { params: { numero: s
   const p = perfil as { area_id: string | null; rol: string } | null
   const esAdmin = p?.rol === 'admin'
   const puedeTomar = esAdmin || (p?.area_id != null && p.area_id === ticket.area_id)
+
+  // Gente del área para "Pasar a…". Solo hace falta si quien mira puede
+  // reasignar; para el resto es una query gratis que no se usa.
+  let companeros: { id: string; nombre: string }[] = []
+  if ((esResponsable || esAdmin) && !isClosed) {
+    const { data: gente } = await supabase
+      .from('profiles')
+      .select('id, nombre_completo')
+      .eq('area_id', ticket.area_id)
+      .neq('id', ticket.responsable_id ?? '00000000-0000-0000-0000-000000000000')
+      .order('nombre_completo')
+    companeros = ((gente ?? []) as { id: string; nombre_completo: string }[])
+      .map(g => ({ id: g.id, nombre: g.nombre_completo }))
+  }
   const sla = calcularSla(ticket, Date.now())
   const chipBase = 'text-[11.5px] font-medium px-2 py-[2px] rounded-full border'
 
@@ -154,6 +169,25 @@ export default async function TicketDetailPage({ params }: { params: { numero: s
         </span>
       </div>
 
+      {(() => {
+        const guia = guiaDelTicket({
+          estado: ticket.status,
+          esLevantador,
+          esResponsable,
+          puedeTomar: puedeTomar && ticket.responsable_id === null,
+          areaNombre: ticket.area_nombre,
+          responsableNombre: ticket.responsable_nombre,
+          slaMin: ticket.sla_min,
+        })
+        if (!guia) return null
+        return (
+          <div className="mx-5 md:mx-9 mb-5 border-l-2 border-orange bg-surface-sidebar rounded-r-md px-4 py-3">
+            <p className="text-[12.5px] font-medium text-ink-900">{guia.titulo}</p>
+            <p className="text-[12px] text-ink-500 mt-0.5 leading-relaxed">{guia.cuerpo}</p>
+          </div>
+        )
+      })()}
+
       {!isClosed && (
         <ControlEstado
           ticketId={ticket.id}
@@ -163,6 +197,7 @@ export default async function TicketDetailPage({ params }: { params: { numero: s
           responsableId={ticket.responsable_id}
           puedeTomar={puedeTomar}
           puedeMoverEstado={esResponsable || esAdmin}
+          companeros={companeros}
         />
       )}
 
