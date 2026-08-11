@@ -25,15 +25,21 @@ function clientSecret(): string {
 }
 
 // URL de consentimiento (access_type=offline + prompt=consent garantizan refresh_token).
-export function urlAutorizacion(redirectUri: string, state: string): string {
+//
+// `select_account` es obligatorio además de `consent`: con `consent` a secas,
+// si el navegador ya tiene sesión de Google, se autoriza esa cuenta SIN
+// preguntar — y terminas conectando la tuya creyendo que conectaste otra.
+// `login_hint` preselecciona la cuenta esperada para que el error sea difícil.
+export function urlAutorizacion(redirectUri: string, state: string, loginHint?: string): string {
   const params = new URLSearchParams({
     client_id: clientId(),
     redirect_uri: redirectUri,
     response_type: 'code',
     scope: GOOGLE_SCOPES.join(' '),
     access_type: 'offline',
-    prompt: 'consent',
+    prompt: 'select_account consent',
     state,
+    ...(loginHint ? { login_hint: loginHint } : {}),
   })
   return `${AUTH_URL}?${params.toString()}`
 }

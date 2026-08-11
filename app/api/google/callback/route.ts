@@ -11,9 +11,8 @@ export async function GET(req: NextRequest) {
   // Se vuelve al módulo desde el que se pidió conectar, no siempre a
   // reclutamiento: la cuenta emisora ya es por módulo (TKT-046).
   const usoCookie = req.cookies.get('google_oauth_uso')?.value ?? 'ambos'
-  const destino = usoCookie === 'tickets' ? '/tickets/area' : '/reclutamiento/agendar'
   const volver = (query: string) =>
-    NextResponse.redirect(new URL(`${destino}?${query}`, req.url))
+    NextResponse.redirect(new URL(`/reclutamiento/agendar?${query}`, req.url))
 
   const url = new URL(req.url)
   const code = url.searchParams.get('code')
@@ -46,15 +45,6 @@ export async function GET(req: NextRequest) {
       emailCuenta = await correoDeLaCuenta(tokens.access_token)
     } catch {
       emailCuenta = null
-    }
-
-    // El remitente de la mesa de tickets es una identidad de la PLATAFORMA,
-    // no la cuenta de quien esté configurando. Se valida aquí, en el punto de
-    // escritura: aunque alguien con permisos abra ?uso=tickets, si no autorizó
-    // con la cuenta de plataforma no se guarda como emisora de tickets.
-    const remitenteTickets = (process.env.TICKETS_SENDER_EMAIL ?? '').toLowerCase().trim()
-    if (uso === 'tickets' && remitenteTickets && emailCuenta !== remitenteTickets) {
-      return volver('google_error=cuenta_no_autorizada')
     }
 
     // El índice único por `uso` impide dos credenciales para el mismo módulo:

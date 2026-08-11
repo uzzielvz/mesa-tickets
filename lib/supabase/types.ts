@@ -893,12 +893,8 @@ export interface Database {
         }
         Returns: undefined
       }
-      // TKT-039/046: refresh_token de Google CIFRADO (la llave vive solo en el
-      // servidor). Una cuenta emisora por módulo; `ambos` es el comodín.
-      tkt_credencial_google: {
-        Args: Record<string, never>
-        Returns: { refresh_token: string; email: string | null }[]
-      }
+      // El remitente de tickets NO está aquí: vive en variables de entorno
+      // para que ningún usuario pueda cambiarlo (TKT-048).
       rec_credencial_google: {
         Args: Record<string, never>
         Returns: string | null

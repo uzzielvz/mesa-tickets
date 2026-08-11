@@ -4,8 +4,12 @@ import { urlAutorizacion } from '@/lib/google/client'
 
 // Inicia el flujo OAuth de Google (Calendar + Gmail) para la cuenta emisora.
 //
-// `?uso=tickets` la deja como remitente de la mesa de tickets; `?uso=reclutamiento`
-// del módulo de reclutamiento; sin parámetro, `ambos` (comodín, TKT-046).
+// Esta ruta configura el emisor de RECLUTAMIENTO, donde tiene sentido que el
+// operador conecte su propia cuenta: esos correos salen de una persona.
+//
+// La mesa de tickets NO pasa por aquí (TKT-048): su remitente es una identidad
+// de la plataforma y vive en variables de entorno, fuera del alcance de
+// cualquier usuario y de cualquier dispositivo.
 // Solo admin o portadores del flag de reclutamiento.
 
 export async function GET(req: NextRequest) {
@@ -23,8 +27,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', req.url))
   }
 
-  const usoPedido = req.nextUrl.searchParams.get('uso')
-  const uso = usoPedido === 'tickets' || usoPedido === 'reclutamiento' ? usoPedido : 'ambos'
+  // `?uso=tickets` ya no existe: el remitente de la mesa no se configura desde
+  // la aplicación. Si alguien llega con ese parámetro, se ignora.
+  const uso = req.nextUrl.searchParams.get('uso') === 'reclutamiento' ? 'reclutamiento' : 'ambos'
 
   const state = crypto.randomUUID()
   const redirectUri = new URL('/api/google/callback', req.url).toString()

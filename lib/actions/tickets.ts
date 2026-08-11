@@ -2,7 +2,6 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { descifrar } from '@/lib/google/crypto'
 import { accessTokenDesdeRefresh, enviarCorreo } from '@/lib/google/client'
 import {
   correoCerrado, correoDevuelto, correoPausa, correoRechazado,
@@ -106,23 +105,40 @@ async function emailsDelArea(supabase: Supa, areaId: string, excluir: string[]):
 /** Nombre visible del remitente. Las notificaciones son de la plataforma. */
 const REMITENTE = 'Mesa de Ayuda CrediFlexi'
 
-async function enviar(supabase: Supa, to: string[], correo: Correo): Promise<void> {
-  if (to.length === 0) return
-  try {
-    // La credencial viaja cifrada; solo el servidor tiene la llave.
-    const { data } = await supabase.rpc('tkt_credencial_google')
-    const cred = (data as unknown as { refresh_token: string; email: string | null }[] | null)?.[0]
-    if (!cred?.refresh_token) return // sin cuenta conectada: silencio, no error
+/**
+ * La cuenta emisora de la mesa vive en el ENTORNO, no en la base de datos.
+ *
+ * Es deliberado: mientras la credencial fuera una fila de
+ * `rec_credenciales_google`, cualquier usuario con permisos podía reconectar
+ * desde cualquier dispositivo y cambiar el remitente — de hecho pasó. Como
+ * variable de Vercel no hay pantalla que la toque, ni RLS que se pueda
+ * relajar, ni "última cuenta conectada" que gane.
+ *
+ * Se obtiene una sola vez con `scripts/google-token-plataforma.mjs`.
+ */
+function credencialPlataforma(): { refreshToken: string; email: string } | null {
+  const refreshToken = process.env.TICKETS_GOOGLE_REFRESH_TOKEN
+  const email = process.env.TICKETS_SENDER_EMAIL
+  if (!refreshToken || !email) return null
+  return { refreshToken, email }
+}
 
-    const accessToken = await accessTokenDesdeRefresh(descifrar(cred.refresh_token))
-    // Con dirección conocida se firma el From y el destinatario ve
-    // "Mesa de Ayuda CrediFlexi" en vez del nombre del titular de la cuenta.
-    const from = cred.email ? `${REMITENTE} <${cred.email}>` : undefined
+async function enviar(_supabase: Supa, to: string[], correo: Correo): Promise<void> {
+  if (to.length === 0) return
+  const cred = credencialPlataforma()
+  if (!cred) {
+    // Sin configurar: no se manda nada. Nunca se cae de vuelta a la cuenta de
+    // un usuario — un remitente equivocado es peor que ningún correo.
+    console.warn('[tickets] TICKETS_GOOGLE_REFRESH_TOKEN/SENDER_EMAIL sin configurar: no se envió')
+    return
+  }
+  try {
+    const accessToken = await accessTokenDesdeRefresh(cred.refreshToken)
     await enviarCorreo(accessToken, {
       to,
       subject: correo.subject,
       html: correo.html,
-      ...(from ? { from } : {}),
+      from: `${REMITENTE} <${cred.email}>`,
     })
   } catch (e) {
     console.error('[tickets] notificación no enviada:', e)
