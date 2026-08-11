@@ -8,6 +8,7 @@ import {
 } from '@/lib/tickets/sla'
 import TicketThread from '@/components/tickets/ticket-thread'
 import ResponseComposer from '@/components/tickets/response-composer'
+import ControlEstado from '@/components/tickets/control-estado'
 
 // Etiquetas para datos legacy (tickets viejos sin entrada en `datos`)
 const LEGACY_LABELS: Record<string, string> = {
@@ -98,9 +99,20 @@ export default async function TicketDetailPage({ params }: { params: { numero: s
     user.id === ticket.levantado_por_id || user.id === ticket.responsable_id
   const isRechazado = ticket.status === 'rechazado'
   const isClosed = ticket.status === 'cerrado' || isRechazado
-  const isTerminado = ticket.status === 'terminado'
+  const isTerminado = ticket.status === 'resuelto'
   const esResponsable = user.id === ticket.responsable_id
   const esLevantador = user.id === ticket.levantado_por_id
+
+  // Para tomar un ticket de la cola hay que pertenecer al área que lo atiende.
+  // La RPC lo revalida del lado del servidor; esto solo decide qué se pinta.
+  const { data: perfil } = await supabase
+    .from('profiles')
+    .select('area_id, rol')
+    .eq('id', user.id)
+    .single()
+  const p = perfil as { area_id: string | null; rol: string } | null
+  const esAdmin = p?.rol === 'admin'
+  const puedeTomar = esAdmin || (p?.area_id != null && p.area_id === ticket.area_id)
   const sla = calcularSla(ticket, Date.now())
   const chipBase = 'text-[11.5px] font-medium px-2 py-[2px] rounded-full border'
 
@@ -137,9 +149,22 @@ export default async function TicketDetailPage({ params }: { params: { numero: s
           <span className="text-ink-400">Levantado por:</span> {ticket.levantado_por_nombre}
         </span>
         <span className="text-ink-700">
-          <span className="text-ink-400">Responsable:</span> {ticket.responsable_nombre}
+          <span className="text-ink-400">Responsable:</span>{' '}
+          {ticket.responsable_nombre ?? <span className="text-ink-400">sin asignar</span>}
         </span>
       </div>
+
+      {!isClosed && (
+        <ControlEstado
+          ticketId={ticket.id}
+          numero={ticket.numero}
+          estado={ticket.status}
+          areaNombre={ticket.area_nombre}
+          responsableId={ticket.responsable_id}
+          puedeTomar={puedeTomar}
+          puedeMoverEstado={esResponsable || esAdmin}
+        />
+      )}
 
       {datosUI.length > 0 && (
         <div className="mx-5 md:mx-9 mb-6 bg-surface-sidebar border border-[#ECECEC] rounded-md px-4 py-3 flex flex-wrap gap-x-6 gap-y-1">

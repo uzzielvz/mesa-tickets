@@ -1,9 +1,10 @@
 const STATUS_CONFIG = {
-  abierto:    { color: '#2563EB', label: 'Abierto' },
-  contestado: { color: '#C88A04', label: 'Contestado' },
-  terminado:  { color: '#F58220', label: 'Terminado' },
-  cerrado:    { color: '#15803D', label: 'Cerrado' },
-  rechazado:  { color: '#DC2626', label: 'Rechazado' },
+  abierto:     { color: '#2563EB', label: 'Abierto' },
+  en_revision: { color: '#C88A04', label: 'En revisión' },
+  programado:  { color: '#7C3AED', label: 'Programado' },
+  resuelto:    { color: '#F58220', label: 'Resuelto' },
+  cerrado:     { color: '#15803D', label: 'Cerrado' },
+  rechazado:   { color: '#DC2626', label: 'Rechazado' },
 } as const
 
 type Status = keyof typeof STATUS_CONFIG

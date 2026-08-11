@@ -53,7 +53,7 @@ export default function ResponseComposer({
       tipo === 'mensaje'
         ? contenido.trim()
         : tipo === 'terminado_responsable'
-          ? 'El responsable marcó este ticket como terminado.'
+          ? 'El responsable marcó este ticket como resuelto.'
           : tipo === 'terminado_usuario'
             ? 'El usuario confirmó el cierre del ticket.'
             : (customText ?? '').trim()
@@ -90,7 +90,7 @@ export default function ResponseComposer({
 
     const toastMsg: Record<Tipo, string> = {
       mensaje: 'Respuesta enviada',
-      terminado_responsable: 'Ticket marcado como terminado',
+      terminado_responsable: 'Ticket marcado como resuelto',
       terminado_usuario: 'Ticket cerrado',
       rechazo_responsable: 'Solicitud rechazada',
     }
@@ -109,7 +109,7 @@ export default function ResponseComposer({
     return (
       <div className="border border-[#ECECEC] rounded-md p-4 bg-surface-sidebar flex flex-col gap-3">
         <p className="text-[13px] text-ink-700">
-          El responsable marcó este ticket como terminado. ¿El problema fue resuelto?
+          El responsable marcó este ticket como resuelto. ¿Quedó solucionado tu problema?
         </p>
         <textarea
           value={contenido}
@@ -217,7 +217,7 @@ export default function ResponseComposer({
                 disabled={loading}
                 className="bg-transparent border border-[#ECECEC] text-ink-900 text-[12.5px] font-medium rounded px-[14px] py-[7px] transition-colors hover:bg-surface-hover disabled:opacity-50"
               >
-                Marcar como terminado
+                Marcar como resuelto
               </button>
             </>
           )}

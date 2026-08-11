@@ -25,7 +25,6 @@ interface TicketSlaInput {
   status: string
   sla_min: number | null
   created_at: string
-  ultima_respuesta_at: string | null
 }
 
 /** "40 min", "1 h 5 min", "2 h". */
@@ -37,17 +36,32 @@ export function formatoDuracion(min: number): string {
   return resto === 0 ? `${horas} h` : `${horas} h ${resto} min`
 }
 
+/**
+ * El reloj corre solo mientras el área debe algo: cuando el ticket está en la
+ * cola (`abierto`) o alguien lo está atendiendo (`en_revision`).
+ *
+ * `programado` lo pausa a propósito — el ticket ya se validó y espera a la
+ * siguiente tanda, así que la demora dejó de ser responsabilidad del técnico.
+ * `resuelto` también, porque ahí la pelota es del solicitante.
+ */
+const RELOJ_CORRIENDO = new Set(['abierto', 'en_revision'])
+
 export function calcularSla(t: TicketSlaInput, ahora: number): Sla {
   if (t.sla_min == null) {
     return { estado: 'sin_sla', minutos: null, etiqueta: 'Tiempo variable' }
   }
-  if (t.status !== 'abierto') {
-    return { estado: 'no_aplica', minutos: null, etiqueta: `SLA ${formatoDuracion(t.sla_min)}` }
+  if (!RELOJ_CORRIENDO.has(t.status)) {
+    const etiqueta = t.status === 'programado'
+      ? 'En espera de la siguiente tanda'
+      : `SLA ${formatoDuracion(t.sla_min)}`
+    return { estado: 'no_aplica', minutos: null, etiqueta }
   }
 
-  // Desde la última vez que el solicitante escribió (o desde que se levantó).
-  const desde = new Date(t.ultima_respuesta_at ?? t.created_at).getTime()
-  const transcurrido = (ahora - desde) / 60_000
+  // Desde que se levantó el ticket. Las pausas (`programado`, `resuelto`) no se
+  // acumulan: un ticket que se reabre vuelve a contar contra su hora original.
+  // Es la lectura estricta y la que se puede defender en junta; llevar tiempo
+  // acumulado exigiría una bitácora de cambios de estado.
+  const transcurrido = (ahora - new Date(t.created_at).getTime()) / 60_000
   const restante = t.sla_min - transcurrido
 
   if (restante <= 0) {

@@ -55,9 +55,15 @@ export default async function DashboardPage() {
   const asignados = (rawAsignados ?? []) as { status: string }[]
 
   const misAbiertos = misTickets.filter(t => t.status === 'abierto').length
-  const misContestados = misTickets.filter(t => t.status === 'contestado').length
+  const misEnCurso = misTickets.filter(
+    t => t.status === 'en_revision' || t.status === 'programado',
+  ).length
+  const misPorConfirmar = misTickets.filter(t => t.status === 'resuelto').length
   const asignadosPendientes = asignados.filter(t => t.status === 'abierto').length
-  const asignadosTerminados = asignados.filter(t => t.status === 'terminado').length
+  const asignadosEnCurso = asignados.filter(
+    t => t.status === 'en_revision' || t.status === 'programado',
+  ).length
+  const asignadosResueltos = asignados.filter(t => t.status === 'resuelto').length
 
   const nombre = profile
     ? formatName(profile.nombre_completo, user.email ?? '').split(' ')[0]
@@ -79,9 +85,9 @@ export default async function DashboardPage() {
           <div>
             <p className="text-[11px] uppercase tracking-[0.4px] text-ink-400 font-medium mb-3">Mis tickets</p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <StatCard label="Abiertos" value={misAbiertos} href="/tickets/mios" description="Esperando respuesta" />
-              <StatCard label="Contestados" value={misContestados} href="/tickets/mios" description="Requieren tu respuesta" />
-              <StatCard label="Total" value={misTickets.length} href="/tickets/mios" description="Tickets levantados" />
+              <StatCard label="Abiertos" value={misAbiertos} href="/tickets/mios" description="Aún sin tomar" />
+              <StatCard label="En curso" value={misEnCurso} href="/tickets/mios" description="Alguien los atiende" />
+              <StatCard label="Por confirmar" value={misPorConfirmar} href="/tickets/mios" description="Confirma si quedó resuelto" />
               <StatCard label="Cerrados" value={misTickets.filter(t => t.status === 'cerrado').length} href="/tickets/mios" description="Resueltos" />
             </div>
           </div>
@@ -91,9 +97,9 @@ export default async function DashboardPage() {
           <div>
             <p className="text-[11px] uppercase tracking-[0.4px] text-ink-400 font-medium mb-3">Asignados a mí</p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <StatCard label="Pendientes" value={asignadosPendientes} href="/tickets/asignados" description="Sin responder" />
-              <StatCard label="Terminados" value={asignadosTerminados} href="/tickets/asignados" description="Esperando confirmación" />
-              <StatCard label="Total" value={asignados.length} href="/tickets/asignados" description="Tickets asignados" />
+              <StatCard label="Sin empezar" value={asignadosPendientes} href="/tickets/asignados" description="Tomados, sin trabajar" />
+              <StatCard label="En curso" value={asignadosEnCurso} href="/tickets/asignados" description="En revisión o programados" />
+              <StatCard label="Resueltos" value={asignadosResueltos} href="/tickets/asignados" description="Esperando confirmación" />
               <StatCard label="Cerrados" value={asignados.filter(t => t.status === 'cerrado').length} href="/tickets/asignados" description="Resueltos" />
             </div>
           </div>
