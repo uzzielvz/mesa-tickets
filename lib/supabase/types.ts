@@ -849,6 +849,14 @@ export interface Database {
         }
         Returns: undefined
       }
+      // TKT-002: null = devolver a la cola; uuid = pasar a alguien del área.
+      tkt_reasignar_ticket: {
+        Args: {
+          p_ticket_id: string
+          p_nuevo_responsable?: string | null
+        }
+        Returns: undefined
+      }
       rec_transicion_etapa: {
         Args: {
           p_candidato_id: string
