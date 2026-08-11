@@ -19,7 +19,7 @@
 4. **Tipos Supabase regenerados** (`supabase gen types`) incluyendo cartera y RPCs.
 5. **Smoke E2E** mínimo (login + crear ticket + crear acreditado + cargar cartera) corriendo en local.
 6. **Reclutamiento operable de punta a punta sin retranscripción**: el pipeline `postulado → contratado` completo desde el kanban (✅ S1–S9), **más** (a) smoke test end-to-end ejecutado con correos de prueba y verificado en `rec_correos_enviados`, y (b) el alta en Factorial validada contra producción con el interruptor encendido. Hoy ambos están pendientes — el código existe, la validación con datos reales no.
-7. **Mesa de tickets con dueño real del trabajo**: cola por área y estados explícitos (T-P1/T-P2). Mientras el ticket se asigne a una persona fija y el estatus se deduzca de la paridad de respuestas, el módulo no soporta un equipo que rota.
+7. **Mesa de tickets con dueño real del trabajo**: cola por área y estados explícitos (T-P1/T-P2). *(✅ 2026-08-10 — el ticket nace en la cola de su área, se toma con un clic y avanza por estados que controla el responsable.)*
 
 **Lo que NO entra en v1.0** (queda para v1.1+):
 - Chat IA en cartera.
@@ -114,8 +114,8 @@
 
 | # | Ticket | Descripción | Tipo | Bloqueado por |
 |---|--------|-------------|------|---------------|
-| T-P1 | TKT-020 | **Modelo de cola por área** (estructural). Hoy el ticket se asigna a una **persona fija** (`responsable_id`). Cambiar a: el ticket pertenece a un **área** (`area_id`, cola) y `responsable_id` es **nullable** hasta que alguien del área lo "toma" (self-assign). FICHA/CRÉDITO → cola **Tesorería**; MORA → cola **Data Science**. Reasignación manual del gerente = botón posterior, no día 1. | Estructural | — |
-| T-P2 | TKT-021 | **Estados explícitos** (estructural). Reemplazar el estado derivado por paridad por estados que controla el responsable: **Abierto** (auto al crear) → **En revisión** (alguien lo tomó) → **Programado** (validado, se carga en el siguiente corte/tanda) → **Resuelto** / **Rechazado** (motivo obligatorio). "Programado" cubre el "se carga en la siguiente"; **sin fecha/hora por ahora** (cortes sin horario fijo). Esto también resuelve TKT-001 (la paridad bloqueaba dos mensajes consecutivos del mismo lado). | Estructural | — |
+| T-P1 | TKT-020 | **Modelo de cola por área** — ✅ **2026-08-10** (mig. `20260810120000`, TKT-031/033/035). El ticket pertenece a un **área** (`tickets.area_id`, backfill + trigger) y `responsable_id` es **nullable** hasta que alguien del área lo toma vía RPC `tkt_tomar_ticket`. Nueva pantalla `/tickets/area` (Sin tomar / En curso, ordenada por urgencia) + ítem del sidebar con contador de sin-tomar. RLS: `es_de_area()` amplía el select de tickets/respuestas/adjuntos. Al levantar, el ticket **nace sin responsable**. Reasignación manual entre personas sigue pendiente (TKT-002). | Estructural | ✅ 2026-08-10 |
+| T-P2 | TKT-021 | **Estados explícitos** — ✅ **2026-08-10** (mig. `20260810120100`, TKT-032/034/036/037). Enum `ticket_estado`: **Abierto → En revisión → Programado → Resuelto/Rechazado → Cerrado**, columna `tickets.estado` con backfill desde la lógica derivada (ningún ticket vivo cambió de estatus al desplegar). RPC `tkt_cambiar_estado` valida transiciones; los tipos de respuesta existentes sincronizan estado por trigger. **Se acabó la paridad** → TKT-001 resuelto. El SLA corre en `abierto`/`en_revision` y se pausa en `programado` (pausas no acumulables — llevar tiempo acumulado exigiría bitácora de estados). La vista pasa a `left join profiles` (con responsable NULL el join interno ocultaba los tickets de la cola). | Estructural | ✅ 2026-08-10 |
 | T-P3 | TKT-022 | **Seed de los 3 tipos**: áreas (Tesorería, Data Science) + catálogo (FICHA NO REFLEJADA, CRÉDITO FALTANTE, ERROR EN MORA) con sus **campos dinámicos** y ruteo a cola de área. Campos pendientes de confirmar listado fino con el usuario. | Datos | T-P1, listados usuario |
 | T-P4 | RLS-001/002/004/005 + SEC-001 | **Seguridad full antes de PII real** (ver Fase Tickets-Seguridad/Arquitectura abajo). Con datos reales de clientes pasa de "nice to have" a **bloqueante de go-live**: cerrar `profiles_select` (RLS-002), validar participación en adjuntos lectura+escritura/Storage (RLS-001/005), bloquear respuestas en tickets cerrados (RLS-004), migrar mutaciones a Server Actions con Zod servidor (SEC-001). | Seguridad | — |
 
@@ -375,8 +375,8 @@ Las 6 incidencias (columna "¿Qué engloba?" → campo `select` guiado dentro de
 
 **Trabajo de producto:**
 
-3. **T-P2 / TKT-021 — estados explícitos** en tickets. Es el que más se nota y no depende de que nadie confirme nada: hoy el estatus se deduce de la **paridad** del `orden` de la última respuesta, no existe "en proceso", y esa misma paridad es la que impide dos mensajes seguidos del mismo lado (TKT-001).
-4. **T-P1 / TKT-020 — cola por área** + "Tomar ticket". Requiere migración de RLS (`tickets_select` hoy es propio/asignado/admin). Habilita `/tickets/todos` para admin y desatasca el caso "el responsable se fue de vacaciones".
+3. ✅ ~~T-P2 / TKT-021 — estados explícitos~~ — hecho 2026-08-10.
+4. ✅ ~~T-P1 / TKT-020 — cola por área~~ — hecho 2026-08-10. Pendiente derivado: reasignación manual entre personas (TKT-002) y `/tickets/todos` global para admin.
 5. **T-P4 — seguridad antes de más PII**: RLS-002 (`profiles_select`), RLS-001/005 (participación en adjuntos y Storage), SEC-001 (mutaciones de tickets a Server Actions con Zod servidor).
 6. **S10 — Onboarding del candidato** (§8.12, REC-097..102): captura de datos de contratación vía magic link. Es lo que elimina el Google Form + layout xlsx y alimenta tanto el correo interno de altas como el alta en Factorial con datos limpios.
 
