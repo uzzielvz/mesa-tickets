@@ -23,6 +23,7 @@ interface Ticket {
   sla_min: number | null
   created_at: string
   ultima_respuesta_at: string | null
+  area_nombre: string
 }
 
 interface Props {
@@ -30,6 +31,8 @@ interface Props {
   /** Reloj del servidor: SSR e hidratación tienen que coincidir. */
   ahora: number
   usuarioId: string
+  /** Al ver varias colas a la vez hay que decir de qué área es cada ticket. */
+  mostrarArea?: boolean
 }
 
 // Lo más urgente arriba: primero lo vencido, luego lo que menos tiempo tiene,
@@ -46,7 +49,7 @@ function urgencia(a: { t: Ticket; sla: Sla }, b: { t: Ticket; sla: Sla }): numbe
   return a.t.numero - b.t.numero
 }
 
-export default function ColaArea({ tickets, ahora, usuarioId }: Props) {
+export default function ColaArea({ tickets, ahora, usuarioId, mostrarArea = false }: Props) {
   const router = useRouter()
   const [pendiente, startTransition] = useTransition()
   const [tomando, setTomando] = useState<string | null>(null)
@@ -79,7 +82,9 @@ export default function ColaArea({ tickets, ahora, usuarioId }: Props) {
     return (
       <div className="mx-5 md:mx-9 py-16 text-center border border-[#ECECEC] rounded-md">
         <p className="text-[13px] text-ink-400">
-          No hay tickets activos en tu área. Todo al corriente.
+          {mostrarArea
+            ? 'No hay tickets activos en ninguna área. Todo al corriente.'
+            : 'No hay tickets activos en tu área. Todo al corriente.'}
         </p>
       </div>
     )
@@ -96,6 +101,7 @@ export default function ColaArea({ tickets, ahora, usuarioId }: Props) {
         onTomar={handleTomar}
         tomando={tomando}
         deshabilitado={pendiente}
+        mostrarArea={mostrarArea}
       />
 
       <Seccion
@@ -105,6 +111,7 @@ export default function ColaArea({ tickets, ahora, usuarioId }: Props) {
         filas={enCurso}
         ahora={ahora}
         usuarioId={usuarioId}
+        mostrarArea={mostrarArea}
       />
     </div>
   )
@@ -120,10 +127,11 @@ interface SeccionProps {
   onTomar?: (t: Ticket) => void
   tomando?: string | null
   deshabilitado?: boolean
+  mostrarArea?: boolean
 }
 
 function Seccion({
-  titulo, descripcion, vacio, filas, usuarioId, onTomar, tomando, deshabilitado,
+  titulo, descripcion, vacio, filas, usuarioId, onTomar, tomando, deshabilitado, mostrarArea,
 }: SeccionProps) {
   return (
     <section className="mt-2">
@@ -168,6 +176,7 @@ function Seccion({
                   )}
                 </div>
                 <span className="text-[11.5px] text-ink-400 truncate">
+                  {mostrarArea && <span className="text-ink-500">{t.area_nombre} · </span>}
                   Levantó {t.levantado_por_nombre} · {timeAgo(t.created_at)}
                   {t.responsable_nombre && (
                     <>

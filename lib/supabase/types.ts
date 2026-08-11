@@ -103,6 +103,8 @@ export interface Database {
           acceso_score: boolean
           acceso_cartera: boolean
           acceso_reclutamiento: boolean
+          /** Ve las colas de TODAS las áreas en la mesa (TKT-043). */
+          supervisa_tickets: boolean
           created_at: string
         }
         Insert: {
@@ -116,6 +118,7 @@ export interface Database {
           acceso_score?: boolean
           acceso_cartera?: boolean
           acceso_reclutamiento?: boolean
+          supervisa_tickets?: boolean
         }
         Update: {
           id?: string
@@ -128,6 +131,7 @@ export interface Database {
           acceso_score?: boolean
           acceso_cartera?: boolean
           acceso_reclutamiento?: boolean
+          supervisa_tickets?: boolean
         }
         Relationships: []
       }
