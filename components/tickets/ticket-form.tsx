@@ -77,6 +77,21 @@ function normalizar(s: string): string {
   return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 }
 
+// Atajos frecuentes, escritos como los dice la gente, no como se llama el
+// tipo en el cat\u00e1logo. `tipo` es un fragmento del nombre del tipo (matching
+// laxo, sin acentos): si el tipo se renombra o se desactiva, el atajo
+// simplemente no se pinta \u2014 nunca un link muerto.
+const FRECUENTES: { frase: string; tipo: string }[] = [
+  { frase: 'No sirve la impresora o el esc\u00e1ner', tipo: 'impresoras' },
+  { frase: 'No tengo acceso a Yunius u otro sistema', tipo: 'usuarios y accesos' },
+  { frase: 'No hay internet o la red est\u00e1 lenta', tipo: 'problemas de red' },
+  { frase: 'Mi computadora est\u00e1 fallando', tipo: 'soporte a equipo' },
+  { frase: 'Necesito ayuda puntual del departamento de TI', tipo: 'servicio de ti' },
+  { frase: 'El sistema me marca error', tipo: 'falla en el sistema' },
+  { frase: 'La ficha de un cliente no se refleja', tipo: 'ficha no reflejada' },
+  { frase: 'La mora de un cliente est\u00e1 mal calculada', tipo: 'error en mora' },
+]
+
 export default function TicketForm({ areas, catalog, userId, initialAreaId, initialProblemId }: Props) {
   const router = useRouter()
 
@@ -121,6 +136,11 @@ export default function TicketForm({ areas, catalog, userId, initialAreaId, init
   const grupos = areas
     .map(a => ({ area: a, tipos: visibles.filter(c => c.area_id === a.id) }))
     .filter(g => g.tipos.length > 0)
+
+  // Atajos que sí existen en el catálogo activo.
+  const frecuentes = FRECUENTES
+    .map(f => ({ ...f, item: catalog.find(c => normalizar(c.nombre).includes(normalizar(f.tipo))) }))
+    .filter((f): f is typeof f & { item: CatalogItem } => f.item != null)
 
   function handleProblemChange(problemId: string) {
     const problem = catalog.find(c => c.id === problemId) ?? null
@@ -343,6 +363,28 @@ export default function TicketForm({ areas, catalog, userId, initialAreaId, init
               autoFocus
               className={inputClass}
             />
+
+            {/* Atajos en el lenguaje del usuario. Se ocultan al buscar:
+                ahí los resultados ya son la respuesta. */}
+            {q === '' && frecuentes.length > 0 && (
+              <div className="border border-[#ECECEC] rounded-md px-4 py-3">
+                <p className="text-[11px] uppercase tracking-[0.3px] text-ink-400 font-medium mb-1.5">
+                  Frecuentes
+                </p>
+                <div className="flex flex-col gap-1">
+                  {frecuentes.map(f => (
+                    <button
+                      key={f.frase}
+                      type="button"
+                      onClick={() => handleProblemChange(f.item.id)}
+                      className="text-left w-fit text-[12.5px] text-navy hover:text-orange hover:underline transition-colors"
+                    >
+                      {f.frase}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {grupos.length === 0 ? (
               <div className="border border-[#ECECEC] rounded-md px-4 py-5 text-center">
