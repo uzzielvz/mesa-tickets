@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import type { TicketWithStatus } from '@/lib/supabase/types'
 import Header from '@/components/layout/header'
 import ColaArea from '@/components/tickets/cola-area'
+import { calcularSla } from '@/lib/tickets/sla'
 
 export const metadata = { title: 'Cola del área — Tickets' }
 
@@ -37,15 +38,28 @@ export default async function ColaAreaPage() {
     )
   }
 
-  const { data: rawTickets } = await supabase
-    .from('tickets_with_status')
-    .select('*')
-    .eq('area_id', areaId)
-    .not('estado', 'in', '("cerrado","rechazado")')
-    .order('created_at', { ascending: true })
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+
+  const [{ data: rawTickets }, { count: cerradosHoy }] = await Promise.all([
+    supabase
+      .from('tickets_with_status')
+      .select('*')
+      .eq('area_id', areaId)
+      .not('estado', 'in', '("cerrado","rechazado")')
+      .order('created_at', { ascending: true }),
+    supabase
+      .from('tickets')
+      .select('*', { count: 'exact', head: true })
+      .eq('area_id', areaId)
+      .gte('closed_at', hoy.toISOString()),
+  ])
 
   const tickets = (rawTickets ?? []) as unknown as TicketWithStatus[]
+  const ahora = Date.now()
   const sinTomar = tickets.filter(t => t.responsable_id === null).length
+  const vencidos = tickets.filter(t => calcularSla(t, ahora).estado === 'vencido').length
+  const enCurso = tickets.length - sinTomar
 
   return (
     <div>
@@ -65,7 +79,36 @@ export default async function ColaAreaPage() {
           </Link>
         }
       />
-      <ColaArea tickets={tickets} ahora={Date.now()} usuarioId={user.id} />
+      {/* La salud del área de un vistazo. "Vencidos" en rojo solo cuando
+          existe: en verde permanente sería ruido; en rojo permanente, alarma. */}
+      <div className="mx-5 md:mx-9 mb-2 grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { label: 'Sin tomar', value: sinTomar, alerta: false },
+          { label: 'Vencidos', value: vencidos, alerta: vencidos > 0 },
+          { label: 'En curso', value: enCurso, alerta: false },
+          { label: 'Cerrados hoy', value: cerradosHoy ?? 0, alerta: false },
+        ].map(s => (
+          <div
+            key={s.label}
+            className={`border rounded-md px-4 py-3 ${
+              s.alerta ? 'border-red-200 bg-red-50/50' : 'border-[#ECECEC]'
+            }`}
+          >
+            <span className="text-[11px] uppercase tracking-[0.3px] text-ink-400 font-medium block mb-1">
+              {s.label}
+            </span>
+            <span
+              className={`text-[24px] font-semibold tracking-tight leading-none ${
+                s.alerta ? 'text-red-700' : 'text-navy'
+              }`}
+            >
+              {s.value}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <ColaArea tickets={tickets} ahora={ahora} usuarioId={user.id} />
     </div>
   )
 }
