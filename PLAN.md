@@ -3,7 +3,7 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-08-11.
+> Última actualización: 2026-08-11 (⏸ trabajo pausado al cierre del día).
 
 ---
 
@@ -21,7 +21,7 @@ Estado: el módulo cerró el 2026-08-10 su salto de **individual a de equipo** (
 
 | # | Qué | Por qué primero |
 |---|---|---|
-| 1 | **Verificar un envío real de correo** | TKT-039 está entregado pero **nunca se vio llegar un correo**. Es funcionalidad declarada sin evidencia; hasta probarlo no se puede prometer a nadie. Hacerlo entre dos cuentas propias. |
+| 1 | **Los correos no salen — pendiente #1** | Al 2026-08-11 el remitente ya es de la plataforma (`TICKETS_GOOGLE_REFRESH_TOKEN` + `TICKETS_SENDER_EMAIL`, fuera de la BD para que ningún usuario lo cambie), pero **no se ha visto llegar ningún correo**. Diagnóstico listo: `GET /api/tickets/probar-correo` (solo admin) revisa variables → token → cuenta real → envío de prueba, y dice cuál de los cuatro falla. Empezar por ahí. Ojo: las variables nuevas **exigen redespliegue** en Vercel. |
 | 2 | **Smoke end-to-end con clicks** | Levantar → cae en la cola → tomar → responder con adjunto → Programado → Resuelto → confirmar. Nada del 2026-08-10 se probó contra datos reales. |
 | 3 | **Revisar `area_id` en `/admin/usuarios`** | La RLS nueva deja que **todo el que tenga un área vea todos los tickets de esa área**. Correcto para una cola, pero exige la lista limpia. |
 | 4 | **Métricas sobre la bitácora** | % de cumplimiento de SLA, tiempo de primera respuesta, tiempo real por estado, carga por técnico. Los datos se acumulan desde el 2026-08-10; antes no hay con qué reconstruirlos. |
