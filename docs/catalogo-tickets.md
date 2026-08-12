@@ -24,8 +24,8 @@
 | 6 | 🟢 Solicitud de servicio de TI | Sistemas | Baja | Variable | Ambas | Con pausa: *Programado* | Opcional |
 | 7 | 🟢 Ficha no reflejada (grupal/comercial) | Tesorería | Media | Variable | Ambas | Con pausa: *Siguiente corte* | **Obligatoria** |
 | 8 | 🟢 Crédito faltante | Tesorería | Media | Variable | Ambas | Con pausa: *Siguiente corte* | **Obligatoria** |
-| 9 | 🟢 Error en mora | Data Science | Media | Variable | Ambas | Con pausa: *Siguiente corte* | Opcional |
-| 10 | 🟡 Aclaración de mora | Data Science | Media | Variable | Ambas | Con pausa: *Esperando al usuario* | Por confirmar |
+| 9 | 🟢 Error en mora | Data Science | **Alta** | 4 horas | Ambas | Con pausa: *Siguiente corte* | Opcional |
+| 10 | 🟡 Aclaración de mora | Data Science | **Alta** | 4 horas | Ambas | Con pausa: *Esperando al usuario* | Por confirmar |
 | 11 | 🟡 Falla en el sistema | Call Center | Media | Variable | Ambas | Con pausa: *Esperando al usuario* | Por confirmar |
 
 **Lectura rápida:** 5 de los 6 tipos de Sistemas son de **dos clics** (tomar → resolver). Los de Tesorería y Data Science llevan pausa porque su corrección entra en un corte, no se aplica al momento.
@@ -177,7 +177,7 @@
 | | |
 |---|---|
 | **Área** | Data Science |
-| **Prioridad · SLA · Modalidad** | Media · Variable · Ambas |
+| **Prioridad · SLA · Modalidad** | **Alta** · **4 horas** · Ambas |
 | **Pausa** | **"Entra en el siguiente corte"** |
 | **Qué hace el área** | Explica por qué está en mora, o confirma el error y lo corrige |
 
@@ -194,7 +194,7 @@
 | | |
 |---|---|
 | **Área** | Data Science |
-| **Prioridad · SLA · Modalidad** | Media · Variable · Ambas |
+| **Prioridad · SLA · Modalidad** | **Alta** · **4 horas** · Ambas |
 | **Pausa** | **"Esperando al usuario"** |
 | **Instrucciones (observadas)** | Escribir ID del grupo, su ciclo y describir el problema |
 
@@ -248,6 +248,6 @@ En cualquiera, el responsable puede **Rechazar** con motivo obligatorio (mín. 1
 | # | Pendiente | Dónde |
 |---|---|---|
 | 1 | Confirmar campos y evidencia de los dos tipos 🟡 | `/admin/catalogo` |
-| 2 | Los 5 tipos no-Sistemas tienen **SLA variable**: nunca se marcan como vencidos, así que no aparecen en el filtro "Vencidos" ni en la cifra de la cola | Definir con Tesorería y Data Science si quieren un compromiso de tiempo |
+| 2 | ~~Data Science sin SLA~~ — resuelto 2026-08-12: prioridad alta y 4 horas. Los de **Tesorería** siguen con **SLA variable**: nunca se marcan como vencidos, así que no aparecen en el filtro "Vencidos" ni en la cifra de la cola | Definir con Tesorería y Data Science si quieren un compromiso de tiempo |
 | 3 | Las tres pausas de "siguiente corte" asumen **la misma cadencia** en Tesorería y Data Science | Confirmar que así opera |
 | 4 | `responsable_default_id` sigue guardado en el catálogo pero **ya no se usa**: desde la cola por área el ticket nace sin dueño | Limpiar cuando se toque el catálogo |
