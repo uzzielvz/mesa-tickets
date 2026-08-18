@@ -27,7 +27,8 @@ export default async function DashboardLayout({
     profile.acceso_tickets === true ||
     profile.acceso_score === true ||
     profile.acceso_cartera === true ||
-    profile.acceso_reclutamiento === true
+    profile.acceso_reclutamiento === true ||
+    profile.acceso_actividades === true
 
   if (!tieneAlgunAcceso) redirect('/stand-by')
 

@@ -9,6 +9,7 @@ import {
   Users, UserPlus, Gauge,
   PieChart, Building2, UserSearch, AlertTriangle, Layers, Upload, KeyRound,
   BarChart3, Briefcase, Kanban, CalendarClock, ClipboardCheck, Settings, Send,
+  Clock4, Activity,
   type LucideIcon,
 } from 'lucide-react'
 import Wordmark from '@/components/brand/wordmark'
@@ -117,22 +118,26 @@ function NavContent({
   const accesoScore = profile.acceso_score === true
   const accesoCartera = profile.acceso_cartera === true
   const accesoReclutamiento = profile.acceso_reclutamiento === true
+  const accesoActividades = profile.acceso_actividades === true
   const hasTicketsAccess = accesoTickets || isAdmin
   const hasScoreAccess = accesoScore || isAdmin
   const hasCarteraAccess = accesoCartera || isAdmin
   const hasReclutamientoAccess = accesoReclutamiento || isAdmin
+  const hasActividadesAccess = accesoActividades || isAdmin
 
   // Secciones que contienen la ruta activa.
   const ticketsActive = pathname.startsWith('/tickets') || pathname.startsWith('/admin/catalogo') || pathname.startsWith('/admin/areas')
   const scoreActive = pathname.startsWith('/score') || pathname.startsWith('/admin/score')
   const carteraActive = pathname.startsWith('/cartera') || pathname.startsWith('/admin/cartera')
   const reclutamientoActive = pathname.startsWith('/reclutamiento')
+  const actividadesActive = pathname.startsWith('/actividades')
 
   // Auto-abre solo la sección activa según la ruta; las demás arrancan colapsadas.
   const [ticketsOpen, setTicketsOpen] = useState(() => ticketsActive)
   const [scoreOpen, setScoreOpen] = useState(() => scoreActive)
   const [carteraOpen, setCarteraOpen] = useState(() => carteraActive)
   const [reclutamientoOpen, setReclutamientoOpen] = useState(() => reclutamientoActive)
+  const [actividadesOpen, setActividadesOpen] = useState(() => actividadesActive)
 
   return (
     <div className="flex flex-col gap-3">
@@ -378,6 +383,47 @@ function NavContent({
             icon={Settings}
             active={pathname.startsWith('/reclutamiento/ajustes')}
             onClick={onNav}
+          />
+        </NavSection>
+      )}
+
+      {/* ── Actividades ── */}
+      {hasActividadesAccess && (
+        <NavSection
+          title="Actividades"
+          open={actividadesOpen}
+          hasActive={actividadesActive}
+          onToggle={() => setActividadesOpen(v => !v)}
+        >
+          <NavItem
+            href="/actividades"
+            label="Tablero"
+            icon={Clock4}
+            active={pathname === '/actividades'}
+            onClick={onNav}
+          />
+          <NavItem
+            href="/actividades/personas"
+            label="Personas"
+            icon={UserSearch}
+            active={pathname.startsWith('/actividades/personas')}
+            onClick={onNav}
+          />
+          <NavItem
+            href="/actividades/friccion"
+            label="Fricción"
+            icon={Activity}
+            active={pathname.startsWith('/actividades/friccion')}
+            onClick={onNav}
+          />
+          <SectionDivider />
+          <NavItem
+            href="/actividades/cargar"
+            label="Cargar periodo"
+            icon={Upload}
+            active={pathname.startsWith('/actividades/cargar')}
+            onClick={onNav}
+            muted
           />
         </NavSection>
       )}

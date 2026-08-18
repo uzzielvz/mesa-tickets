@@ -105,6 +105,8 @@ export interface Database {
           acceso_score: boolean
           acceso_cartera: boolean
           acceso_reclutamiento: boolean
+          /** Tablero directivo de actividades (ACT-001). */
+          acceso_actividades: boolean
           /** Ve las colas de TODAS las áreas en la mesa (TKT-043). */
           supervisa_tickets: boolean
           created_at: string
@@ -120,6 +122,7 @@ export interface Database {
           acceso_score?: boolean
           acceso_cartera?: boolean
           acceso_reclutamiento?: boolean
+          acceso_actividades?: boolean
           supervisa_tickets?: boolean
         }
         Update: {
@@ -133,6 +136,7 @@ export interface Database {
           acceso_score?: boolean
           acceso_cartera?: boolean
           acceso_reclutamiento?: boolean
+          acceso_actividades?: boolean
           supervisa_tickets?: boolean
         }
         Relationships: []
@@ -817,6 +821,121 @@ export interface Database {
         }
         Relationships: []
       }
+
+      // ── Módulo Actividades (ACT-001) ──────────────────────────────────────
+      act_cargas: {
+        Row: {
+          id: string
+          nombre_archivo: string
+          storage_path: string | null
+          periodos: string[]
+          registros: number
+          estado: 'procesando' | 'procesado' | 'error'
+          error_detalle: string | null
+          subido_por: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          nombre_archivo: string
+          storage_path?: string | null
+          periodos?: string[]
+          registros?: number
+          estado?: 'procesando' | 'procesado' | 'error'
+          error_detalle?: string | null
+          subido_por?: string | null
+        }
+        Update: {
+          estado?: 'procesando' | 'procesado' | 'error'
+          error_detalle?: string | null
+          periodos?: string[]
+          registros?: number
+        }
+        Relationships: []
+      }
+      act_registros: {
+        Row: {
+          id: number
+          carga_id: string | null
+          id_registro: string
+          fecha: string
+          periodo: string
+          no_empleado: string
+          nombre: string
+          id_puesto: string | null
+          puesto: string | null
+          area: string | null
+          gerencia: string | null
+          direccion: string | null
+          nivel_jerarquico: string | null
+          id_actividad: string | null
+          actividad: string | null
+          id_categoria: string | null
+          categoria: string | null
+          minutos: number
+          /** Columna generada: minutos / 60. No se escribe. */
+          horas: number
+          hubo_algo_relevante: boolean
+          id_motivo: string | null
+          motivo: string | null
+          tipo_motivo: string | null
+          comentario: string | null
+        }
+        Insert: Omit<Database['public']['Tables']['act_registros']['Row'], 'id' | 'horas'> & {
+          id?: number
+        }
+        Update: Partial<Omit<Database['public']['Tables']['act_registros']['Row'], 'id' | 'horas'>>
+        Relationships: []
+      }
+      act_empleados: {
+        Row: {
+          no_empleado: string
+          nombre: string
+          correo: string | null
+          id_puesto: string | null
+          activo: boolean
+          actualizado_at: string
+        }
+        Insert: {
+          no_empleado: string
+          nombre: string
+          correo?: string | null
+          id_puesto?: string | null
+          activo?: boolean
+          actualizado_at?: string
+        }
+        Update: {
+          nombre?: string
+          correo?: string | null
+          id_puesto?: string | null
+          activo?: boolean
+          actualizado_at?: string
+        }
+        Relationships: []
+      }
+      act_puestos: {
+        Row: {
+          id_puesto: string
+          puesto: string
+          area: string | null
+          activo: boolean
+          actualizado_at: string
+        }
+        Insert: {
+          id_puesto: string
+          puesto: string
+          area?: string | null
+          activo?: boolean
+          actualizado_at?: string
+        }
+        Update: {
+          puesto?: string
+          area?: string | null
+          activo?: boolean
+          actualizado_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       // rec_candidatos + requisitos derivados (REC-068). Solo lectura.
@@ -861,6 +980,46 @@ export interface Database {
     Functions: {
       is_admin: {
         Args: { user_id: string }
+        Returns: boolean
+      }
+      // ACT-003: KPIs y cortes del tablero de actividades. Devuelve json; el
+      // contrato completo vive junto a la pantalla que lo consume.
+      act_resumen: {
+        Args: {
+          p_periodo?: string | null
+          p_direccion?: string | null
+          p_gerencia?: string | null
+          p_puesto?: string | null
+          p_empleado?: string | null
+          p_categoria?: string | null
+        }
+        Returns: unknown
+      }
+      act_detalle: {
+        Args: {
+          p_periodo?: string | null
+          p_direccion?: string | null
+          p_gerencia?: string | null
+          p_puesto?: string | null
+          p_empleado?: string | null
+          p_categoria?: string | null
+        }
+        Returns: unknown
+      }
+      act_friccion: {
+        Args: {
+          p_periodo?: string | null
+          p_direccion?: string | null
+          p_gerencia?: string | null
+          p_puesto?: string | null
+          p_empleado?: string | null
+          p_categoria?: string | null
+          p_tipo?: string | null
+        }
+        Returns: unknown
+      }
+      has_actividades_access: {
+        Args: Record<string, never>
         Returns: boolean
       }
       has_reclutamiento_access: {

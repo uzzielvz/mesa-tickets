@@ -5,14 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
-interface Profile { id: string; nombre_completo: string; email: string; rol: string; area_id: string | null; activo: boolean; acceso_tickets: boolean; acceso_score: boolean; acceso_cartera: boolean; acceso_reclutamiento: boolean; supervisa_tickets: boolean }
+interface Profile { id: string; nombre_completo: string; email: string; rol: string; area_id: string | null; activo: boolean; acceso_tickets: boolean; acceso_score: boolean; acceso_cartera: boolean; acceso_reclutamiento: boolean; acceso_actividades: boolean; supervisa_tickets: boolean }
 interface Area { id: string; nombre: string }
-
-const ROL_LABEL: Record<string, string> = {
-  admin: 'Administrador',
-  responsable: 'Responsable',
-  usuario: 'Usuario',
-}
 
 const selectClass = 'bg-white border border-[#ECECEC] rounded px-2 py-1 text-[12.5px] text-ink-900 outline-none focus:border-orange transition-all'
 
@@ -83,6 +77,18 @@ export default function UsuariosAdmin({ profiles, areas }: { profiles: Profile[]
     setSaving(null)
   }
 
+  // Tablero directivo de actividades (ACT-001). Muestra el tiempo de cada
+  // persona con nombre y apellido, así que nace cerrado y se abre uno por uno.
+  async function toggleActividadesAccess(id: string, actual: boolean) {
+    setSaving(id)
+    const supabase = createClient()
+    const { error } = await supabase.from('profiles').update({ acceso_actividades: !actual }).eq('id', id)
+    if (error) { toast.error('Error al actualizar acceso.'); setSaving(null); return }
+    toast.success(actual ? 'Acceso a Actividades retirado' : 'Acceso a Actividades otorgado')
+    router.refresh()
+    setSaving(null)
+  }
+
   // Supervisor de la mesa: ve las colas de TODAS las áreas sin ser admin
   // del sistema (TKT-043). Es ortogonal al rol, por eso va como toggle.
   async function toggleSupervisaTickets(id: string, actual: boolean) {
@@ -98,8 +104,8 @@ export default function UsuariosAdmin({ profiles, areas }: { profiles: Profile[]
   return (
     <div className="border border-[#ECECEC] rounded-md overflow-hidden max-w-4xl">
       {/* Headers */}
-      <div className="hidden md:grid grid-cols-[1fr_120px_140px_74px_74px_74px_80px_92px] px-5 py-2 border-b border-[#ECECEC] bg-surface-sidebar">
-        {['Usuario', 'Rol', 'Área', 'Tickets', 'Score', 'Cartera', 'Reclut.', 'Supervisa'].map(h => (
+      <div className="hidden md:grid grid-cols-[1fr_110px_130px_70px_70px_70px_76px_84px_88px] px-5 py-2 border-b border-[#ECECEC] bg-surface-sidebar">
+        {['Usuario', 'Rol', 'Área', 'Tickets', 'Score', 'Cartera', 'Reclut.', 'Activid.', 'Supervisa'].map(h => (
           <span key={h} className="text-[11px] uppercase tracking-[0.3px] text-ink-400 font-medium">{h}</span>
         ))}
       </div>
@@ -107,7 +113,7 @@ export default function UsuariosAdmin({ profiles, areas }: { profiles: Profile[]
       {profiles.map((profile, i) => (
         <div
           key={profile.id}
-          className={`grid grid-cols-1 md:grid-cols-[1fr_120px_140px_74px_74px_74px_80px_92px] items-center px-5 py-3 gap-2 ${i < profiles.length - 1 ? 'border-b border-[#F5F5F5]' : ''} ${saving === profile.id ? 'opacity-50' : ''}`}
+          className={`grid grid-cols-1 md:grid-cols-[1fr_110px_130px_70px_70px_70px_76px_84px_88px] items-center px-5 py-3 gap-2 ${i < profiles.length - 1 ? 'border-b border-[#F5F5F5]' : ''} ${saving === profile.id ? 'opacity-50' : ''}`}
         >
           <div>
             <p className="text-[13px] font-medium text-ink-900">{profile.nombre_completo}</p>
@@ -200,6 +206,25 @@ export default function UsuariosAdmin({ profiles, areas }: { profiles: Profile[]
             <span className={`
               inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform duration-200
               ${profile.acceso_reclutamiento ? 'translate-x-4' : 'translate-x-0'}
+            `} />
+          </button>
+
+          {/* Toggle acceso Actividades */}
+          <button
+            onClick={() => toggleActividadesAccess(profile.id, profile.acceso_actividades)}
+            disabled={saving === profile.id}
+            title={profile.acceso_actividades
+              ? 'Quitar acceso al tablero de Actividades'
+              : 'Dar acceso al tablero de Actividades (muestra el tiempo de cada persona por nombre)'}
+            className={`
+              relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent
+              transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed
+              ${profile.acceso_actividades ? 'bg-navy' : 'bg-[#DCDCDC]'}
+            `}
+          >
+            <span className={`
+              inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform duration-200
+              ${profile.acceso_actividades ? 'translate-x-4' : 'translate-x-0'}
             `} />
           </button>
 
