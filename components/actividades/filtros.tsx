@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { useTransition } from 'react'
 import { X } from 'lucide-react'
+import { etiquetaPeriodo } from '@/lib/actividades/periodo'
 
 export interface OpcionesFiltro {
   direcciones: string[]
@@ -138,11 +139,5 @@ function Campo({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
-/** '2026-08' → 'Agosto 2026'. Un periodo es un mes, no una cadena técnica. */
-export function etiquetaPeriodo(p: string) {
-  const [a, m] = p.split('-')
-  const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-                 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
-  const nombre = meses[Number(m) - 1]
-  return nombre ? `${nombre} ${a}` : p
-}
+// `etiquetaPeriodo` vive en lib/actividades/periodo.ts, NO aquí: este archivo es
+// `'use client'` y las páginas del servidor la llaman. Ver el comentario de ahí.

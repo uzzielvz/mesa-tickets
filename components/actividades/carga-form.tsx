@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { UploadCloud, FileSpreadsheet, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react'
-import { etiquetaPeriodo } from '@/components/actividades/filtros'
+import { etiquetaPeriodo } from '@/lib/actividades/periodo'
 
 interface Exito {
   periodos: string[]

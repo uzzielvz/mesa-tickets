@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import Header from '@/components/layout/header'
 import CargaActividades from '@/components/actividades/carga-form'
-import { etiquetaPeriodo } from '@/components/actividades/filtros'
+import { etiquetaPeriodo } from '@/lib/actividades/periodo'
 
 export const dynamic = 'force-dynamic'
 

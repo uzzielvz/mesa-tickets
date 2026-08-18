@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import Header from '@/components/layout/header'
-import FiltrosActividades, { etiquetaPeriodo } from '@/components/actividades/filtros'
+import FiltrosActividades from '@/components/actividades/filtros'
+import { etiquetaPeriodo } from '@/lib/actividades/periodo'
 import {
   Barras, Panel, BannerError, Vacio,
   fmtHoras, fmtNum, fmtPct, fmtDuracion,
