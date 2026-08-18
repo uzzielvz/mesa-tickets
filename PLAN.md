@@ -3,30 +3,41 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-08-11 (⏸ trabajo pausado al cierre del día).
+> Última actualización: 2026-08-18 (puesta al día del 08-11/12 + alta del módulo **Actividades**, ACT-001..004).
 
 ---
 
-## 0. Foco actual — punto de partida (2026-08-11)
+## 0. Foco actual — punto de partida (2026-08-18)
 
 > **Esta sección manda sobre el resto del documento.** Si algo de §1–§8 contradice lo de aquí, gana esto.
 
-**Decisión (2026-08-11):** el trabajo se concentra en **Mesa de Tickets**. Reclutamiento, Cartera, Score y Factorial quedan **en pausa** — sin desarrollo nuevo. Siguen desplegados y funcionando; lo que se detiene es construir sobre ellos.
+**Decisión (2026-08-11, vigente):** el trabajo se concentra en **Mesa de Tickets**. Reclutamiento, Cartera, Score y Factorial quedan **en pausa** — sin desarrollo nuevo. Siguen desplegados y funcionando; lo que se detiene es construir sobre ellos.
+
+> **Enmienda (2026-08-18):** se abrió una **segunda vía activa, Actividades** (§2.6), a petición directa: portar a la plataforma un tablero de Power BI sobre el uso del tiempo del equipo. No cancela el foco en tickets — la cola de abajo sigue vigente y sin avanzar.
 
 ### Vía activa — Mesa de Tickets
 
-Estado: el módulo cerró el 2026-08-10 su salto de **individual a de equipo** (cola por área, estados explícitos, reasignación, bitácora, notificaciones, guía contextual, alta sin elegir área). Detalle en §2.2 fase *Tickets-Equipo* y en `RESEARCH §5.1.7`.
+**Estado.** El 2026-08-10 el módulo cerró su salto de **individual a de equipo** (cola por área, estados explícitos, reasignación, bitácora, notificaciones, guía contextual, alta sin elegir área) — §2.2 fase *Tickets-Equipo*, `RESEARCH §5.1.7`. El **11 y 12 de agosto** siguió una segunda tanda que el documento no registró en su momento: supervisión de la mesa, flujo simplificado por tipo, autocierre y el arreglo del remitente de correo (**TKT-043..049**) — §2.2 fase *Tickets-Supervisión y flujo*.
+
+> **⚠ Zona sin registro: del 2026-08-12 al 2026-08-18.**
+>
+> El último commit de tickets es del **12 de agosto** (`70b717b`, TKT-049) y esta puesta al día es del **18**. En medio no hay commits, `sessions.md` no se versiona y el reloj de sesión estaba vacío, así que **no hay forma de saber qué se hizo o se probó en esos seis días**. Todo lo que la tabla de abajo marca como pendiente puede estar ya resuelto sin registro: confirmarlo antes de trabajar sobre ello.
+>
+> **Cerrado el 2026-08-18 (punto 2):** `supabase migration list` confirma que **las 8 migraciones del 11-12 sí están en remoto**, incluida `20260811170100_tkt_autocierre_cron.sql` — o sea que `pg_cron` estaba disponible y el job quedó agendado. Falta comprobar que *corra*, no que exista.
 
 **Lo que sigue, en orden:**
 
 | # | Qué | Por qué primero |
 |---|---|---|
-| 1 | **Los correos no salen — pendiente #1** | Al 2026-08-11 el remitente ya es de la plataforma (`TICKETS_GOOGLE_REFRESH_TOKEN` + `TICKETS_SENDER_EMAIL`, fuera de la BD para que ningún usuario lo cambie), pero **no se ha visto llegar ningún correo**. Diagnóstico listo: `GET /api/tickets/probar-correo` (solo admin) revisa variables → token → cuenta real → envío de prueba, y dice cuál de los cuatro falla. Empezar por ahí. Ojo: las variables nuevas **exigen redespliegue** en Vercel. |
-| 2 | **Smoke end-to-end con clicks** | Levantar → cae en la cola → tomar → responder con adjunto → Programado → Resuelto → confirmar. Nada del 2026-08-10 se probó contra datos reales. |
-| 3 | **Revisar `area_id` en `/admin/usuarios`** | La RLS nueva deja que **todo el que tenga un área vea todos los tickets de esa área**. Correcto para una cola, pero exige la lista limpia. |
-| 4 | **Métricas sobre la bitácora** | % de cumplimiento de SLA, tiempo de primera respuesta, tiempo real por estado, carga por técnico. Los datos se acumulan desde el 2026-08-10; antes no hay con qué reconstruirlos. |
-| 5 | **T-P4 — seguridad de escritura** | `profiles_select using (true)` y las mutaciones de crear/responder que aún salen del navegador (SEC-001, RLS-001/002/004/005). |
-| 6 | **TKT-007 cola global de admin · TKT-008 notas internas · paginación** | Los gaps que quedan del benchmark. |
+| 1 | **Los correos no salen — pendiente #1** | El remitente ya es de la plataforma (`TICKETS_GOOGLE_REFRESH_TOKEN` + `TICKETS_SENDER_EMAIL`, fuera de la BD para que ningún usuario lo cambie — TKT-047/048), pero **al 2026-08-12 no se había visto llegar ningún correo**. Diagnóstico listo: `GET /api/tickets/probar-correo` (solo admin) revisa variables → token → cuenta real → envío de prueba, y dice cuál de los cuatro falla. El token se regenera con `scripts/google-token-plataforma.mjs`, que imprime las dos variables listas para pegar. Ojo: las variables nuevas **exigen redespliegue** en Vercel. |
+| 2 | ~~Confirmar que las 8 migraciones del 11-12 están en remoto~~ → **comprobar que el autocierre *corre*** | ✅ **2026-08-18**: las 8 están aplicadas, incluida la de `pg_cron`. Lo que queda es verificar que el job dispare de verdad (forzar con `tkt_cerrar_resueltos_vencidos(0)` o revisar `cron.job_run_details`). Si no corriera, el plan B sigue siendo un cron externo. ⚠️ **`npm run db:status` / `db:push` están rotos**: `bin/supabase.exe` es un shim que busca un binario `supabase-go` que no está en `bin/`. Salida: `npx supabase@2.115.0 <cmd>`. |
+| 3 | **Smoke end-to-end con clicks** | Guion listo en `docs/mocktest-mesa-tickets.md` (7 bloques, ~35 min, contra producción, dos cuentas). Nada de lo entregado el 10-12 de agosto se probó contra datos reales; sus tres cubetas de hallazgos siguen vacías. |
+| 4 | **Revisar `area_id` y `supervisa_tickets` en `/admin/usuarios`** | La RLS deja que **todo el que tenga un área vea todos los tickets de esa área**, y desde TKT-043 quien tenga el flag de supervisión **ve todas las colas**. Correcto para una mesa, pero exige la lista limpia. |
+| 5 | **Métricas sobre la bitácora** | % de cumplimiento de SLA, tiempo de primera respuesta, tiempo real por estado, carga por técnico. Los datos se acumulan desde el 2026-08-10; antes no hay con qué reconstruirlos. |
+| 6 | **T-P4 — seguridad de escritura** | `profiles_select using (true)` y las mutaciones de crear/responder que aún salen del navegador (SEC-001, RLS-001/002/004/005). |
+| 7 | **TKT-008 notas internas · paginación · pantalla `/admin/tickets`** | Los gaps que quedan del benchmark. **TKT-007 quedó a medias**: TKT-043 dio la *capacidad* (el supervisor lee y toma de cualquier cola, y `/tickets/area` tiene selector de área), falta la pantalla de administración como tal. |
+
+**Pendientes de catálogo** (detalle en `docs/catalogo-tickets.md`, la fuente de verdad de los 11 tipos vivos): confirmar campos y evidencia de los dos tipos creados desde la UI (*Aclaración de mora*, *Falla en el sistema*); definir si **Tesorería** quiere un SLA real (hoy variable = nunca vence, nunca aparece en la cifra de vencidos); confirmar que las tres pausas de "siguiente corte" comparten cadencia; limpiar `responsable_default_id`, que sigue en el catálogo pero ya no se usa desde que el ticket nace en la cola.
 
 **Deuda menor viva:** plantillas de correo y frases frecuentes de tickets viven en el código (las de Reclutamiento sí se editan desde Ajustes); el SLA no acumula pausas — con `ticket_historial` ya hay con qué calcularlo bien.
 
@@ -154,7 +165,7 @@ Estado: el módulo cerró el 2026-08-10 su salto de **individual a de equipo** (
 |---|--------|-------------|------|---------------|
 | T-P1 | TKT-020 | **Modelo de cola por área** — ✅ **2026-08-10** (mig. `20260810120000`, TKT-031/033/035). El ticket pertenece a un **área** (`tickets.area_id`, backfill + trigger) y `responsable_id` es **nullable** hasta que alguien del área lo toma vía RPC `tkt_tomar_ticket`. Nueva pantalla `/tickets/area` (Sin tomar / En curso, ordenada por urgencia) + ítem del sidebar con contador de sin-tomar. RLS: `es_de_area()` amplía el select de tickets/respuestas/adjuntos. Al levantar, el ticket **nace sin responsable**. Reasignación manual entre personas sigue pendiente (TKT-002). | Estructural | ✅ 2026-08-10 |
 | T-P2 | TKT-021 | **Estados explícitos** — ✅ **2026-08-10** (mig. `20260810120100`, TKT-032/034/036/037). Enum `ticket_estado`: **Abierto → En revisión → Programado → Resuelto/Rechazado → Cerrado**, columna `tickets.estado` con backfill desde la lógica derivada (ningún ticket vivo cambió de estatus al desplegar). RPC `tkt_cambiar_estado` valida transiciones; los tipos de respuesta existentes sincronizan estado por trigger. **Se acabó la paridad** → TKT-001 resuelto. El SLA corre en `abierto`/`en_revision` y se pausa en `programado` (pausas no acumulables — llevar tiempo acumulado exigiría bitácora de estados). La vista pasa a `left join profiles` (con responsable NULL el join interno ocultaba los tickets de la cola). | Estructural | ✅ 2026-08-10 |
-| T-P3 | TKT-022 | **Seed de los 3 tipos**: áreas (Tesorería, Data Science) + catálogo (FICHA NO REFLEJADA, CRÉDITO FALTANTE, ERROR EN MORA) con sus **campos dinámicos** y ruteo a cola de área. Campos pendientes de confirmar listado fino con el usuario. | Datos | T-P1, listados usuario |
+| T-P3 | TKT-022 | ✅ **superado por los hechos**. Nació como "seed de los 3 tipos" (Tesorería + Data Science). Hoy el catálogo vivo son **11 tipos en 4 áreas** — Sistemas (6), Tesorería (2), Data Science (2) y **Call Center** (1, área que no existía cuando se escribió esta fila) — con campos dinámicos, prioridad, SLA, modalidad y etiqueta de pausa. 9 vienen de migraciones; 2 se dieron de alta desde `/admin/catalogo` y su configuración fina está por confirmar. **Fuente de verdad: `docs/catalogo-tickets.md`** (+ PDF de una página para compartir). | Datos | ✅ |
 | T-P4 | RLS-001/002/004/005 + SEC-001 | **Seguridad full antes de PII real** (ver Fase Tickets-Seguridad/Arquitectura abajo). Con datos reales de clientes pasa de "nice to have" a **bloqueante de go-live**: cerrar `profiles_select` (RLS-002), validar participación en adjuntos lectura+escritura/Storage (RLS-001/005), bloquear respuestas en tickets cerrados (RLS-004), migrar mutaciones a Server Actions con Zod servidor (SEC-001). | Seguridad | — |
 
 #### Fase Tickets-Demo *(esta semana)*
@@ -239,9 +250,28 @@ Las 6 incidencias (columna "¿Qué engloba?" → campo `select` guiado dentro de
 | T-E7 | TKT-041 | **Resumen del área** encima de la cola: sin tomar / vencidos / en curso / cerrados hoy. "Vencidos" en rojo **solo cuando existe** — en verde permanente sería ruido, en rojo permanente, alarma. | UI | ✅ 2026-08-10 (`5113ed7`) |
 | T-E8 | TKT-042 | **Levantar sin adivinar el área** (cierra TKT-006 del todo). Desaparece el paso "¿Qué área te puede ayudar?": la gente piensa en síntomas, no en organigramas, y el área siempre fue **consecuencia** del tipo (el trigger de TKT-031 la deriva). Buscador insensible a acentos sobre nombre/leyenda/área/**opciones de los selects** (ahí viven frases como "instalar impresora"), tarjetas agrupadas por área con **ejemplos concretos** tomados del catálogo, y **atajos frecuentes** en el lenguaje del usuario ("No tengo acceso a Yunius…") anclados por fragmento de nombre para que renombrar un tipo nunca deje un link muerto. | UI | ✅ 2026-08-10 (`1224558`, `352ec34`, `d5ff9a2`) |
 
-> **Riesgo abierto de T-E5**: la RPC `tkt_credencial_google` expone el `refresh_token` a cualquier autenticado porque las notificaciones las dispara cualquier usuario (un comercial levantando un ticket) y `rec_credenciales_google` es admin/Reclutamiento. **El token viaja cifrado (AES-256-GCM) y la llave vive solo en el entorno del servidor**, así que quien la llame obtiene un blob indescifrable. Riesgo acotado y aceptado; revisar si se amplía la superficie.
+> ~~**Riesgo abierto de T-E5**: la RPC `tkt_credencial_google` expone el `refresh_token` a cualquier autenticado…~~ **Cerrado el 2026-08-11 por TKT-048**, que hizo `drop` de la función: el remitente de la mesa ya no vive en la base de datos sino en variables de entorno del servidor, así que no hay RPC que llamar ni token que exponer. Ver la fase siguiente.
 >
 > **Deuda conocida**: (a) los correos **nunca se han enviado de verdad** — la ruta es la misma que Reclutamiento usa a diario, pero falta verlo llegar; (b) las plantillas de tickets viven en el código, a diferencia de las de Reclutamiento — si el patrón funciona, se mueven a BD con un editor como el de `/reclutamiento/ajustes`; (c) las frases frecuentes también están en código; (d) el SLA **no acumula pausas** (un ticket reabierto vuelve a contar contra su hora original) — con la bitácora de T-E4 ya hay con qué calcularlo bien.
+
+#### Fase Tickets-Supervisión y flujo *(2026-08-11/12 · lo que la operación pidió al mirarlo de cerca)*
+
+> **Contexto**: con la mesa ya funcionando como equipo aparecieron los huecos que solo se ven operando. Faltaba quién mira **todas** las colas; el flujo era idéntico para los 11 tipos aunque a la mitad no le aplicara; los tickets resueltos que nadie confirmaba se quedaban en el limbo; y los correos **salían de la cuenta equivocada** porque dos módulos se peleaban la misma credencial.
+>
+> **Esta fase se documentó tarde** (2026-08-18). Se entregó el 11 y 12 de agosto, pero el cierre de día del 11 solo alcanzó a registrar el pendiente de correos, así que ni los tickets ni las 8 migraciones quedaron en el plan. Lo que sigue se reconstruyó leyendo el SQL y el código.
+
+| # | Ticket | Descripción | Tipo | Estado |
+|---|--------|-------------|------|--------|
+| T-F1 | TKT-043 | **Supervisor de la mesa**. Flag `profiles.supervisa_tickets` + función `supervisa_mesa()`; el `select` de tickets, respuestas, adjuntos e historial lo admite, y `tkt_tomar_ticket` también — un supervisor que ve una cola atascada tiene que poder destrabarla. **Se eligió flag y no un valor nuevo del enum `rol`**: es el patrón que el repo ya usa para capacidades (`acceso_*`), y meter un "superadmin" crearía dos nociones de admin compitiendo con `is_admin()`, que vive en media docena de políticas. `/tickets/area` gana selector de área y `/admin/usuarios` su toggle. **Cierra a medias TKT-007**: da la capacidad, no la pantalla. Mig. `20260811120000`. | Estructural | ✅ 2026-08-11 (`e195bff`) |
+| T-F2 | TKT-044 | **Flujo simple por tipo de problema**. Hallazgo que simplificó el diseño: *Programado*, *Esperando refacción* y *Esperando al usuario* **son la misma cosa** — el reloj se detiene porque la pelota dejó de ser del técnico; solo cambia el nombre. Así que no hacen falta estados nuevos, basta `problem_catalog.etiqueta_pausa` sobre el `programado` que ya existía. `NULL` = sin pausa (Tomar → Resolver, dos clics): así quedaron 5 de los 6 tipos de Sistemas. **Criterio**: un estado solo se justifica si alguien toma una decisión distinta al verlo. Además, **los tipos presenciales cierran directo** — si el técnico fue y lo arregló, pedirle al usuario que entre a confirmar es burocracia; va en el trigger `handle_ticket_closure` y no en la UI para que aplique venga por donde venga. Mig. `20260811150000`. | Estructural | ✅ 2026-08-11 (`477a0a5`, `7923eda`) |
+| T-F3 | TKT-045 | **Autocierre de resueltos sin confirmar**. Un `resuelto` que nadie confirma se quedaba ahí para siempre: limbo de tickets ya atendidos que las métricas nunca cuentan como cerrados. Regla: **3 días sin actividad → se cierra solo**, medido desde la última señal de vida del hilo, no desde que se marcó resuelto. Los `programado` **no se tocan** (ahí la espera es legítima). Queda en la bitácora con actor `NULL`, que la UI muestra como "Sistema". Función `tkt_cerrar_resueltos_vencidos(dias)`, sin `execute` para `authenticated`. Mig. `20260811170000` + `…170100` (job de `pg_cron` a las 3:00 UTC, **en migración aparte a propósito** para que si el plan no trae `pg_cron` falle sola sin arrastrar la lógica). | Funcional | ✅ 2026-08-11 (`543eea8`) · **verificar que el cron quedó agendado** |
+| T-F4 | TKT-046 | **Una cuenta emisora por módulo**. Bug de diseño heredado: Reclutamiento y Tickets elegían credencial con `order by actualizado_at desc limit 1`, así que **conectar una cuenta para tickets le cambiaba en silencio el remitente a los correos de candidatos**. Se agrega `rec_credenciales_google.uso` (`reclutamiento`/`tickets`/`ambos`) con índice único parcial; `ambos` es el default para no romper lo ya conectado. Mig. `20260811190000`. | Bug | ✅ 2026-08-11 (`59fde1e`) |
+| T-F5 | TKT-047 | **El remitente de tickets es del sistema, no de una persona**. En Reclutamiento tiene sentido que el operador conecte su cuenta; en la mesa no: las notificaciones son de la plataforma y deben salir siempre de la misma dirección. Se guarda `rec_credenciales_google.email` para validar la cuenta y firmar el header `From`. Mig. `20260811210000`. | Estructural | ✅ 2026-08-11 (`06c0260`) |
+| T-F6 | TKT-048 | **El remitente sale de la base de datos**. Mientras fue una fila, cualquiera con permisos podía reconectar y cambiarlo — **y pasó**: una conexión hecha con la sesión de Google abierta reemplazó la cuenta de plataforma por una personal, en silencio. *Un dato que se puede editar no es una garantía.* La cuenta emisora pasa a `TICKETS_GOOGLE_REFRESH_TOKEN` + `TICKETS_SENDER_EMAIL`: no hay pantalla que la toque, ni RLS que relajar, ni "última cuenta conectada" que gane. Se hace `drop` de `tkt_credencial_google()`. Helper `scripts/google-token-plataforma.mjs` para generar el token. Mig. `20260811230000`. | Estructural | ✅ 2026-08-11 (`d4d2d7b`) |
+| T-F7 | — | **Endpoint de diagnóstico** `GET /api/tickets/probar-correo` (solo admin). El envío es best-effort y falla en silencio: sin esto, "no llegó el correo" puede ser falta de configuración, token inválido, rechazo de Gmail o simplemente que no había destinatarios, **y todas se ven igual desde afuera**. Revisa los cuatro pasos en orden y se detiene en el que falla. | Operación | ✅ 2026-08-11 (`a8f4bcd`) |
+| T-F8 | TKT-049 | **Data Science: prioridad alta y 4 horas**. Sus tipos tenían prioridad media y `sla_min = null`; **con SLA nulo el reloj nunca corre**, así que no aparecían en el filtro "Vencidos" ni en la cifra de la cola: el área no se estaba midiendo. Mig. `20260812120000`. **Tesorería sigue en variable** — mismo problema, decisión pendiente. | Datos | ✅ 2026-08-12 (`70b717b`) |
+
+> **Documentación de catálogo (2026-08-11/12):** se produjo `docs/catalogo-tickets.md` — trazabilidad de los 11 tipos vivos con prioridad, SLA, modalidad, flujo, campos dinámicos y obligatoriedad — más un PDF de una página para compartir, y `docs/mocktest-mesa-tickets.md` / `docs/guion-demo-mesa-tickets.md`. Son documentos operativos: cuando el catálogo cambie desde `/admin/catalogo`, el `.md` se desfasa sin que nada avise.
 
 ### 2.3 Módulo Score
 
@@ -326,6 +356,53 @@ Las 6 incidencias (columna "¿Qué engloba?" → campo `select` guiado dentro de
 | IA-C1 | AI-020 | Tool `crearBorradorTicket` integrada al catálogo de tickets. | Fase Tickets-Producción |
 | IA-C2 | AI-021 | "Preguntar sobre este dashboard" (contexto por página) + comparativas multi-corte. | IA-B* |
 | IA-C3 | AI-022 | Detalle completo de mora en la tool (nombres/teléfonos) tras visto bueno de cumplimiento; evaluar migración a **Vertex AI** con ZDR/region pinning (swap de provider de una línea con AI SDK). | OK cumplimiento |
+
+### 2.6 Módulo Actividades *(tablero directivo de uso del tiempo — alta 2026-08-18)*
+
+> **Origen**: un Excel (`tablas_uziel.xlsx`, 3 hojas) y un tablero de Power BI construido sobre él, entregado como `.pbix`. El encargo fue portarlo a la plataforma "y ponerlo bonito y más ordenado".
+>
+> **El hallazgo que hizo viable el port**: el modelo del `.pbix` tiene **una sola tabla** (`MART_DIRECTIVO`), que es la hoja de hechos ya desnormalizada — los catálogos de empleados y puestos ni participaban del reporte. Todo lo que hacía DAX son sumas, conteos distintos y divisiones sobre una tabla plana. Es decir: **SQL lo hace mejor**, y el módulo cabe en el mismo patrón que los 5 dashboards de cartera (Server Component + RPC que devuelve el JSON agregado + filtros por `searchParams`).
+
+#### Fase Actividades-1 — Del Excel al tablero *(entregada 2026-08-18)*
+
+| # | Ticket | Descripción | Tipo | Estado |
+|---|--------|-------------|------|--------|
+| A-1 | ACT-001 | **Esquema**: `act_registros` (hechos), `act_cargas` (bitácora de subidas), `act_empleados` / `act_puestos` (catálogos) + bandera `profiles.acceso_actividades`. Las **horas son columna generada** de los minutos: el Excel trae ambas y guardarlas por separado invita a que dejen de coincidir. La estructura organizacional se guarda **desnormalizada** a propósito, para que un cambio de puesto no reescriba el historial. Los catálogos se conservan aunque el tablero no los use: son lo único que permite responder *quién no registró nada este periodo*, dato que la hoja de hechos no puede dar. Mig. `20260818130000`. | Estructural | ✅ |
+| A-2 | ACT-002 | **RLS**: `has_actividades_access()` = admin o la bandera. Mismo patrón que cartera/reclutamiento, sin inventar una tercera forma de decir lo mismo. Por ahora **quien ve también puede cargar** (el único que sube el archivo es dirección); si eso cambia, se parte el predicado con una segunda bandera. Mig. `20260818130100`. | Seguridad | ✅ |
+| A-3 | ACT-003 | **RPC `act_resumen`** — las 8 medidas DAX traducidas a SQL, más cortes por dirección, gerencia, categoría, nivel jerárquico y el cruce gerencia × categoría. Mig. `20260818130200`. | Datos | ✅ |
+| A-4 | ACT-004 | **RPCs `act_detalle` y `act_friccion`** — "quién hace qué" y "dónde duele". Misma firma de filtros para que el estado viva en la URL. Mig. `20260818130300`. | Datos | ✅ |
+| A-5 | — | **Ingesta**: parser puro `lib/actividades/excel.ts` (exceljs) + `POST /api/actividades/cargar`. Valida el archivo **entero antes de tocar la base**: si el Excel viene mal no se borra nada. Recargar un periodo lo **reemplaza**, no lo duplica; los periodos que el archivo no menciona no se tocan. | Funcional | ✅ · **la ruta HTTP no se ha ejercitado con sesión real** |
+| A-6 | — | **Pantallas**: `/actividades` (estructura), `/actividades/personas`, `/actividades/friccion`, `/actividades/cargar`. Fila de filtros compartida cuyo estado vive en `searchParams` — un tablero filtrado se puede mandar por link, cosa que el Power BI no permite. | UI | ✅ |
+| A-7 | — | **Accesos**: toggle en `/admin/usuarios`, sección en el sidebar, guarda de módulo que redirige a quien no traiga la bandera. | Seguridad | ✅ |
+
+**Las 8 medidas, verificadas una por una contra el `.pbix` abierto** (2026-08-18) antes de traducirlas. Ancla: 452.50 h sin filtros / 239.33 h en agosto.
+
+| Medida | Definición confirmada |
+|---|---|
+| Horas Totales | `sum(horas)` |
+| Colaboradores · Gerencias | `count(distinct …)` |
+| % Tiempo Relevante | horas con nota ÷ **horas totales** (sobre horas, no sobre número de registros) |
+| % Tiempo Fricción | horas `tipo_motivo='FRICCION'` ÷ **horas totales** (no ÷ horas relevantes) |
+| % Participación | horas de la fila ÷ total visible |
+| % Tiempo Seleccionado | horas filtradas ÷ horas del periodo sin filtrar |
+| Crecimiento Horas | `(actual − anterior) ÷ anterior` contra el periodo previo **con datos** |
+
+**Dos defectos del original que NO se replicaron, a propósito:**
+
+1. Sin periodo seleccionado el `.pbix` mostraba **1.12 de crecimiento**: comparaba julio+agosto contra junio+julio, y junio no existe. Un +112% inventado con cara de dato. Aquí el periodo siempre tiene valor y sin periodo previo el KPI devuelve `null`, que la UI pinta "—".
+2. La matriz mostraba **"% Participación = 1.00" en las ocho direcciones** porque el DAX dividía las horas de la dirección entre sí mismas. Una columna entera que no decía nada. Ahora una dirección con 91.75 de 452.50 h se lee 20.3%.
+
+**Color validado con herramienta, no elegido a ojo**: verde/rojo para positivo/fricción se descartó por dar **ΔE 4.2 en deuteranopia** (indistinguibles); quedó azul `#1C5CAB` ↔ naranja `#D9531F`, que pasa las cinco comprobaciones. Los colores crudos de marca **no sirven como relleno de datos** (el navy `#0F1B3D` cae fuera de la banda de luminosidad y lee gris; el naranja `#F58220` no llega a 3:1 contra blanco) → se usan pasos ajustados de esos matices. Las 12 categorías van a **heatmap secuencial de un matiz**, no a 12 colores.
+
+#### Fase Actividades-2 — Lo que sigue
+
+| # | Qué | Por qué |
+|---|---|---|
+| A-8 | **Ejercitar `/actividades/cargar` con sesión real** | Es el único tramo de la cadena sin correr de punta a punta. Los 120 registros de prueba se insertaron por SQL directo, no por la ruta HTTP. Recargar es idempotente, así que probarlo no arriesga nada. |
+| A-9 | **Dar la bandera a dirección** | `acceso_actividades` nace en `false`; hoy solo lo ven los admin. |
+| A-10 | **Datos reales** | Los 120 registros cargados son **dummy** (`DUM0001…`, dos fechas, 30 de 80 empleados). Sirven para ver la forma, no para concluir nada. |
+| A-11 | *(diferido)* Carga desde una carpeta de Drive | Se evaluó y se pospuso: la pantalla de subida da validación inmediata y no exige scopes nuevos de Google. Drive sería otra puerta al mismo modelo de datos, sin cambiarlo. |
+| A-12 | *(idea de fondo)* Captura dentro de la plataforma | El destino natural es que la gente registre su tiempo aquí y el Excel desaparezca — el mismo movimiento que hizo la mesa de tickets contra WhatsApp. Es un módulo entero, no un tablero. |
 
 ---
 
@@ -429,9 +506,11 @@ Las 6 incidencias (columna "¿Qué engloba?" → campo `select` guiado dentro de
 >
 > **La cola de trabajo viva vive en §0.** Aquí solo quedan los pendientes operativos que dependen del usuario y no de una vía de desarrollo:
 
-1. **Cron-job.org wake-up** — GET `https://crediflexi-services.onrender.com/health` cada 10 min, para evitar el cold start de Render Free (Cartera).
-2. **Vaciar el bucket `ticket-attachments`** vía Storage API: quedaron huérfanos tras los `delete from tickets` de las migraciones de limpieza.
-3. **Hábito, no ticket:** `npm run db:types` después de cada `db push`. Nada importa `database.types.ts`, así que cuando se desfasa nada truena para avisar.
+1. **`TICKETS_GOOGLE_REFRESH_TOKEN` + `TICKETS_SENDER_EMAIL` en Vercel (Production) y redesplegar.** Es el pendiente #1 de §0 y no lo puede hacer el código: las variables nuevas **no aplican a un deploy ya construido**. Generar el token con `node scripts/google-token-plataforma.mjs`, que imprime las dos líneas listas para pegar; verificar después con `GET /api/tickets/probar-correo`.
+2. **Cron-job.org wake-up** — GET `https://crediflexi-services.onrender.com/health` cada 10 min, para evitar el cold start de Render Free (Cartera).
+3. **Vaciar el bucket `ticket-attachments`** vía Storage API: quedaron huérfanos tras los `delete from tickets` de las migraciones de limpieza.
+4. **Hábito, no ticket:** `npm run db:types` después de cada `db push`. Nada importa `database.types.ts`, así que cuando se desfasa nada truena para avisar.
+5. **`.env.example` está incompleto** (OPS-003 sigue abierto, aunque el archivo exista): no documenta `TICKETS_GOOGLE_REFRESH_TOKEN`, `TICKETS_SENDER_EMAIL`, `GOOGLE_TOKEN_ENCRYPTION_KEY`, `GOOGLE_RECLUTAMIENTO_CLIENT_ID/SECRET`, `FACTORIAL_API_KEY`, `NEXT_PUBLIC_AUTH_EMAILS_EXTRA` ni `SUPABASE_DB_PASSWORD`. Justo las que hacen falta al redesplegar.
 
 ---
 
@@ -485,6 +564,9 @@ Prefijos consistentes en `RESEARCH-CONSOLIDADO.md` §6/§7 y aquí:
 
 ## 7. Completados recientes
 
+- **2026-08-12** — TKT-049: Data Science pasa a prioridad alta y SLA de 4 h. Con `sla_min = null` el reloj nunca corría, así que el área no aparecía en "Vencidos" ni en la cifra de la cola: no se estaba midiendo. Tesorería sigue en variable (decisión pendiente). Documentación del catálogo completo (`docs/catalogo-tickets.md` + PDF de una página).
+- **2026-08-11** — Fase **Tickets-Supervisión y flujo** (TKT-043..049, 8 migraciones): supervisor de la mesa por flag, pausa con nombre por tipo de problema (y cierre directo de los presenciales), autocierre de resueltos a los 3 días vía `pg_cron`, una cuenta emisora por módulo, remitente de tickets fuera de la BD y endpoint de diagnóstico de correo. Detalle en §2.2. **Documentado el 2026-08-18**, no el día que se entregó.
+- **2026-08-10** — Fase **Tickets-Equipo** (TKT-031..042): cola por área, estados explícitos, reasignación, bitácora, notificaciones por correo, guía contextual y alta sin elegir área. Cierra TKT-001/002/003.
 - **2026-06-16** — Admin: toggle de **acceso a Cartera** en el panel global `/admin/usuarios` (paridad con el de Score, en navy), conservando el panel individual `/admin/cartera`. Nota: el panel admin sigue repartido por módulo (catálogo/áreas en Tickets, métricas de score en Score, accesos cartera en Cartera) + transversales (usuarios/métricas) en el global.
 - **2026-06-16** — AI-004 (pulido): **pantalla completa** del widget del asistente (botón expandir/contraer, `Esc` sale de fullscreen y un 2º `Esc` cierra, sin scroll de fondo).
 - **2026-06-15** — AI-004: asistente IA como **widget flotante** (FAB + panel que reusa `AssistantChat`) en todas las páginas de cartera; `/cartera/chat` redirige a `/cartera`; item retirado del sidebar. Además: logging de tokens y costo estimado por pregunta del agente.
@@ -812,7 +894,7 @@ No se permite saltar etapas, retroceder, ni salir de un estado terminal (`contra
 | **REC-080** ✅ | Preselección en `/agendar` | `?candidato=` deja el candidato marcado; si no está entre los viables, banner ámbar explicando la etapa real en vez de ignorarlo en silencio. |
 | **REC-081** ✅ | Verificación + docs | `tsc` sin errores nuevos, `next build` verde, migraciones `rec_020`/`rec_021` aplicadas a remoto, PLAN §8.4/§8.11 y renumeración de S8/S9. |
 
-**Hallazgo colateral:** `components/ui/*` (scaffolding de shadcn) es **código muerto que rompe el build** — importa `@/lib/utils` (el helper `cn`), que nunca se creó, y `clsx`/`tailwind-merge` no están instalados. Importar cualquiera de esos componentes tira `next build`. Para diálogos se usan los primitivos de `@radix-ui/react-dialog` directamente.
+**Hallazgo colateral:** `components/ui/*` (scaffolding de shadcn) era **código muerto que rompía el build** — importaba `@/lib/utils` (el helper `cn`), que nunca se creó, y `class-variance-authority`, que nunca se instaló. Para diálogos se usan los primitivos de `@radix-ui/react-dialog` directamente. → **Borrado el 2026-08-18** con `components.json` y las 9 dependencias que solo él usaba.
 
 **Fuera de alcance de S7.5:** drag & drop en el kanban, retroceso de etapas, catálogo de entrevistadores, historial visible de ajustes.
 

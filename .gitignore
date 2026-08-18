@@ -48,3 +48,7 @@ next-env.d.ts
 
 # tracking de sesiones (detalle local; el resumen vive en el vault de Obsidian)
 /sessions.md
+
+# insumos reales de cartera para verificar el ETL: son datos de clientes.
+# Si entran a un commit quedan en el historial para siempre.
+/docs/etl/
