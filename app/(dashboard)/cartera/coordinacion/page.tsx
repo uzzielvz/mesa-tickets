@@ -234,7 +234,7 @@ function TablaDistribucion({
                 <td className="px-5 py-2.5 text-ink-900 font-medium sticky left-0 bg-white whitespace-nowrap">
                   {f.coordinacion}
                 </td>
-                {f.par.map((b, i) => {
+                {f.par.map(b => {
                   const pct = f.cartera_total > 0 ? (b.saldo / f.cartera_total) * 100 : 0
                   return (
                     <td

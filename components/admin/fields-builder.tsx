@@ -44,7 +44,7 @@ export default function FieldsBuilder({ value, onChange }: Props) {
 
   function add() {
     const usedKeys = new Set(value.map(c => c.key))
-    let baseKey = 'campo'
+    const baseKey = 'campo'
     let i = value.length + 1
     while (usedKeys.has(`${baseKey}_${i}`)) i++
     const newField: ProblemField = {
