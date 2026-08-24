@@ -1,18 +1,57 @@
-# Módulo Reclutamiento — docs
+# Módulo Reclutamiento — documentación
 
-Módulo en planeación (4º del repo, mismo Next.js + Supabase). Automatiza el flujo de entrevistas del Gerente de RH para vacantes de **Gerente de Inversiones**.
+**Estado: v1.0 en lanzamiento** (2026-08-24). Módulo completo de `postulado` a `contratado`, desplegado y operable.
 
-La documentación de referencia vive en los documentos raíz del proyecto:
+Lleva a un candidato de la postulación a la contratación dentro de la plataforma, generando por sí solo las citas de Google Meet, los correos a candidatos y entrevistadores, las ligas de evaluación y el aviso interno de altas.
 
-- **Contexto, stakeholders, flujo as-is, pain points, restricciones y conflictos con el codebase:** `RESEARCH-CONSOLIDADO.md §13`.
-- **Plan de ejecución (modelo de datos refinado, arquitectura, integraciones, roadmap de sprints, fuera de MVP, decisiones y TODOs):** `PLAN.md §8`.
+---
 
-## Decisiones cerradas (resumen)
+## El paquete de lanzamiento
 
-- **Alcance MVP = Opción A — full Google Workspace:** Gmail API (envío) + Calendar API (eventos con Meet links), OAuth de `reclutamiento@financieracrediflexi.com` conectado una sola vez en `/reclutamiento/admin/conectar-google`.
-- **Roadmap:** S1 → S2 → S3 → **Sprint G (Google)** → S4 (agendamiento masivo) → S5 (evaluaciones) → S6 (vista de comité). Sprint G va antes del agendamiento porque éste no entrega valor sin Google conectado.
-- **Cifrado `refresh_token`:** Supabase Vault si está disponible (validar al inicio del Sprint G); fallback `pgcrypto` con llave en `GOOGLE_TOKEN_ENCRYPTION_KEY`.
-- **Pipeline 1↔1** candidato ↔ vacante (N↔N a v2).
-- **RLS MVP:** admin (Héctor) ve/escribe todo; nadie más entra a la app; entrevistadores solo por magic link a su sesión.
+Cuatro documentos, cada uno para alguien distinto. **Empieza por el que corresponda a tu papel.**
 
-Esta carpeta alojará el material específico del módulo conforme avance (briefs de handoff, análisis de plantillas de correo, mapeo de fuentes de candidatos, etc.).
+| Documento | Para quién | Qué contiene |
+|---|---|---|
+| **[`manual-usuario.md`](./manual-usuario.md)** | Quien **opera** el módulo (RH) | El paso a paso completo, pantalla por pantalla. Qué hacer cuando algo falla. Preguntas frecuentes. |
+| **[`documentacion-funcional.md`](./documentacion-funcional.md)** | Quien necesita **entender** el sistema | Qué hace, el pipeline y qué dispara cada transición, el algoritmo de la cascada, los 6 correos, permisos, arquitectura, modelo de datos y **límites conocidos de la v1**. |
+| **[`runbook-operacion.md`](./runbook-operacion.md)** | Quien lo **mantiene** | Modos de falla con síntoma → causa → arreglo. Qué es best-effort y qué es bloqueante. Kill switch. Riesgos abiertos. |
+| **[`prevuelo-lanzamiento.md`](./prevuelo-lanzamiento.md)** | Quien **valida antes de anunciar** | Guion de smoke test end-to-end en 7 bloques, con criterio explícito de go/no-go. |
+
+**Para anunciarlo:**
+
+| Documento | Qué es |
+|---|---|
+| **[`presentacion-lanzamiento.html`](./presentacion-lanzamiento.html)** | Deck de 20 diapositivas. Se abre en el navegador; para PDF, imprimir desde ahí. Bloque ejecutivo (Dirección / G&C) + bloque operativo (RH) + alcance y seguridad. |
+| **[`anuncio-lanzamiento.md`](./anuncio-lanzamiento.md)** | Tres textos listos para copiar: a Dirección, a las áreas que empiezan a recibir el aviso automático de altas, y mensaje corto de chat. |
+
+---
+
+## Orden de lanzamiento
+
+```
+1. Cerrar riesgos      → prevuelo-lanzamiento.md, Bloque 0
+   (destinatarios reales · Factorial apagado · cuenta emisora de Google)
+
+2. Validar             → prevuelo-lanzamiento.md, Bloques 1-7
+   Criterio de GO: los 6 correos en verde + magic link sin sesión
+
+3. Anunciar            → anuncio-lanzamiento.md
+```
+
+**El anuncio va al final, no al principio.** El módulo lleva desde el 31 de julio con todo el código escrito y nunca se ha ejercitado de punta a punta: ninguno de sus 6 correos se ha visto llegar en un flujo real.
+
+---
+
+## Dos cosas que hay que saber antes de tocarlo
+
+1. **Factorial HR está apagado a propósito** (`rec_ajustes.factorial.sync_activa = false`). La integración existe pero nunca se ha probado contra producción. Encenderla sin validar significa que el primer candidato real es la prueba. Procedimiento para encenderla en el [runbook §6](./runbook-operacion.md).
+
+2. **Un correo que falla no revierte la acción.** Si el correo de bienvenida no sale, el candidato **igual queda contratado**. Hay que revisar `/reclutamiento/correos` después de cada contratación. Detalle en el [runbook §1.1](./runbook-operacion.md).
+
+---
+
+## Referencias del repo
+
+- **Plan de ejecución e historia de sprints (S1–S9.5):** `PLAN.md §8`.
+- **Contexto, stakeholders, flujo as-is y decisiones de arquitectura:** `RESEARCH-CONSOLIDADO.md §13`.
+- **Código:** `app/(dashboard)/reclutamiento/`, `app/evaluar/[token]/`, `lib/reclutamiento/`, `lib/actions/{reclutamiento,agendamiento,comite,evaluaciones,ajustes}.ts`, migraciones `rec_001`…`rec_023`.

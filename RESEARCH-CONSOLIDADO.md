@@ -6,7 +6,7 @@
 
 ---
 
-> **Foco activo (2026-08-11, vigente): Mesa de Tickets.** Reclutamiento, Cartera, Score y Factorial están **en pausa** — desplegados y operables, sin desarrollo nuevo. Este documento sigue describiendo los cinco módulos porque el contexto no caduca; la cola de trabajo vigente vive en `PLAN.md §0`.
+> **Foco activo (2026-08-11, vigente): Mesa de Tickets.** Cartera, Score y Factorial están **en pausa** — desplegados y operables, sin desarrollo nuevo. **Reclutamiento salió de la pausa el 2026-08-24 y está en lanzamiento de su v1** (§13; paquete de entrega en `docs/reclutamiento/`) — no fue desarrollo nuevo, fue la entrega que le faltaba. Este documento sigue describiendo los cinco módulos porque el contexto no caduca; la cola de trabajo vigente vive en `PLAN.md §0`.
 
 > **⚠ Nota de mantenimiento (2026-08-18).**
 >
@@ -1108,13 +1108,14 @@ Tres decisiones de modelo que conviene no deshacer sin leer esto:
 
 ---
 
-## 13. Módulo Reclutamiento *(S1..S9.5 + Sprint G implementados — ⏸ en pausa desde 2026-08-11)*
+## 13. Módulo Reclutamiento *(S1..S9.5 + Sprint G implementados — 🚀 v1 en lanzamiento desde 2026-08-24)*
 
 > Documentación de research del 4º módulo. **Estado 2026-08-04:** S1 (fundaciones), S2 (vacantes+candidatos), S3 (pipeline/DAG), **Sprint G (Google Workspace)**, **S4 (agendamiento masivo en cascada)**, **S5 (evaluaciones vía magic link)**, **S6 (comité + entrevistadores dinámicos + contratación)**, **S7 (`final_dg` + config de alta + correo interno de altas)**, **S7.5 (destinatarios editables + pipeline dinámico)**, **S9 (alta automática en Factorial HR — §13.9)** y **S9.5 (plantillas editables + bitácora de correos)** entregados. Todo el pipeline `postulado → … → contratado` está cubierto end-to-end y se opera desde el kanban.
 >
 > **Lo que falta no es código, es validación:** el smoke test end-to-end con correos de prueba nunca se corrió, y el alta en Factorial sigue apagada por interruptor. Pendiente **S10** (onboarding del candidato).
+>
+> **2026-08-24 — v1 en lanzamiento.** Se produjo el paquete de entrega en **`docs/reclutamiento/`** (manual de usuario, documentación funcional, runbook de operación, guion de pre-vuelo con criterio go/no-go, presentación y textos de anuncio). **Esa carpeta es la fuente de verdad operativa del módulo**; esta sección conserva el research y las decisiones de arquitectura. Factorial se lanza **apagado a propósito**; el anuncio va después del pre-vuelo, no antes.
 > El plan de trabajo (modelo de datos, sprints, integraciones) vive en `PLAN.md §8`.
-> Detalle operativo en `docs/reclutamiento/`.
 
 ### 13.0 Agendamiento en cascada — arquitectura entregada (Sprint G + S4, 2026-07-07)
 

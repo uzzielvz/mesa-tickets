@@ -3,17 +3,19 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-08-18 (puesta al día del 08-11/12 + alta del módulo **Actividades**, ACT-001..004).
+> Última actualización: 2026-08-24 (**lanzamiento de Reclutamiento v1** — paquete de documentación, manual, runbook, pre-vuelo, presentación y anuncio).
 
 ---
 
-## 0. Foco actual — punto de partida (2026-08-18)
+## 0. Foco actual — punto de partida (2026-08-24)
 
 > **Esta sección manda sobre el resto del documento.** Si algo de §1–§8 contradice lo de aquí, gana esto.
 
-**Decisión (2026-08-11, vigente):** el trabajo se concentra en **Mesa de Tickets**. Reclutamiento, Cartera, Score y Factorial quedan **en pausa** — sin desarrollo nuevo. Siguen desplegados y funcionando; lo que se detiene es construir sobre ellos.
+**Decisión (2026-08-11, vigente):** el trabajo se concentra en **Mesa de Tickets**. Cartera, Score y Factorial quedan **en pausa** — sin desarrollo nuevo. Siguen desplegados y funcionando; lo que se detiene es construir sobre ellos.
 
 > **Enmienda (2026-08-18):** se abrió una **segunda vía activa, Actividades** (§2.6), a petición directa: portar a la plataforma un tablero de Power BI sobre el uso del tiempo del equipo. No cancela el foco en tickets — la cola de abajo sigue vigente y sin avanzar.
+
+> **Enmienda (2026-08-24):** **Reclutamiento sale de la pausa y entra en lanzamiento** (§0 bis). No es desarrollo nuevo: el código estaba completo desde el 31 de julio. Lo que se hizo fue el **paquete de entrega** que le faltaba — documentación, manual, runbook, guion de validación, presentación y anuncio. La vía de tickets no avanzó.
 
 ### Vía activa — Mesa de Tickets
 
@@ -41,10 +43,41 @@
 
 **Deuda menor viva:** plantillas de correo y frases frecuentes de tickets viven en el código (las de Reclutamiento sí se editan desde Ajustes); el SLA no acumula pausas — con `ticket_historial` ya hay con qué calcularlo bien.
 
-### Vías en pausa — cómo quedaron congeladas
+### Vía en lanzamiento — Reclutamiento v1 *(2026-08-24)*
 
-**Reclutamiento** — completo de `postulado` a `contratado` (S1–S9.5). **No está validado**: el smoke test end-to-end nunca se corrió.
-> ⚠️ **Peligro al pausar:** la plantilla `bienvenida_contratacion` tiene **3 empleados reales de CrediFlexi seedeados en CC** (`irvin.velazco@`, `cynthia.aguilar@`, `jesus.montellano@`). El módulo sigue en línea: si alguien contrata a un candidato, les llega correo. **Antes de dejarlo solo**, reapuntar los destinatarios desde `/reclutamiento/ajustes` o confirmar que nadie va a operarlo.
+**Estado.** El módulo está completo de `postulado` a `contratado` desde S9.5 (2026-07-31). Lo que faltaba no era código sino **entrega**: nadie sabía usarlo, no había manual, y **nunca se ejercitó de punta a punta** — ninguno de sus 6 correos se ha visto llegar en un flujo real.
+
+El **2026-08-24** se produjo el paquete de lanzamiento completo en `docs/reclutamiento/` (índice en su `README.md`):
+
+| Documento | Para quién |
+|---|---|
+| `manual-usuario.md` | Quien opera el módulo (RH) |
+| `documentacion-funcional.md` | Referencia del sistema: pipeline, cascada, correos, permisos, arquitectura, **límites de la v1** |
+| `runbook-operacion.md` | Quien lo mantiene: modos de falla, best-effort vs bloqueante, kill switch, riesgos abiertos |
+| `prevuelo-lanzamiento.md` | Validación previa, 7 bloques, con criterio de go/no-go |
+| `presentacion-lanzamiento.html` | Deck de 20 slides (ejecutivo + operativo + alcance) |
+| `anuncio-lanzamiento.md` | Tres textos de anuncio, por audiencia |
+
+**Decisiones de lanzamiento:**
+- **Factorial HR se queda apagado en v1** (`sync_activa = false`). Nunca se validó contra producción; el primer candidato real no debe ser la prueba. Procedimiento para encenderla en el runbook §6.
+- **El anuncio va después del pre-vuelo**, no antes. Criterio de GO: los 6 correos en verde en la bitácora + el magic link abriendo sin sesión.
+
+**Lo que sigue, en orden:**
+
+| # | Qué | Notas |
+|---|---|---|
+| 1 | **Correr el pre-vuelo** (`docs/reclutamiento/prevuelo-lanzamiento.md`) | Exige sesión de navegador y dos cuentas de correo. Su Bloque 0 cierra los tres riesgos de configuración. |
+| 2 | **Arreglar lo que salga en 🔴** | Si aparece un defecto real, se atiende antes de anunciar |
+| 3 | **Anunciar** (`anuncio-lanzamiento.md`) | Los tres textos, en especial el #2 a las áreas que empiezan a recibir el aviso automático de altas |
+| 4 | **Validar y encender Factorial** | Alta de prueba contra producción → borrarla → activar el interruptor |
+| 5 | **S10 — onboarding del candidato** (§8.12) | Sustituye el layout xlsx + Google Form. Ya está planeado a detalle |
+
+**Riesgos vivos:**
+- ~~**Peligro al pausar:** 3 empleados reales en el CC de `bienvenida_contratacion`~~ → **resuelto como riesgo, no como bug**: el formulario de contratación muestra el CC y deja editarlo antes de enviar, y el pre-vuelo (paso 0.7) obliga a confirmar la lista. Los 5 destinatarios reales del correo de altas y el correo del DG (`rec_020`) tienen el mismo tratamiento en el paso 0.3.
+- **Retención de datos de candidatos** (§8.7, punto 4): el módulo guarda CV, teléfono y correo de personas no contratadas, sin política de purga, en una entidad regulada. **Sin dueño asignado.** Documentado en el runbook §7 (R-1) para que no se lance en silencio.
+- **Sin regeneración de magic links vencidos** (runbook §7, R-2) — límite conocido de la v1.
+
+### Vías en pausa — cómo quedaron congeladas
 
 **Factorial HR** — entregado (S9), **apagado a propósito**: `rec_ajustes.factorial.sync_activa = false`. Así se queda. Para reanudar: encender el interruptor y validar alta + idempotencia (`factorial_employee_id`) contra producción.
 
@@ -597,9 +630,11 @@ Prefijos consistentes en `RESEARCH-CONSOLIDADO.md` §6/§7 y aquí:
 
 ---
 
-## 8. Módulo Reclutamiento *(S1–S9.5 entregados — ⏸ EN PAUSA desde 2026-08-11)*
+## 8. Módulo Reclutamiento *(S1–S9.5 entregados — 🚀 v1 EN LANZAMIENTO desde 2026-08-24)*
 
-> **En pausa.** Sin desarrollo nuevo; el módulo sigue desplegado y operable. Antes de dejarlo solo, revisar el peligro de los destinatarios reales en `bienvenida_contratacion` (§0). Lo que falta no es código sino **validación**: el smoke test end-to-end nunca se corrió y el alta en Factorial sigue apagada por interruptor. Todo lo de abajo queda como estaba, listo para reanudar.
+> **En lanzamiento.** El paquete de entrega vive en **`docs/reclutamiento/`** (índice en su `README.md`): manual de usuario, documentación funcional, runbook de operación, guion de pre-vuelo, presentación y textos de anuncio. **Esa carpeta es la fuente de verdad de cómo funciona y cómo se opera el módulo hoy**; esta sección §8 queda como el registro histórico del plan de ejecución y los sprints.
+>
+> **Estado ordenado en `§0 → Vía en lanzamiento`.** Lo pendiente: correr el pre-vuelo, anunciar, y después validar y encender Factorial (que sigue apagado por interruptor a propósito).
 
 > Detalle de contexto, stakeholders, flujo as-is y pain points en `RESEARCH-CONSOLIDADO.md §13`. Esta sección es el plan de ejecución (modelo de datos, arquitectura, sprints).
 
