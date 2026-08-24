@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reclutamiento v1 — CrediFlexi</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/white.css" id="theme" />
+
+  <style>
+    :root {
+      --cf-azul: #1d4ed8;
+      --cf-teal: #0d9488;
+      --cf-tinta: #0f172a;
+      --cf-gris: #475569;
+      --cf-gris-claro: #94a3b8;
+      --cf-linea: #e2e8f0;
+      --cf-bg-suave: #f8fafc;
+      --cf-rojo: #dc2626;
+      --cf-verde: #16a34a;
+      --cf-ambar: #d97706;
+    }
+
+    .reveal {
+      font-family: "Inter", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+      font-size: 28px;
+      color: var(--cf-tinta);
+      font-weight: 400;
+    }
+    .reveal .slides { text-align: left; }
+    .reveal h1, .reveal h2, .reveal h3 {
+      font-family: inherit;
+      color: var(--cf-tinta);
+      text-transform: none;
+      letter-spacing: -0.02em;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+    .reveal h1 { font-size: 2.0em; }
+    .reveal h2 { font-size: 1.4em; margin-bottom: 0.45em; }
+    .reveal h3 { font-size: 1.0em; color: var(--cf-azul); margin-bottom: 0.25em; }
+    .reveal p, .reveal li { line-height: 1.38; color: var(--cf-gris); font-size: 0.92em; }
+    .reveal strong { color: var(--cf-tinta); font-weight: 600; }
+    .reveal ul { list-style: none; margin-left: 0; }
+    .reveal ul li {
+      position: relative;
+      padding-left: 1.1em;
+      margin-bottom: 0.4em;
+    }
+    .reveal ul li::before {
+      content: "";
+      position: absolute;
+      left: 0; top: 0.55em;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--cf-azul);
+    }
+
+    .kicker {
+      display: inline-block;
+      font-size: 0.48em;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--cf-teal);
+      margin-bottom: 0.35em;
+    }
+
+    .portada { text-align: center; }
+    .portada .marca {
+      font-size: 0.55em; letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--cf-gris-claro); font-weight: 700; margin-bottom: 1em;
+    }
+    .portada h1 { font-size: 2.1em; margin-bottom: 0.25em; }
+    .portada .sub { font-size: 0.82em; color: var(--cf-gris); }
+    .portada .meta { margin-top: 1.4em; font-size: 0.52em; color: var(--cf-gris-claro); }
+
+    .demo { background: linear-gradient(135deg, var(--cf-azul), var(--cf-teal)); }
+    .demo .demo-tag {
+      font-size: 0.48em; letter-spacing: 0.18em; text-transform: uppercase;
+      color: rgba(255,255,255,0.85); font-weight: 700;
+    }
+    .demo h2, .demo h1 { color: #fff; }
+    .demo p, .demo li { color: rgba(255,255,255,0.92); }
+    .demo strong { color: #fff; }
+    .demo ul li::before { background: #fff; }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.55em; margin-top: 0.35em; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.55em; margin-top: 0.35em; }
+    .card {
+      background: var(--cf-bg-suave);
+      border: 1px solid var(--cf-linea);
+      border-left: 4px solid var(--cf-azul);
+      border-radius: 8px;
+      padding: 0.55em 0.75em;
+    }
+    .card.teal { border-left-color: var(--cf-teal); }
+    .card.ambar { border-left-color: var(--cf-ambar); }
+    .card h3 { margin: 0 0 0.12em 0; font-size: 0.85em; }
+    .card p { margin: 0; font-size: 0.58em; line-height: 1.32; }
+
+    .kpis { display: flex; gap: 1.6em; margin-top: 0.6em; flex-wrap: wrap; }
+    .kpi { text-align: center; }
+    .kpi .num { font-size: 1.6em; font-weight: 800; color: var(--cf-azul); line-height: 1; }
+    .kpi .lbl { font-size: 0.46em; color: var(--cf-gris); text-transform: uppercase; letter-spacing: 0.04em; }
+    .kpi.verde .num { color: var(--cf-verde); }
+    .kpi.rojo .num { color: var(--cf-rojo); }
+
+    .reveal table { font-size: 0.58em; border-collapse: collapse; width: 100%; margin-top: 0.25em; }
+    .reveal table th {
+      background: var(--cf-tinta); color: #fff; font-weight: 600;
+      text-align: left; padding: 0.45em 0.6em; border: none;
+    }
+    .reveal table td { padding: 0.4em 0.6em; border-bottom: 1px solid var(--cf-linea); color: var(--cf-gris); vertical-align: top; }
+    .reveal table tr:nth-child(even) td { background: var(--cf-bg-suave); }
+    .reveal table td.antes { color: var(--cf-gris-claro); }
+    .reveal table td.ahora { color: var(--cf-tinta); font-weight: 500; }
+
+    .nota {
+      background: #f8fafc; border-left: 4px solid var(--cf-gris-claro);
+      border-radius: 6px; padding: 0.5em 0.75em; font-size: 0.58em; margin-top: 0.45em;
+    }
+    .nota.azul { background: #eff6ff; border-left-color: var(--cf-azul); }
+    .nota.ambar { background: #fffbeb; border-left-color: var(--cf-ambar); }
+    .nota.verde { background: #f0fdf4; border-left-color: var(--cf-verde); }
+    .nota strong { color: var(--cf-tinta); }
+
+    .dos-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1em; }
+    .reveal .footnote { font-size: 0.46em; color: var(--cf-gris-claro); margin-top: 0.5em; }
+    .reveal .progress { color: var(--cf-azul); }
+    .reveal .controls { color: var(--cf-azul); }
+    .compact li { margin-bottom: 0.28em; font-size: 0.85em; }
+
+    /* Pipeline de etapas */
+    .flujo { display: flex; align-items: stretch; gap: 0.3em; margin-top: 0.6em; flex-wrap: wrap; }
+    .etapa {
+      flex: 1 1 0; min-width: 5.2em;
+      background: var(--cf-bg-suave);
+      border: 1px solid var(--cf-linea);
+      border-top: 3px solid var(--cf-azul);
+      border-radius: 6px;
+      padding: 0.45em 0.4em;
+      text-align: center;
+    }
+    .etapa .n { font-size: 0.42em; color: var(--cf-gris-claro); font-weight: 700; }
+    .etapa .t { font-size: 0.52em; font-weight: 600; color: var(--cf-tinta); line-height: 1.15; margin-top: 0.15em; }
+    .etapa .c { font-size: 0.4em; color: var(--cf-teal); font-weight: 600; margin-top: 0.3em; }
+    .etapa.hito { border-top-color: var(--cf-teal); background: #f0fdfa; }
+    .etapa.fin { border-top-color: var(--cf-verde); background: #f0fdf4; }
+
+    /* Cascada de horarios */
+    .cascada { margin-top: 0.5em; }
+    .fila-c { display: flex; align-items: center; gap: 0.4em; margin-bottom: 0.35em; }
+    .fila-c .quien { width: 5.5em; font-size: 0.55em; font-weight: 600; color: var(--cf-tinta); }
+    .barra { display: flex; gap: 2px; flex: 1; }
+    .blq {
+      flex: 1; padding: 0.35em 0.2em; border-radius: 4px;
+      font-size: 0.44em; font-weight: 600; text-align: center; color: #fff;
+    }
+    .blq.e1 { background: var(--cf-azul); }
+    .blq.e2 { background: var(--cf-teal); }
+    .blq.e3 { background: #7c3aed; }
+    .blq.vacio { background: transparent; }
+    .leyenda { display: flex; gap: 1em; margin-top: 0.4em; font-size: 0.46em; color: var(--cf-gris); }
+    .leyenda span::before {
+      content: ""; display: inline-block; width: 9px; height: 9px;
+      border-radius: 2px; margin-right: 0.35em; vertical-align: middle;
+    }
+    .leyenda .l1::before { background: var(--cf-azul); }
+    .leyenda .l2::before { background: var(--cf-teal); }
+    .leyenda .l3::before { background: #7c3aed; }
+
+    /* Lista de correos */
+    .correos { margin-top: 0.4em; }
+    .correo-fila {
+      display: flex; align-items: center; gap: 0.6em;
+      padding: 0.35em 0.6em; border-bottom: 1px solid var(--cf-linea);
+    }
+    .correo-fila .ico {
+      width: 1.5em; height: 1.5em; border-radius: 50%;
+      background: var(--cf-azul); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.42em; font-weight: 700; flex-shrink: 0;
+    }
+    .correo-fila .qui { font-size: 0.56em; font-weight: 600; color: var(--cf-tinta); flex: 1; }
+    .correo-fila .cuando { font-size: 0.48em; color: var(--cf-gris-claro); }
+  </style>
+</head>
+<body>
+<div class="reveal">
+  <div class="slides">
+
+    <!-- ═══════════ BLOQUE A — EJECUTIVO ═══════════ -->
+
+    <!-- 1 -->
+    <section class="portada">
+      <div class="marca">Financiera CrediFlexi</div>
+      <h1>Reclutamiento</h1>
+      <p class="sub">Del primer CV a la contrataci&oacute;n, en un solo lugar</p>
+      <p class="meta">Versi&oacute;n 1.0 &middot; Agosto 2026 &middot; Plataforma de Operaciones</p>
+      <aside class="notes">Mensaje de apertura: esto no reemplaza a nadie, elimina el trabajo de transcribir y coordinar a mano.</aside>
+    </section>
+
+    <!-- 2 -->
+    <section>
+      <span class="kicker">El punto de partida</span>
+      <h2>El proceso de hoy vive fuera de cualquier sistema</h2>
+      <ul class="compact">
+        <li>El seguimiento de cada candidato est&aacute; en un <strong>Excel personal</strong>. Si esa persona no est&aacute;, nadie sabe en qu&eacute; va nadie.</li>
+        <li>Agendar una jornada de entrevistas significa crear <strong>un Meet por candidato</strong> y escribir <strong>un correo por candidato y por entrevistador</strong>, a mano.</li>
+        <li>Las opiniones de los entrevistadores llegan por <strong>WhatsApp o correo suelto</strong>, y alguien las concentra despu&eacute;s.</li>
+        <li>El aviso de alta a las &aacute;reas (correo, Yunius, HubSpot, inducci&oacute;n) se <strong>vuelve a redactar cada vez</strong>.</li>
+        <li>Nadie sabe si un correo sali&oacute;, hasta que el candidato reclama que no le lleg&oacute;.</li>
+      </ul>
+      <div class="nota ambar"><strong>El costo no es el tiempo de teclear.</strong> Es que el proceso solo existe en la cabeza de una persona.</div>
+      <aside class="notes">No culpar a nadie: as&iacute; se hace en todas las empresas de este tama&ntilde;o. El punto es que ya no hace falta.</aside>
+    </section>
+
+    <!-- 3 -->
+    <section>
+      <span class="kicker">Qu&eacute; es</span>
+      <h2>Un solo lugar que lleva al candidato de principio a fin</h2>
+      <p style="font-size:0.86em;">Reclutamiento lleva a una persona <strong>de postulado a contratado</strong> dentro de la plataforma, y en el camino genera <strong>por s&iacute; solo</strong> las citas de Google Meet, los correos al candidato y a los entrevistadores, las ligas de evaluaci&oacute;n y el aviso interno de alta.</p>
+      <div class="kpis">
+        <div class="kpi"><div class="num">9</div><div class="lbl">Etapas del proceso</div></div>
+        <div class="kpi"><div class="num">6</div><div class="lbl">Correos autom&aacute;ticos</div></div>
+        <div class="kpi"><div class="num">7</div><div class="lbl">Pantallas</div></div>
+        <div class="kpi verde"><div class="num">$0</div><div class="lbl">Costo de infra adicional</div></div>
+      </div>
+      <div class="nota azul"><strong>Sin retranscribir nada.</strong> Lo que se captura una vez alimenta todo lo dem&aacute;s, hasta el correo de alta.</div>
+      <aside class="notes">Los 4 n&uacute;meros son el resumen ejecutivo. Si solo se recuerda una l&aacute;mina, que sea esta.</aside>
+    </section>
+
+    <!-- 4 -->
+    <section>
+      <span class="kicker">El proceso</span>
+      <h2>Nueve etapas, siempre hacia adelante</h2>
+      <div class="flujo">
+        <div class="etapa"><div class="n">1</div><div class="t">Postulado</div></div>
+        <div class="etapa"><div class="n">2</div><div class="t">En revisi&oacute;n</div></div>
+        <div class="etapa"><div class="n">3</div><div class="t">Viable</div></div>
+        <div class="etapa hito"><div class="n">4</div><div class="t">Entrevistas agendadas</div><div class="c">3 correos</div></div>
+        <div class="etapa"><div class="n">5</div><div class="t">Comit&eacute;</div></div>
+        <div class="etapa hito"><div class="n">6</div><div class="t">Final DG</div><div class="c">1 correo</div></div>
+        <div class="etapa"><div class="n">7</div><div class="t">Oferta</div></div>
+        <div class="etapa fin"><div class="n">8</div><div class="t">Contratado</div><div class="c">2 correos</div></div>
+      </div>
+      <div class="nota"><strong>Novena etapa: Descartado</strong>, disponible en cualquier momento y siempre con motivo registrado. Sirve para saber d&oacute;nde y por qu&eacute; se cae el embudo.</div>
+      <div class="nota azul"><strong>No se salta ni se regresa.</strong> La etapa determina qu&eacute; correos salen; poder moverla libremente har&iacute;a que el sistema escribiera cosas fuera de lugar.</div>
+      <aside class="notes">Se&ntilde;alar las 3 etapas verdes/teal: son los momentos en que el sistema act&uacute;a solo.</aside>
+    </section>
+
+    <!-- 5 -->
+    <section>
+      <span class="kicker">El cambio</span>
+      <h2>Antes y ahora</h2>
+      <table>
+        <tr><th style="width:50%">Antes</th><th>Ahora</th></tr>
+        <tr><td class="antes">Seguimiento en un Excel personal</td><td class="ahora">Tablero compartido, con qui&eacute;n hizo cada movimiento</td></tr>
+        <tr><td class="antes">Un Meet y un correo por candidato, a mano</td><td class="ahora">Un formulario crea todas las citas y manda todos los correos</td></tr>
+        <tr><td class="antes">Opiniones por WhatsApp, concentradas despu&eacute;s</td><td class="ahora">Cada entrevistador captura en su liga; queda contra el candidato</td></tr>
+        <tr><td class="antes">Aviso de alta redactado desde cero cada vez</td><td class="ahora">Se genera solo, con la tarea que le toca a cada &aacute;rea</td></tr>
+        <tr><td class="antes">No se sabe si un correo sali&oacute;</td><td class="ahora">Bit&aacute;cora con estado y el error exacto cuando falla</td></tr>
+        <tr><td class="antes">Cambiar un texto = pedirle a alguien que lo programe</td><td class="ahora">RH edita los correos desde la app, sin ayuda de nadie</td></tr>
+      </table>
+      <aside class="notes">La &uacute;ltima fila importa m&aacute;s de lo que parece: es lo que hace que el sistema no dependa de desarrollo para el d&iacute;a a d&iacute;a.</aside>
+    </section>
+
+    <!-- 6 -->
+    <section class="demo">
+      <span class="demo-tag">Lo que m&aacute;s tiempo ahorra</span>
+      <h2>Agendamiento en cascada</h2>
+      <p style="font-size:0.85em;">Se eligen los candidatos, la fecha y qui&eacute;nes entrevistan. El sistema calcula la rotaci&oacute;n, crea <strong>una liga de Meet por candidato</strong>, invita a todos y manda todos los correos.</p>
+      <ul class="compact" style="margin-top:0.5em;">
+        <li>Bloques de <strong>20 minutos</strong> por entrevistador, rotando sin huecos.</li>
+        <li>Los entrevistadores <strong>no son tres fijos</strong>: se define qui&eacute;nes y cu&aacute;ntos en cada sesi&oacute;n.</li>
+        <li>Pausa opcional para la comida, que recorre a todos los siguientes.</li>
+        <li><strong>Vista previa antes de ejecutar</strong>: se ve el horario de cada quien y se puede ajustar.</li>
+      </ul>
+      <aside class="notes">Aqu&iacute; est&aacute; el ahorro real: una jornada de 6 candidatos pasa de una hora de trabajo manual a un formulario.</aside>
+    </section>
+
+    <!-- 7 -->
+    <section>
+      <span class="kicker">C&oacute;mo se acomoda</span>
+      <h2>Tres candidatos, tres entrevistadores, desde las 9:00</h2>
+      <div class="cascada">
+        <div class="fila-c">
+          <div class="quien">Candidato 1</div>
+          <div class="barra">
+            <div class="blq e1">9:00</div><div class="blq e2">9:20</div><div class="blq e3">9:40</div>
+            <div class="blq vacio"></div><div class="blq vacio"></div>
+          </div>
+        </div>
+        <div class="fila-c">
+          <div class="quien">Candidato 2</div>
+          <div class="barra">
+            <div class="blq vacio"></div>
+            <div class="blq e1">9:20</div><div class="blq e2">9:40</div><div class="blq e3">10:00</div>
+            <div class="blq vacio"></div>
+          </div>
+        </div>
+        <div class="fila-c">
+          <div class="quien">Candidato 3</div>
+          <div class="barra">
+            <div class="blq vacio"></div><div class="blq vacio"></div>
+            <div class="blq e1">9:40</div><div class="blq e2">10:00</div><div class="blq e3">10:20</div>
+          </div>
+        </div>
+      </div>
+      <div class="leyenda">
+        <span class="l1">Entrevistador 1</span>
+        <span class="l2">Entrevistador 2</span>
+        <span class="l3">Entrevistador 3</span>
+      </div>
+      <div class="nota verde"><strong>Ning&uacute;n entrevistador tiene tiempos muertos</strong> y cada candidato entra a una sola liga de Meet. Los tres candidatos quedan atendidos en 1 hora 40 minutos.</div>
+      <aside class="notes">Comparar: hacer esto a mano son 3 eventos de Calendar + 3 correos a candidatos + 3 correos a entrevistadores, cuidando que no se encimen.</aside>
+    </section>
+
+    <!-- 8 -->
+    <section>
+      <span class="kicker">Evaluaciones</span>
+      <h2>El entrevistador califica sin cuenta ni contrase&ntilde;a</h2>
+      <div class="dos-col">
+        <div>
+          <ul class="compact">
+            <li>Recibe <strong>una liga personal</strong> por correo.</li>
+            <li>La abre y ve <strong>solo los candidatos que &eacute;l entrevist&oacute;</strong>.</li>
+            <li>Registra: Viable / No viable / Filtro DG, comentarios y puntaje.</li>
+            <li>Una sola liga para toda la sesi&oacute;n: <strong>un correo, no uno por candidato</strong>.</li>
+          </ul>
+        </div>
+        <div>
+          <div class="card teal">
+            <h3>Lo que NO puede ver</h3>
+            <p>Los CV. Los datos de contacto del candidato. Lo que opinaron los otros entrevistadores.</p>
+          </div>
+          <div class="card ambar" style="margin-top:0.5em;">
+            <h3>La liga caduca</h3>
+            <p>8 d&iacute;as despu&eacute;s de la sesi&oacute;n deja de funcionar.</p>
+          </div>
+        </div>
+      </div>
+      <div class="nota azul">Esto permite que entrevisten <strong>personas fuera de la empresa</strong> sin darles acceso a ning&uacute;n sistema.</div>
+      <aside class="notes">Punto de seguridad relevante para direcci&oacute;n: acceso m&iacute;nimo y temporal, sin crear usuarios.</aside>
+    </section>
+
+    <!-- 9 -->
+    <section>
+      <span class="kicker">Al contratar</span>
+      <h2>Cada &aacute;rea recibe la tarea que le toca</h2>
+      <p style="font-size:0.82em;">El correo interno de altas se arma solo, seg&uacute;n lo que se haya configurado para ese candidato:</p>
+      <table>
+        <tr><th style="width:34%">&Aacute;rea</th><th>Lo que recibe</th></tr>
+        <tr><td>RH / firmas</td><td>Firma de correo y publicaci&oacute;n del formato de bienvenida</td></tr>
+        <tr><td>Correos</td><td>Alta del correo institucional</td></tr>
+        <tr><td>Inducci&oacute;n</td><td>Impartir el curso, con fecha y liga</td></tr>
+        <tr><td>Alta Yunius</td><td>Dar de alta al integrante en Yunius <span style="color:var(--cf-gris-claro)">(solo si se marc&oacute;)</span></td></tr>
+        <tr><td>Alta HubSpot</td><td>Generar usuario y contrase&ntilde;a <span style="color:var(--cf-gris-claro)">(solo si se marc&oacute;)</span></td></tr>
+        <tr><td>Jefe directo</td><td>Conectar a la persona para su inducci&oacute;n</td></tr>
+      </table>
+      <div class="nota"><strong>Y al candidato</strong> le llega su correo de bienvenida con los formatos de ingreso ya adjuntos.</div>
+      <aside class="notes">Si hay gente de estas &aacute;reas en la sala, este es el slide que les toca directamente.</aside>
+    </section>
+
+    <!-- 10 -->
+    <section>
+      <span class="kicker">Trazabilidad</span>
+      <h2>Todo queda registrado</h2>
+      <div class="correos">
+        <div class="correo-fila"><div class="ico">1</div><div class="qui">Invitaci&oacute;n a entrevista &mdash; al candidato</div><div class="cuando">Al agendar</div></div>
+        <div class="correo-fila"><div class="ico">2</div><div class="qui">Agenda de la sesi&oacute;n &mdash; a los entrevistadores</div><div class="cuando">Al agendar</div></div>
+        <div class="correo-fila"><div class="ico">3</div><div class="qui">Liga de evaluaci&oacute;n &mdash; a cada entrevistador</div><div class="cuando">Al agendar</div></div>
+        <div class="correo-fila"><div class="ico">4</div><div class="qui">Pase a entrevista con Direcci&oacute;n General</div><div class="cuando">Al pasar de comit&eacute;</div></div>
+        <div class="correo-fila"><div class="ico">5</div><div class="qui">Bienvenida &mdash; al candidato contratado</div><div class="cuando">Al contratar</div></div>
+        <div class="correo-fila"><div class="ico">6</div><div class="qui">Altas de nuevos ingresos &mdash; interno</div><div class="cuando">Al contratar</div></div>
+      </div>
+      <div class="nota verde">Los seis quedan en una <strong>bit&aacute;cora consultable</strong>: a qui&eacute;n, cu&aacute;ndo, si sali&oacute;, y el error exacto si no. Adem&aacute;s se registra <strong>cada cambio de etapa</strong> de cada candidato.</div>
+      <aside class="notes">Trazabilidad = auditor&iacute;a. Relevante en una financiera regulada.</aside>
+    </section>
+
+    <!-- ═══════════ BLOQUE B — OPERATIVO ═══════════ -->
+
+    <!-- 11 -->
+    <section class="demo">
+      <span class="demo-tag">Bloque 2</span>
+      <h2>C&oacute;mo se usa</h2>
+      <p style="font-size:0.9em;">Para el equipo que lo va a operar</p>
+      <aside class="notes">Cambio de audiencia. Si direcci&oacute;n no necesita este detalle, se puede saltar al bloque 3.</aside>
+    </section>
+
+    <!-- 12 -->
+    <section>
+      <span class="kicker">El d&iacute;a a d&iacute;a</span>
+      <h2>De postulado a contratado</h2>
+      <table>
+        <tr><th style="width:4%">#</th><th style="width:42%">Qu&eacute; haces</th><th>Qu&eacute; hace el sistema</th></tr>
+        <tr><td>1</td><td>Creas la vacante</td><td>&mdash;</td></tr>
+        <tr><td>2</td><td>Capturas al candidato y subes su CV</td><td>&mdash;</td></tr>
+        <tr><td>3</td><td>Revisas el CV y lo marcas viable</td><td>Habilita el agendamiento</td></tr>
+        <tr><td>4</td><td><strong>Agendas la sesi&oacute;n</strong></td><td class="ahora">Crea los Meets, invita a todos, manda 3 tipos de correo</td></tr>
+        <tr><td>5</td><td>Esperas las evaluaciones</td><td>Te muestra el avance: "2 de 3 registradas"</td></tr>
+        <tr><td>6</td><td>Revisas en comit&eacute; y escribes notas</td><td>&mdash;</td></tr>
+        <tr><td>7</td><td><strong>Agendas con la Direcci&oacute;n General</strong></td><td class="ahora">Crea el Meet y avisa al candidato</td></tr>
+        <tr><td>8</td><td>Configuras el alta</td><td>&mdash;</td></tr>
+        <tr><td>9</td><td><strong>Contratas</strong></td><td class="ahora">Manda bienvenida con adjuntos y avisa a las &aacute;reas</td></tr>
+      </table>
+      <div class="nota azul">En el tablero, <strong>cada tarjeta te dice qu&eacute; sigue</strong> y, si est&aacute; detenida, exactamente qu&eacute; le falta.</div>
+      <aside class="notes">Los pasos 4, 7 y 9 son los que reemplazan trabajo manual. El resto es captura.</aside>
+    </section>
+
+    <!-- 13 -->
+    <section>
+      <span class="kicker">Autonom&iacute;a</span>
+      <h2>Lo que RH cambia sin pedirle nada a nadie</h2>
+      <div class="grid">
+        <div class="card"><h3>Los textos de los 6 correos</h3><p>Asunto y cuerpo, editables desde Ajustes. Surte efecto inmediato.</p></div>
+        <div class="card"><h3>Qui&eacute;n recibe el aviso de altas</h3><p>Los 7 destinatarios internos, y tambi&eacute;n por candidato.</p></div>
+        <div class="card"><h3>Qui&eacute;n es la Direcci&oacute;n General</h3><p>Correo, nombre y duraci&oacute;n de la entrevista final.</p></div>
+        <div class="card"><h3>Qui&eacute;nes entrevistan</h3><p>Se definen en cada sesi&oacute;n. No hay panel fijo.</p></div>
+      </div>
+      <div class="nota verde"><strong>El editor no te deja romper un correo.</strong> Si usas una variable que no existe o borras una imprescindible, te lo dice y no guarda.</div>
+      <div class="nota ambar"><strong>S&iacute; requiere desarrollo:</strong> cambiar las etapas del proceso, la duraci&oacute;n de los bloques de entrevista, o agregar campos nuevos.</div>
+      <aside class="notes">Este es el argumento contra "va a depender de sistemas para todo". No: para el d&iacute;a a d&iacute;a, no.</aside>
+    </section>
+
+    <!-- 14 -->
+    <section>
+      <span class="kicker">Cuando algo falla</span>
+      <h2>El sistema te dice qu&eacute; pas&oacute; y qu&eacute; hacer</h2>
+      <table>
+        <tr><th style="width:46%">Lo que ves</th><th>Qu&eacute; haces</th></tr>
+        <tr><td>"La conexi&oacute;n con Google expir&oacute;"</td><td>Reconectar desde la pantalla de agendar</td></tr>
+        <tr><td>"El candidato no tiene correo registrado"</td><td>Capturar el correo</td></tr>
+        <tr><td>"Falta el correo del Director General"</td><td>Llenarlo en Ajustes</td></tr>
+        <tr><td>Un candidato con error en el reporte de agendamiento</td><td>El resto s&iacute; se complet&oacute;; atiendes solo ese</td></tr>
+      </table>
+      <div class="nota ambar"><strong>Lo m&aacute;s importante que hay que saber:</strong> si un correo falla, la acci&oacute;n <strong>no se deshace</strong>. Un candidato queda contratado aunque su correo de bienvenida no haya salido. Por eso hay que revisar la bit&aacute;cora despu&eacute;s de contratar.</div>
+      <div class="nota">Todo esto est&aacute; en el <strong>manual de uso</strong>, con el paso a paso de cada pantalla y las preguntas frecuentes.</div>
+      <aside class="notes">Honestidad operativa. Es mejor decirlo hoy que descubrirlo con un candidato real.</aside>
+    </section>
+
+    <!-- ═══════════ BLOQUE C — CIERRE ═══════════ -->
+
+    <!-- 15 -->
+    <section class="demo">
+      <span class="demo-tag">Bloque 3</span>
+      <h2>Alcance, seguridad y qu&eacute; sigue</h2>
+      <aside class="notes">Cerrar con expectativas claras es lo que evita las tres primeras decepciones.</aside>
+    </section>
+
+    <!-- 16 -->
+    <section>
+      <span class="kicker">Honestidad de alcance</span>
+      <h2>Lo que esta primera versi&oacute;n NO hace</h2>
+      <ul class="compact">
+        <li><strong>No da de alta al empleado en Factorial.</strong> La funci&oacute;n est&aacute; construida pero <strong>apagada a prop&oacute;sito</strong>: se enciende cuando est&eacute; validada contra producci&oacute;n. Hoy el alta se sigue haciendo a mano.</li>
+        <li><strong>No sustituye el layout de Excel ni el Google Form</strong> de datos del nuevo ingreso. Ya est&aacute; dise&ntilde;ado c&oacute;mo hacerlo; es lo siguiente en la lista.</li>
+        <li><strong>No manda recordatorios</strong> ni controla las inasistencias a entrevista.</li>
+        <li><strong>No lee las respuestas</strong> que el candidato conteste al correo.</li>
+        <li><strong>Un candidato pertenece a una sola vacante.</strong> Postularse a dos requiere capturarlo dos veces.</li>
+        <li><strong>No eval&uacute;a ni lee CVs autom&aacute;ticamente.</strong></li>
+      </ul>
+      <div class="nota azul">Ninguna de estas es un defecto: son decisiones de alcance para lanzar antes y ajustar con uso real.</div>
+      <aside class="notes">Decir esto en voz alta hace creible todo lo anterior. Y evita que alguien lo prometa por nosotros.</aside>
+    </section>
+
+    <!-- 17 -->
+    <section>
+      <span class="kicker">Seguridad y datos</span>
+      <h2>Qui&eacute;n ve qu&eacute;</h2>
+      <div class="grid">
+        <div class="card"><h3>Acceso cerrado</h3><p>Solo entra quien tenga el permiso de Reclutamiento. Los dem&aacute;s ni siquiera ven la secci&oacute;n en el men&uacute;.</p></div>
+        <div class="card"><h3>Permisos en la base</h3><p>Todas las tablas tienen reglas de acceso a nivel de base de datos, no solo en la pantalla.</p></div>
+        <div class="card teal"><h3>Entrevistadores externos</h3><p>Entran solo por su liga temporal. No ven CVs ni datos de contacto, y la liga caduca.</p></div>
+        <div class="card teal"><h3>Credenciales cifradas</h3><p>El permiso de Google se guarda cifrado; la llave solo vive en el servidor.</p></div>
+      </div>
+      <div class="nota ambar"><strong>Pendiente de definir:</strong> la pol&iacute;tica de conservaci&oacute;n de datos de candidatos no contratados (CV, tel&eacute;fono, correo). Requiere una decisi&oacute;n de negocio y legal, no de desarrollo.</div>
+      <aside class="notes">Mencionar el pendiente de retenci&oacute;n es lo correcto ante direcci&oacute;n en una entidad regulada. Se necesita due&ntilde;o.</aside>
+    </section>
+
+    <!-- 18 -->
+    <section>
+      <span class="kicker">Costo</span>
+      <h2>Cero infraestructura adicional</h2>
+      <p style="font-size:0.85em;">Corre sobre lo que la empresa ya tiene y ya paga:</p>
+      <ul class="compact">
+        <li>La <strong>misma plataforma</strong> donde ya viven Tickets, Score, Cartera y Actividades.</li>
+        <li>El <strong>Google Workspace</strong> de la empresa, para las citas y los correos.</li>
+        <li>Sin licencias nuevas, sin servidores nuevos, sin proveedor nuevo.</li>
+      </ul>
+      <div class="nota verde">El costo del m&oacute;dulo es el tiempo de desarrollo que ya se invirti&oacute;. <strong>Operarlo no cuesta nada.</strong></div>
+      <aside class="notes">Contraste con cualquier ATS comercial: licencia por usuario y por mes.</aside>
+    </section>
+
+    <!-- 19 -->
+    <section>
+      <span class="kicker">Qu&eacute; sigue</span>
+      <h2>La versi&oacute;n 1 es un punto de partida, no un cierre</h2>
+      <table>
+        <tr><th style="width:8%">Orden</th><th style="width:46%">Qu&eacute;</th><th>Por qu&eacute;</th></tr>
+        <tr><td>1</td><td>Encender el alta autom&aacute;tica en Factorial</td><td>Ya est&aacute; construida; solo falta validarla</td></tr>
+        <tr><td>2</td><td>Captura digital de los datos de contrataci&oacute;n</td><td>Elimina el Excel y el Google Form</td></tr>
+        <tr><td>3</td><td>Recordatorios y control de inasistencias</td><td>Menos seguimiento manual</td></tr>
+        <tr><td>4</td><td>M&eacute;tricas del proceso</td><td>Tiempo por etapa, conversi&oacute;n por fuente, d&oacute;nde se cae el embudo</td></tr>
+      </table>
+      <div class="nota azul"><strong>El orden lo decide el uso real</strong>, no esta l&aacute;mina. Lo que estorbe en las primeras semanas sube de prioridad.</div>
+      <aside class="notes">Invitar expl&iacute;citamente a que reporten fricciones: es la manera de priorizar bien.</aside>
+    </section>
+
+    <!-- 20 -->
+    <section class="portada">
+      <div class="marca">Reclutamiento v1</div>
+      <h1 style="font-size:1.6em;">Est&aacute; disponible desde hoy</h1>
+      <p class="sub" style="margin-top:0.6em;">Se acompa&ntilde;a de un <strong>manual de uso</strong> paso a paso.<br/>
+      Cualquier fricci&oacute;n, cualquier texto que quieras cambiar, cualquier cosa que falte: se reporta y se ajusta.</p>
+      <div class="nota azul" style="max-width:70%; margin:1.2em auto 0; text-align:left;">
+        <strong>La v1 est&aacute; hecha para cambiar.</strong> Se lanza ahora, con alcance acotado y a prop&oacute;sito, para que las siguientes decisiones se tomen con uso real y no con suposiciones.
+      </div>
+      <aside class="notes">Cierre: la invitaci&oacute;n a usarlo y a reclamar es parte del dise&ntilde;o, no cortes&iacute;a.</aside>
+    </section>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.js"></script>
+<script>
+  Reveal.initialize({
+    hash: true,
+    transition: 'slide',
+    controls: true,
+    progress: true,
+    slideNumber: 'c/t',
+    plugins: [RevealNotes]
+  });
+</script>
+</body>
+</html>
