@@ -24,6 +24,17 @@ Cuatro documentos, cada uno para alguien distinto. **Empieza por el que correspo
 | **[`presentacion-lanzamiento.html`](./presentacion-lanzamiento.html)** | Deck de 20 diapositivas. Se abre en el navegador; para PDF, imprimir desde ahí. Bloque ejecutivo (Dirección / G&C) + bloque operativo (RH) + alcance y seguridad. |
 | **[`anuncio-lanzamiento.md`](./anuncio-lanzamiento.md)** | Tres textos listos para copiar: a Dirección, a las áreas que empiezan a recibir el aviso automático de altas, y mensaje corto de chat. |
 
+### Versiones en PDF
+
+Los cuatro documentos de la primera tabla tienen su `.pdf` al lado, para compartir con quien no abre el repo. **El `.md` es la fuente; el PDF es un artefacto** — se regenera con:
+
+```bash
+node scripts/md-a-pdf.mjs docs/reclutamiento/manual-usuario.md
+node scripts/md-a-pdf.mjs docs/reclutamiento/*.md    # todos de golpe
+```
+
+Requiere Chrome instalado (o Edge; o define `CHROME_PATH`). No agrega dependencias: usa `micromark` que ya está en el árbol. Si edificas el `.md`, **regenera el PDF** — si no, la copia que circula miente.
+
 ---
 
 ## Orden de lanzamiento
