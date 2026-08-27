@@ -173,7 +173,7 @@ Este bloque no prueba software: cierra los tres riesgos que convierten un lanzam
 | 7.2 | Confirmar que los **7 destinatarios de altas** están en sus valores reales, no en tus cuentas de prueba | ☐ |
 | 7.3 | Confirmar que el **CC de la plantilla de bienvenida** quedó como debe (si lo editaste en Ajustes y no solo en el formulario) | ☐ |
 | 7.4 | Confirmar que **Factorial sigue apagado** | ☐ |
-| 7.5 | Borrar o cerrar la vacante **"ZZZ Prueba de lanzamiento"** y sus candidatos | ☐ |
+| 7.5 | **Cerrar** la vacante de prueba (`Estado → Cerrada`) y descartar sus candidatos con motivo *Otro*. ⚠️ **No se pueden borrar**: la v1 no tiene borrado de vacantes ni de candidatos desde la UI. Si necesitas eliminarlos de verdad, es por SQL | ☐ |
 | 7.6 | Borrar de Google Calendar los eventos de prueba | ☐ |
 
 > 7.1 a 7.4 no son opcionales. Dejar una configuración de prueba en producción es cómo el primer candidato real recibe un correo dirigido a tu cuenta personal.
