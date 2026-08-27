@@ -1,7 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "Bash(xargs grep:*)"
+      "Bash(xargs grep:*)",
+      "Bash(python:*)",
+      "Bash(git:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx next:*)",
+      "Bash(cd \"C:/Users/uzzie/Documents/mea-tickets\"; echo \"=== PLAN header ===\"; sed -n '6p' PLAN.md; echo \"=== RESEARCH header ===\"; sed -n '4p' RESEARCH-CONSOLIDADO.md)",
+      "Bash(awk '/^### 8\\\\./ {last=NR\": \"$0} /^\\\\| Sprint \\\\| Foco/ {print \"precedido por -> \" last}' PLAN.md)",
+      "Bash(grep -n \"aún sin implementar\\\\|pend\\\\. \\\\`db:push\\\\`\\\\|S8 \" PLAN.md)",
+      "Bash(./bin/supabase.exe db *)"
     ]
   }
 }
