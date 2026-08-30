@@ -3,7 +3,7 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-08-24 (**lanzamiento de Reclutamiento v1** — paquete de documentación, manual, runbook, pre-vuelo, presentación y anuncio).
+> Última actualización: 2026-08-29 (**plan del módulo Inversiones**, §9 — research en `RESEARCH §14`, sin código todavía).
 
 ---
 
@@ -16,6 +16,8 @@
 > **Enmienda (2026-08-18):** se abrió una **segunda vía activa, Actividades** (§2.6), a petición directa: portar a la plataforma un tablero de Power BI sobre el uso del tiempo del equipo. No cancela el foco en tickets — la cola de abajo sigue vigente y sin avanzar.
 
 > **Enmienda (2026-08-24):** **Reclutamiento sale de la pausa y entra en lanzamiento** (§0 bis). No es desarrollo nuevo: el código estaba completo desde el 31 de julio. Lo que se hizo fue el **paquete de entrega** que le faltaba — documentación, manual, runbook, guion de validación, presentación y anuncio. La vía de tickets no avanzó.
+
+> **Enmienda (2026-08-29):** se abre una **tercera vía, Inversiones** (§9), a petición directa: custodiar y consultar los dos reportes que Felix genera a diario desde Yunius. Research completo en `RESEARCH §14`, plan en **§9**, **sin código todavía**. Alcance del v1 cerrado el mismo día: repositorio + vistas de Tesorería + Tablero Ejecutivo, los dos reportes, **sin chat de IA**. La cola de tickets de abajo sigue vigente y sin avanzar.
 
 ### Vía activa — Mesa de Tickets
 
@@ -1012,6 +1014,109 @@ No se permite saltar etapas, retroceder, ni salir de un estado terminal (`contra
 | **REC-096** ✅ | `60bb72b`, `38cccf6` | **Navegación de regreso** en todo el módulo (el pipeline dejó de ser un camino de una sola dirección) + confirmación visible al guardar las notas del comité, con enlace al pipeline. |
 
 **Fuera de alcance de S9.5:** previsualización del correo con datos reales, historial de versiones de plantilla, reenvío desde la bitácora, plantillas HTML con diseño (hoy son texto plano).
+
+---
+
+## 9. Módulo Inversiones *(I1–I6 planeados — 2026-08-29, sin código todavía)*
+
+> **Research completo en `RESEARCH-CONSOLIDADO.md §14`.** Ahí está el análisis de los archivos, los cinco hallazgos que condicionan el diseño y las decisiones ya tomadas. Esta sección es solo el plan de ejecución; no repite el porqué.
+
+### 9.1 Qué es
+
+Custodia y consulta de los dos reportes que **Felix genera a diario** con scripts de Python a partir de exports de **Yunius**, el core bancario:
+
+- **Calendario de Pagos a Fondeadores** — mensual. Cuánto hay que pagar, qué día, por qué medio. Audiencia: **Tesorería**.
+- **Tablero Ejecutivo de Cartera de Inversiones** — a fecha de corte. Desempeño comercial de gerentes de inversión. Audiencia: **Dirección**.
+
+**Nombre y forma decididos el 2026-08-29:** módulo `Inversiones`, ruta `/inversiones`, tablas `inv_*`. Hace pareja con Cartera — *Cartera es el activo (préstamos), Inversiones el pasivo (fondeo)*.
+
+**Una tubería, dos puertas.** La carga, el almacenamiento del original, la bitácora, el versionado y la descarga se comparten. Las vistas y los permisos no.
+
+```
+inv_cargas   ← bitácora compartida
+  ├── inv_pagos_*        (Calendario)  →  /inversiones/pagos       Tesorería
+  └── inv_movimientos_*  (Tablero)     →  /inversiones/desempeno   Dirección
+```
+
+**Alcance del v1 (opción C):** repositorio + vistas de Tesorería + Tablero Ejecutivo renderizado, **con los dos reportes desde el arranque**.
+
+**Fuera del v1:** el chat de IA (§14.7 — diseñado por adelantado, aditivo cuando se retome) y la tendencia entre cortes (§9.6).
+
+### 9.2 Las tres reglas que no se negocian
+
+Salen del research y son las que, si se rompen, obligan a rehacer:
+
+1. **Las hojas derivadas se guardan como vienen. Nunca se recalculan.** Recomputar el ranking obliga a reimplementar la fórmula del Python de Felix en SQL, y el día que dé 62.3 donde el Excel dice 62.4 hay dos verdades. **El archivo es la autoridad.**
+2. **`AL PLAZO` no sale de caja.** Se capitaliza. En agosto son **958,114.57 de 4,999,045.56** — casi un millón. Todo agregado de salida de efectivo lo excluye.
+3. **Los importes traen signo.** Decrementos y vencimientos vienen negativos; inversiones, renovaciones e incrementos positivos. Sumar sin respetarlo da cifras mal con cara de correctas.
+
+### 9.3 Los sprints
+
+Cada uno termina en algo verificable contra los cuatro archivos reales que ya están analizados.
+
+| # | Sprint | Entrega | Cómo se verifica |
+|---|---|---|---|
+| **I1** | **Tubería, sin parseo** | Migración `inv_cargas` + RLS + banderas + bucket. `POST /api/inversiones/cargar` sube a Storage y registra la carga en estado `pendiente`, **sin leer el Excel**. Pantallas `/inversiones/cargar` e `/inversiones/cargas` (historial + descarga). Guarda de layout | Felix sube los 4 archivos, los ve listados y los descarga **byte-idénticos** al original |
+| **I2** | **Parseo del Calendario** | `lib/inversiones/excel.ts` puro: `detectarTipo()` + `leerCalendario()`. Tablas `inv_pagos`, `inv_pagos_validaciones`. El endpoint parsea y pasa a `procesado` | **Anclas de agosto:** 201 filas · total `4,999,045.56` · sale de caja `4,040,930.99` · capitalizado `958,114.57` · 8 filas en revisar. Al centavo o no pasa |
+| **I3** | **Vistas de Tesorería** | RPCs `inv_curva_salidas`, `inv_revisar_medio`, `inv_resumen_calendario`. Pantalla `/inversiones/pagos` | La curva reproduce la tabla ya calculada: días **26 (846,372)**, **24 (837,077)** y **13 (622,257)** a la cabeza. La lista de revisar trae los 8 casos ordenados por fecha |
+| **I4** | **Parseo del Tablero** | `leerTablero()` + tablas de las 12 hojas. **Manejo explícito de hojas degradadas** | El corte **27/08 carga completo**; el **02/09 carga con los rankings marcados como degradados y sin tronar**. Los dos archivos ya existen y ejercitan ambos caminos |
+| **I5** | **Vistas de Desempeño** | Pantalla `/inversiones/desempeno` (Tablero, Estructura, Rankings, Cumplimiento). Segunda bandera | Las cifras en pantalla son **idénticas** a las del Excel. Si difiere una, es que algo se recalculó — ver regla 1 |
+| **I6** | **Entrega** | Pre-vuelo, permisos reales asignados, documentación mínima, anuncio | Mismo criterio que Reclutamiento: **no se anuncia sin evidencia** |
+
+### 9.4 Modelo de datos
+
+**Bitácora compartida.** `tipo_reporte` (`calendario` \| `tablero`), `periodo_inicio`, `periodo_fin`, `nombre_archivo`, `storage_path`, `hash`, `subido_por`, `estado`, `error_detalle`, `notas_metodologicas` (jsonb), `hojas_degradadas` (jsonb).
+
+Los dos reportes **declaran su periodo en el encabezado** — el Calendario como `— 08/2026`, el Tablero como `Periodo analizado: 01/08/2026 al 27/08/2026`. Se parsea de ahí, no del nombre del archivo.
+
+**Vigente = la carga más reciente por `(tipo_reporte, periodo_inicio)`.** Cae bien para los dos casos: el calendario de septiembre **no** reemplaza al de agosto (periodos distintos), pero un corte del 28/08 **sí** reemplaza al del 27/08 (mismo periodo). El histórico es `where carga_id = …`, no una tabla aparte.
+
+**Hechos**, todos con `carga_id`:
+
+```
+inv_pagos                 hoja BASE del Calendario (20 col)
+inv_pagos_validaciones    hoja VALIDACIONES
+inv_movimientos           Historial_Movimientos (66 col)
+inv_ranking               Ranking_Comercial + Ranking_Con_Meta
+                          (mismo shape + 7 columnas de meta; discriminador `con_meta`)
+inv_cumplimiento          Cumplimiento_Metas
+inv_tablero_resumen       Tablero + Tablero_Estructura
+inv_posiciones_vigentes   {CREDIFLEXI,RAMI}_Vigente (16 col; discriminador `universo`)
+inv_eventos               {CREDIFLEXI,RAMI}_{Abiertos,Vencidos} (18 col; + `tipo`)
+inv_validaciones          hoja Validaciones del Tablero
+```
+
+**La hoja `CALENDARIO` no se guarda.** Es un pivote exacto de `BASE` — verificado al centavo (§14.1). Se regenera si alguien la quiere.
+
+**Degradación como dato, no como error.** Cuando una hoja llega en `SIN_DATOS` se registra en `hojas_degradadas` y la tabla de hechos queda vacía para esa carga. La UI dice *"no hubo movimientos para rankear en este corte"* en vez de mostrar una tabla vacía que parece rota.
+
+### 9.5 Permisos
+
+Tres banderas en `profiles`, cada una con alguien real detrás — a diferencia de Actividades, donde la segunda se pospuso por no haber a quién dársela:
+
+| Bandera | Quién | Da acceso a |
+|---|---|---|
+| `acceso_inversiones_carga` | Felix | `/inversiones/cargar` |
+| `acceso_inversiones_pagos` | Tesorería | `/inversiones/pagos` |
+| `acceso_inversiones_desempeno` | Dirección | `/inversiones/desempeno` |
+
+Patrón calcado de Actividades: columna en `profiles` (nace en `false`) + `has_*_access()` + guarda de layout + RLS. **Todo o nada dentro de cada puerta:** quien entra a pagos ve el calendario completo, CLABE incluida.
+
+**Aun así, `CLABE` se aísla en el modelo desde el principio** (§14.7, punto 5): vista completa para tablero y descarga, vista sin PII para lo que consulte el chat el día que llegue. Retrofitear eso después es una migración fea.
+
+### 9.6 Riesgos y lo que no sé
+
+- **I4 es el sprint incierto.** 12 hojas, 66 columnas, formas que cambian entre cortes. Los demás son mecánica conocida; este no. Si algo se desborda, es aquí.
+- **Solo hay dos cortes del Tablero y sospecho que salen del mismo dump** (§14.3, hallazgo 5): 688 filas idénticas, cero altas en seis días. Hasta que no lleguen dos cargas de días realmente distintos, **no sé si la tendencia entre cortes tiene contenido o sale plana.** Por eso queda fuera del v1.
+- **No está confirmado que Felix suba los dos archivos a diario** — dijo "el archivo", en singular (§14.6). El ingestor discrimina por contenido, así que soporta cualquiera de los dos casos, pero el histórico puede quedar disparejo.
+- **El proceso vive en la laptop de Felix.** Riesgo aceptado y registrado (§14.5). Si no está, no hay reporte.
+
+### 9.7 Qué se puede ajustar
+
+- **I1 puede lanzarse solo.** El repositorio sirve por sí mismo: darle acceso a Felix y Tesorería desde el día uno, mientras lo demás se construye. Es la forma de tener algo en producción rápido.
+- **El orden I2-I3 contra I4-I5 es intercambiable.** Recomendado como está: el Calendario es 3 hojas contra 12, valida la tubería con lo simple, y es de la audiencia que originó el encargo.
+- **La tercera bandera puede esperar.** Al inicio, que la carga sea solo de admin y que Felix la use como admin. Se separa cuando estorbe.
+- **La tendencia entre cortes entra en cuanto los datos digan que vale la pena.** Es la vista de más valor potencial y la única que no puedo prometer.
 
 ---
 
