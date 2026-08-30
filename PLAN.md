@@ -1062,6 +1062,7 @@ Cada uno termina en algo verificable contra los cuatro archivos reales que ya es
 | **I4** | **Parseo del Tablero** | `leerTablero()` + tablas de las 12 hojas. **Manejo explícito de hojas degradadas** | El corte **27/08 carga completo**; el **02/09 carga con los rankings marcados como degradados y sin tronar**. Los dos archivos ya existen y ejercitan ambos caminos |
 | **I5** | **Vistas de Desempeño** | Pantalla `/inversiones/desempeno` (Tablero, Estructura, Rankings, Cumplimiento). Segunda bandera | Las cifras en pantalla son **idénticas** a las del Excel. Si difiere una, es que algo se recalculó — ver regla 1 |
 | **I6** | **Entrega** | Pre-vuelo, permisos reales asignados, documentación mínima, anuncio | Mismo criterio que Reclutamiento: **no se anuncia sin evidencia** |
+| **I7** | **Chat de IA** *(fuera del v1 — §9.8)* | Tools sobre los RPCs de I3/I5 + tool de consulta parametrizada + system prompt + widget | Un set de preguntas con respuesta conocida, contestadas al centavo y citando el corte |
 
 ### 9.4 Modelo de datos
 
@@ -1117,6 +1118,25 @@ Patrón calcado de Actividades: columna en `profiles` (nace en `false`) + `has_*
 - **El orden I2-I3 contra I4-I5 es intercambiable.** Recomendado como está: el Calendario es 3 hojas contra 12, valida la tubería con lo simple, y es de la audiencia que originó el encargo.
 - **La tercera bandera puede esperar.** Al inicio, que la carga sea solo de admin y que Felix la use como admin. Se separa cuando estorbe.
 - **La tendencia entre cortes entra en cuanto los datos digan que vale la pena.** Es la vista de más valor potencial y la única que no puedo prometer.
+- **I7 se puede adelantar** — pero leer §9.8 antes de hacerlo.
+
+### 9.8 I7 — el chat de Gemini
+
+**Diseño completo en `RESEARCH §14.7`.** El v1 no lo construye por decisión del 2026-08-29, pero **los cinco requisitos que lo hacen posible sí están en el v1** y no cuestan trabajo extra: reglas 1 y 2 de §9.2, `notas_metodologicas` y `carga_id` en §9.4, los RPCs de I3/I5, y el aislamiento de `CLABE` en §9.5. Sin ellos, el chat obliga a rehacer el modelo.
+
+**Qué falta construir, entonces:**
+
+| Pieza | Trabajo real |
+|---|---|
+| Tools de lectura — `resumen_calendario`, `pagos_por_dia`, `revisar_medio`, `tablero`, `estructura`, `ranking`, `cumplimiento` | **Poco.** Son envolturas delgadas sobre los RPCs que I3 e I5 ya dejaron hechos |
+| Tool `consultar(reporte, corte, medida, dimensiones[], filtros[], orden, limite)` | **El grueso.** RPC con gramática cerrada y lista blanca de columnas. Sin *text-to-SQL* |
+| System prompt | Notas metodológicas de la carga vigente + **la convención de signos** + el guardrail heredado de §5.5: *nunca inventa cifras, todo número sale de una tool y se cita con `fecha_corte`* |
+| Widget y alcance | Acotado al reporte y corte que se está viendo, no global |
+| Evaluación | Un set de preguntas con respuesta conocida, verificadas contra el Excel |
+
+**Por qué va después de I6 y no antes.** Un chat sobre datos que nadie validó es **peor que no tener chat**: convierte una cifra mal parseada en prosa segura de sí misma, y la gente actúa sobre ella sin volver al Excel. Primero I2 e I5 demuestran que lo cargado cuadra al centavo; después se le pone voz encima.
+
+**Lo que hay que cerrar antes de encenderlo, no antes de construirlo:** qué viaja al LLM (`RESEARCH §14.6`, punto 1). Es la pregunta de cumplimiento que §5.5 dejó abierta para el detalle de mora, y aquí vuelve con `CLABE` de por medio. Por eso la vista sin PII se construye desde el v1: para que la decisión sea un interruptor y no una migración.
 
 ---
 
