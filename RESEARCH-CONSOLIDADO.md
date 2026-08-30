@@ -1365,21 +1365,40 @@ Dos lecturas, ambas útiles:
 
 > ⚠ **Esto no prueba que los hechos sean inmutables.** Cero altas en seis días es poco creíble para una financiera: lo más probable es que **ambos archivos salieran del mismo dump**, generados de una sentada con dos fechas de corte distintas (los cuatro llegaron con el mismo timestamp). La conclusión hay que reconfirmarla con dos cargas de días realmente distintos. **No construir asumiendo inmutabilidad** — construir detectando la reexpresión y avisando.
 
-### 14.4 Precedente reutilizable dentro del repo
+### 14.4 El upstream es Yunius — y la plataforma ya ingiere Yunius
 
-Nada de esto arranca de cero:
+**Felix descarga de Yunius y genera estos `.xlsx` con Python.** Yunius es el **core bancario**, y no es un sistema nuevo para este repo: es la fuente que el módulo **Cartera** viene ingiriendo desde mayo de 2026.
+
+Esto convierte el encargo en **la tercera repetición de una cadena que ya existe dos veces**:
+
+| | Fuente | Transformación | Landing | Consumo |
+|---|---|---|---|---|
+| **Cartera** (§5.4) | Export Yunius | Microservicio FastAPI (`crediflexi-services`, pandas + openpyxl) | `cartera_uploads` (ledger) + `stg_yunius_cartera_individual` (crudo) | RPCs → tablero + tools del asistente |
+| **Actividades** (§5.6) | Excel de RH | `lib/actividades/excel.ts` en el propio Next | `act_cargas` + `act_registros` | RPC → tablero |
+| **Este encargo** | Export Yunius | **Scripts de Python de Felix** | *(por definir)* | tablero + descarga + chat |
+
+Dos consecuencias que conviene no pasar por alto:
+
+**1. El modelo append-only ya está probado aquí.** `cartera_uploads` (ledger) y `stg_yunius_cartera_individual` (dato crudo) se separaron a propósito el 2026-05-20, con esta razón registrada en `PLAN.md §520`: *"permite re-procesar sin perder histórico"*. Es exactamente lo que pide la decisión 5 de §14.5. No hay que inventar el modelo: hay que copiar el de Cartera.
+
+**2. Cartera ya resolvió el problema de la fecha de corte no confiable.** El 2026-06-17 le **quitaron al usuario** la posibilidad de elegirla (`PLAN.md §521`, `app/api/cartera/upload/route.ts:9-19`): la fija el sistema al día anterior en horario de México, *"porque el reporte de Yunius refleja el cierre del día previo"*. Es la misma clase de defecto que el corte 02/09/2026 entregado el 29/08 (§14.6). **Aquí el corte no se puede fijar así**, porque viene escrito dentro del archivo — pero la lección aplica: el corte es un dato a validar, no a creer.
+
+**3. Ya existe un microservicio de Python que hace justo esto.** `crediflexi-services` (FastAPI + pandas + openpyxl + supabase-py, en Render) es donde vive el ETL de Cartera. **Si los scripts de Felix caben ahí, la mejor arquitectura probablemente no sea "Felix sube un Excel" sino "el script publica directo".** Sin verificar: si sus scripts se parecen a `automatizador-crediflexi` (el Flask legacy que corre en la máquina de un operador y genera el Excel actual), esto además sería una oportunidad de sacar un proceso más de una laptop. **Hay que ver el código de Felix antes de decidir.** Advertencia operativa: Render está en **Free tier**, que duerme el servicio — para un job diario eso importa.
+
+#### Lo demás que se reusa
 
 | Necesidad | Ya resuelto en | Qué se reusa |
 |---|---|---|
-| Subir un `.xlsx` y cargarlo | **§5.6 Actividades** — `POST /api/actividades/cargar`, `lib/actividades/excel.ts` (puro), tabla `act_cargas` como bitácora | El patrón completo: validar el archivo entero **antes** de tocar la base, reemplazo idempotente por periodo, catálogos por upsert. `exceljs` ya está en el árbol |
+| Subir un `.xlsx` y cargarlo | **§5.6 Actividades** — `POST /api/actividades/cargar`, `lib/actividades/excel.ts` (puro) | Validar el archivo entero **antes** de tocar la base; reemplazo idempotente; catálogos por upsert. `exceljs` ya está en el árbol |
+| Guardar el original y poder redescargarlo | **§5.4 Cartera** — `POST /api/cartera/upload` | Storage bucket + `storage_path` en el ledger + `estado: 'pendiente'`. Es literalmente el requisito 4 de §14.5 ya construido |
 | Tablero sobre datos cargados | **§5.6 / §5.4** | Server Component → RPC que devuelve JSON agregado → filtros por `searchParams` |
-| Chat de IA sobre los datos | **§5.5 Asistente IA** — Gemini `2.5-flash` vía Vercel AI SDK, `lib/ai/tools.ts`, KB en system prompt | Se **extiende** con tools nuevas; no se construye un chat nuevo. Y con él viene el guardrail ya escrito: *el agente nunca inventa cifras; todo número proviene de una tool y se cita con `fecha_corte`* |
+| Chat de IA sobre los datos | **§5.5 Asistente IA** — Gemini `2.5-flash` vía Vercel AI SDK, `lib/ai/tools.ts`, KB en system prompt | Se **extiende** con tools nuevas; no se construye un chat nuevo. Y con él viene el guardrail ya escrito: *el agente nunca inventa cifras; todo número proviene de una tool y se cita con `fecha_corte`*. El system prompt **ya menciona** el flujo `Yunius → plataforma` |
 
 ### 14.5 Decisiones tomadas (2026-08-29)
 
 | # | Pregunta | Respuesta |
 |---|---|---|
-| 1 | Origen de los archivos | Felix descarga de una plataforma upstream y genera los `.xlsx` con **scripts de Python**. Se ingiere el Excel; el upstream no se toca |
+| 1 | Origen de los archivos | Felix descarga de **Yunius** (el core bancario) y genera los `.xlsx` con **scripts de Python**. Esos `.xlsx` son el input. Ver §14.4: Yunius ya es fuente conocida de la plataforma |
 | 2 | Cadencia | **Diaria.** Felix sube el archivo final cada día |
 | 3 | Permisos | **Todo o nada.** Quien tenga acceso ve el reporte completo con toda su información |
 | 4 | Descarga | El **mismo `.xlsx` que subió Felix**, tal cual |
@@ -1399,6 +1418,7 @@ El archivo original va a **Supabase Storage** por `carga_id` (lo exige la decisi
 2. **¿Felix sube los dos reportes a diario, o solo uno?** Dijo "el archivo" en singular. El ingestor debe aceptar ambos y **discriminar por contenido, no por nombre de archivo** — el nombre lo genera su script y puede cambiar. Discriminador limpio: si hay hoja `Historial_Movimientos` es Tablero; si hay `BASE NN` es Calendario.
 3. **El corte 02/09/2026 se entregó el 29/08/2026** — corte en el futuro. Preguntado; respuesta: *"no sé, solo me pasaron así"*. Es decir, **la fecha de corte no es confiable como dato de entrada**. Consecuencia de diseño, no pregunta abierta: si una carga trae corte futuro, hay que marcarla y **no** dejar que se vuelva "la vigente" en silencio.
 4. **¿Un calendario mensual subido a diario cambia a diario?** Si Felix sube el mismo `08_2026` 31 veces, ¿es porque se ajusta con los pagos ya ejecutados, o es el mismo archivo? Cambia si el histórico del Calendario es interesante o es ruido.
+5. **¿Cómo son los scripts de Python de Felix?** — la pregunta de mayor palanca que queda (§14.4, consecuencia 3). Decide entre "Felix sube un Excel a mano todos los días" y "el script publica solo". También hay que saber **qué descarga de Yunius**: si sus insumos se solapan con los que ya baja el ETL de Cartera, hay dos procesos bajando lo mismo.
 
 ---
 
