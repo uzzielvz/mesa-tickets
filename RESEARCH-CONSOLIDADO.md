@@ -1428,6 +1428,58 @@ El archivo original va a **Supabase Storage** por `carga_id` (lo exige la decisi
 4. **¿Un calendario mensual subido a diario cambia a diario?** Si Felix sube el mismo `08_2026` 31 veces, ¿es porque se ajusta con los pagos ya ejecutados, o es el mismo archivo? Cambia si el histórico del Calendario es interesante o es ruido.
 5. ~~**¿Cómo son los scripts de Python de Felix?**~~ — **resuelta** por la decisión 6: corren en su máquina y no se integran. Sobrevive una parte que sigue valiendo la pena preguntar algún día: **qué descarga exactamente de Yunius**, porque si se solapa con lo que ya baja el ETL de Cartera hay dos procesos pidiéndole lo mismo al core bancario.
 
+### 14.7 El chat — diseño resuelto por adelantado (2026-08-29)
+
+Aunque el chat quedó fuera del v1 (decisión 7), su diseño se cierra **ahora**, porque determina cómo se guardan los datos y eso no se puede retrasar.
+
+#### Por qué este chat no es el asistente de cartera
+
+El asistente de §5.5 tiene **6 tools sobre RPCs de cartera** que devuelven agregados de forma conocida: buckets PAR, mora por recuperador. El espacio de preguntas está acotado y las tools se escribieron a la medida.
+
+Aquí el encargo fue *"preguntar directamente cualquier cosa sobre ese reporte"* sobre una tabla de **66 columnas**. No se puede pre-escribir una tool por pregunta, y meter 688 × 66 celdas en contexto en cada mensaje es caro y frágil. **El patrón de cartera no se copia tal cual.**
+
+#### El hecho que resuelve el problema
+
+**Los agregados ya vienen calculados en el archivo.** `Tablero`, `Tablero_Estructura`, `Ranking_Comercial`, `Ranking_Con_Meta` y `Cumplimiento_Metas` son respuestas que el Python de Felix ya computó. El modelo **no tiene que calcular el ranking: tiene que leerlo.** Y son chicas — 47, 72, 44, 44 filas.
+
+Eso parte el problema en dos mitades de dificultad muy distinta:
+
+| | Cómo se responde |
+|---|---|
+| Preguntas que las hojas derivadas ya contestan (*¿quién va primero? ¿cuánto colocó Maritere? ¿cumplió su meta?*) | **Una tool por hoja que devuelve la hoja completa.** Caben enteras en una respuesta de tool |
+| Preguntas que no (*¿cuánto colocó Maritere en efectivo en marzo contra abril?*) | **Una sola tool de consulta parametrizada** sobre las tablas de hechos |
+
+#### La tool de consulta: gramática cerrada, no SQL libre
+
+Nada de *text-to-SQL*. El modelo **no escribe SQL**; llena los huecos de una consulta cuya forma ya está fija:
+
+```
+consultar(reporte, corte, medida, dimensiones[], filtros[], orden, limite)
+```
+
+El RPC arma el SQL. El modelo elige qué medir, por qué agrupar y qué filtrar, sobre una **lista blanca** de columnas. Cubre la explosión combinatoria de "cualquier cosa" sin permitir una consulta arbitraria, y es testeable: se prueba el RPC, no la creatividad del modelo.
+
+Guardrails, heredados de §5.5 y ampliados:
+
+- El agente **nunca calcula**; todo número sale de una tool y se cita con su `fecha_corte`.
+- **Las notas metodológicas van en el system prompt.** Sin la convención de signos (§14.3, hallazgo 2) el modelo **suma mal**: los decrementos y vencimientos vienen negativos. Sin la fórmula del ranking no puede explicar un puntaje.
+- **`CLABE` fuera de la lista blanca.** Es la frontera de §14.3 hallazgo 3, y se construye como una columna que las vistas del chat no exponen — no como un filtro que alguien recuerde poner.
+- El chat va **acotado a un reporte y un corte**, no global. "Ese reporte" era la petición original, y el alcance elimina la ambigüedad de *¿en qué corte?* en cada pregunta.
+
+#### Las cinco cosas que hay que hacer **ahora** para no bloquearlo
+
+Ninguna es trabajo extra para el v1; las cinco son trabajo doble si se omiten.
+
+1. **Guardar las hojas derivadas como vienen — no recalcularlas.** Es la decisión que más fácil se toma al revés. El instinto de normalizar dice: *`Historial_Movimientos` es la única fuente, lo demás sale de ahí, guardo la fuente y recomputo*. **Sería un error.** Recomputar el ranking obliga a reimplementar la fórmula del Python de Felix en SQL, y el día que dé 62.3 donde el Excel dice 62.4 hay dos verdades y Tesorería no le cree a ninguna. **El archivo es la autoridad; se guarda lo que afirma.** Son 200 filas: cuesta nada.
+2. **Guardar las notas metodológicas** por carga, como texto. Son el system prompt del futuro chat y hoy son la única documentación de cómo se calculó lo que se muestra.
+3. **`carga_id` y fecha de corte en todas las tablas**, para que toda respuesta pueda citarse.
+4. **Todo agregado se sirve por RPC**, desde el primer tablero. Un RPC es lo que después se envuelve como tool; SQL suelto en un Server Component hay que reescribirlo.
+5. **Separar `CLABE` desde el modelo** — vista sin PII para lo que consulta el chat, vista completa para la descarga y el tablero. Retrofitear esto sobre un modelo que la mezcla es una migración fea.
+
+#### Lo que sí queda para después
+
+Escribir las tools, el system prompt, el widget y la evaluación. Con los cinco puntos de arriba hechos, es **aditivo**: no toca el modelo de datos ni las pantallas.
+
 ---
 
 *Fin del research consolidado.*
