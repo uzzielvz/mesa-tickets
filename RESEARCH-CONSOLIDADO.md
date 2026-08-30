@@ -1403,6 +1403,14 @@ Dos consecuencias que conviene no pasar por alto:
 | 3 | Permisos | **Todo o nada.** Quien tenga acceso ve el reporte completo con toda su información |
 | 4 | Descarga | El **mismo `.xlsx` que subió Felix**, tal cual |
 | 5 | Retención | **El último reemplaza al anterior como vigente, pero se guarda el histórico** |
+| 6 | Dónde corre el Python | **En la máquina de Felix.** Él sube el archivo terminado. No se integra a `crediflexi-services` |
+| 7 | Chat de IA | **Fuera del v1.** "Por ahora no será AI" |
+
+**Alcance del v1, entonces:** subir · guardar el original · parsear · consultar · descargar. Sin IA y sin microservicio.
+
+**Dos cosas que la decisión 7 no debe romper.** El chat quedó aplazado, no cancelado — y era el motivo original del encargo. Sale gratis dejarlo posible si al modelar se respetan dos cosas que de todos modos convienen: (a) **ingerir las notas metodológicas** junto a los datos (§14.3, hallazgo 2) — sin ellas nadie, humano o modelo, puede explicar un puntaje; y (b) **que todo agregado se sirva por RPC**, no por SQL suelto en la página, que es lo que después se envuelve como tool (§5.5). Ninguna de las dos es trabajo extra para el v1; las dos son trabajo doble si se omiten.
+
+**Riesgo aceptado con la decisión 6.** El proceso vive en una laptop. Es la misma situación que `automatizador-crediflexi`, el Flask legacy que corre "local en la máquina de un operador" y que sigue siendo producción operativa (§2). Si Felix no está, no hay reporte. Queda anotado, no discutido: es su decisión y el flujo manual es más simple de construir.
 
 **Lo que se sigue de la cadencia diaria** — y que rompe el patrón de §5.6:
 
@@ -1414,11 +1422,11 @@ El archivo original va a **Supabase Storage** por `carga_id` (lo exige la decisi
 
 ### 14.6 Preguntas todavía abiertas
 
-1. **¿Qué se le manda al LLM?** Ver hallazgo 3. No bloquea construir; sí bloquea encender el chat con `CLABE` adentro.
+1. ~~**¿Qué se le manda al LLM?**~~ — **aplazada** con la decisión 7. Vuelve a abrirse el día que se retome el chat, y es lo primero que hay que cerrar entonces.
 2. **¿Felix sube los dos reportes a diario, o solo uno?** Dijo "el archivo" en singular. El ingestor debe aceptar ambos y **discriminar por contenido, no por nombre de archivo** — el nombre lo genera su script y puede cambiar. Discriminador limpio: si hay hoja `Historial_Movimientos` es Tablero; si hay `BASE NN` es Calendario.
 3. **El corte 02/09/2026 se entregó el 29/08/2026** — corte en el futuro. Preguntado; respuesta: *"no sé, solo me pasaron así"*. Es decir, **la fecha de corte no es confiable como dato de entrada**. Consecuencia de diseño, no pregunta abierta: si una carga trae corte futuro, hay que marcarla y **no** dejar que se vuelva "la vigente" en silencio.
 4. **¿Un calendario mensual subido a diario cambia a diario?** Si Felix sube el mismo `08_2026` 31 veces, ¿es porque se ajusta con los pagos ya ejecutados, o es el mismo archivo? Cambia si el histórico del Calendario es interesante o es ruido.
-5. **¿Cómo son los scripts de Python de Felix?** — la pregunta de mayor palanca que queda (§14.4, consecuencia 3). Decide entre "Felix sube un Excel a mano todos los días" y "el script publica solo". También hay que saber **qué descarga de Yunius**: si sus insumos se solapan con los que ya baja el ETL de Cartera, hay dos procesos bajando lo mismo.
+5. ~~**¿Cómo son los scripts de Python de Felix?**~~ — **resuelta** por la decisión 6: corren en su máquina y no se integran. Sobrevive una parte que sigue valiendo la pena preguntar algún día: **qué descarga exactamente de Yunius**, porque si se solapa con lo que ya baja el ETL de Cartera hay dos procesos pidiéndole lo mismo al core bancario.
 
 ---
 
