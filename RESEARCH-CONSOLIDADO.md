@@ -1,7 +1,7 @@
 # RESEARCH CONSOLIDADO — mea-tickets (CrediFlexi Operaciones)
 
 > Documento vivo. Single source of truth del estado real del repo.
-> Última actualización: 2026-08-18 (incluye el alta del módulo **Actividades**, §5.6).
+> Última actualización: 2026-08-29 (§14, research de origen de los **reportes de inversiones** — sin código todavía).
 > Para el plan de trabajo activo ver `PLAN.md`.
 
 ---
@@ -1277,6 +1277,128 @@ CrediFlexi necesita automatizar el tramo de reclutamiento que va de **"el candid
 **Límite conocido:** el alta cubre empleado + contrato básico. **Salario (en cents) y job title viven en `ContractVersion`**, un segundo paso que no se construyó. Tampoco se capturan equipo ni nivel en la UI. El lugar correcto para esos datos es **S10 (onboarding)**, donde entran una sola vez y limpios, en vez de teclearse en dos sistemas.
 
 **Estado de validación:** código entregado, **no probado contra producción**. Falta encender `sync_activa` y contratar un candidato de prueba verificando que el empleado se crea, que `factorial_employee_id` se persiste y que un reintento no duplica.
+
+---
+
+## 14. Reportes de Inversiones — research de origen *(2026-08-29, sin código todavía)*
+
+Encargo en exploración: que **Felix suba estos reportes** a la plataforma, que **Tesorería y otras áreas** los consulten o descarguen, y que puedan **preguntarle a una IA** sobre su contenido. Esta sección documenta **qué son los archivos**. No hay decisión de arquitectura tomada ni nombre de módulo.
+
+Fuente analizada: cuatro `.xlsx` entregados el 2026-08-29. **No son cuatro reportes: son dos, con dos cortes cada uno.**
+
+### 14.1 Reporte A — Calendario de Pagos a Fondeadores
+
+`Calendario_Pagos_MM_AAAA.xlsx`. Mensual y **prospectivo**: qué hay que pagarle a cada inversionista, qué día del mes y por qué medio. Muestras: `08_2026` y `09_2026`.
+
+Tres hojas:
+
+| Hoja | Qué es | Tamaño (08 / 09) |
+|---|---|---|
+| `CALENDARIO MM` | Vista de presentación: una columna por día del mes | 219 / 226 filas |
+| `BASE MM` | **Los datos.** Una fila por pago programado, 20 columnas | 201 / 208 filas |
+| `VALIDACIONES` | Excepciones: casos sin medio de pago determinable | 8 / 14 filas |
+
+**`CALENDARIO` es un pivote exacto de `BASE`** — verificado: las cinco secciones coinciden en número de filas **y en monto al centavo**. Es una vista, no una segunda fuente. Guardar las dos sería mantener dos versiones de lo mismo.
+
+Las cinco secciones se derivan de dos columnas, con la misma regla en ambos meses:
+
+```
+SECCION = 'RETIRO FONDEADORES'          si TIPO_PAGO = 'C'   (devolución de capital)
+        = mapa(FORMA_PAGO_CALENDARIO)   si TIPO_PAGO = 'R'   (rendimiento)
+             TRANSFERENCIA → PAGO A FONDEADORES — TRANSFERENCIAS
+             EFECTIVO      → FONDEADORES CON PAGO EN EFECTIVO
+             AL PLAZO      → INVERSIONES CAPITALIZADAS AL PLAZO
+             REVISAR       → REVISAR MEDIO DE PAGO
+```
+
+**Dato que cambia la lectura del reporte:** en agosto, de los ~5.0 MDP del calendario, **3.0 MDP son `RETIRO FONDEADORES`** — siete filas de devolución de capital. El grueso del mes no es interés. Un agregado que sume todo sin separar capital de rendimiento da una cifra que no significa nada.
+
+Columnas de `BASE`: `CLAVE`, `MONTO`, `INVERSIONISTA`, `FECHA_PAGO`, `TIPO_PAGO`, `UNIVERSO`, `FORMA_PAGO_CALENDARIO`, `NOMBRE_CL`, `TIPOPAGO`, `TIPOREN`, `IBNOMBRE`, `CLABE`, `GERENTE_INVERSION`, `GERENTE_EJECUTIVO`, `nombre`, `FUENTE_CATALOGO`, `EJECUTIVO`, `SECCION`, `DIA`. Nota metodológica del propio archivo: *"Fuente de fecha y monto: presupuesto. Activos y terminados se usan únicamente para clasificar la forma de pago."*
+
+### 14.2 Reporte B — Tablero Ejecutivo de Cartera de Inversiones
+
+`Tablero_Ejecutivo_Cartera_Inversiones_DDMMAAAA.xlsx`. A una **fecha de corte**, no a un mes. Mide desempeño comercial de gerentes y ejecutivos de inversión. Muestras: corte `27/08/2026` y corte `02/09/2026`.
+
+Doce hojas, pero **una sola es fuente**:
+
+- **`Historial_Movimientos`** — 66 columnas, 691 filas. La tabla de hechos: un renglón por movimiento (inversión nueva, renovación, incremento, decremento, vencimiento), con su clasificación, su validación, su ponderación para ranking y su rastro de origen.
+- **Todo lo demás es agregación derivada**: `Tablero`, `Tablero_Estructura`, `Cumplimiento_Metas` (836 filas, histórico mensual desde 2024-11), `Ranking_Comercial` (27 col), `Ranking_Con_Meta` (34 col), `{CREDIFLEXI,RAMI}_{Vigente,Abiertos,Vencidos}`, `Validaciones`.
+
+Dos universos de negocio conviven en el mismo archivo: **CREDIFLEXI** y **RAMI**.
+
+### 14.3 Los cinco hallazgos que condicionan cualquier diseño
+
+**1. La forma del archivo NO es estable entre cortes.** En el corte del 02/09, `Ranking_Comercial` y `Ranking_Con_Meta` traen **8 columnas y la leyenda `SIN_DATOS`** en lugar de sus 27 y 34 columnas — el periodo llevaba dos días y no hubo con qué rankear. Un lector que asuma la forma del archivo de agosto truena con el de septiembre. **La degradación es parte del contrato del archivo, no una anomalía.** Mismo patrón en el Calendario: el nombre de hoja lleva el mes (`BASE 08` / `BASE 09`) y el ancho de `CALENDARIO` cambia con los días del mes (36 columnas en agosto de 31 días, 35 en septiembre de 30).
+
+**2. Las reglas de negocio viven en el archivo, como texto, y son lo que la IA necesita para no inventar.** Las filas 2-4 de cada hoja no son decoración: son la metodología. Ejemplos literales —
+
+> *"producción 70 pts (nueva e incremento tienen el mismo valor base 1.30x; renovación 1.00x) … clientes nuevos/diversificación 15 pts; retención de vencimientos 15 pts; y hasta -20 pts por decrementos … Si no hubo vencimientos, los 15 pts de retención se redistribuyen proporcionalmente."*
+
+> *"La meta estándar es $1,000,000 mensuales por ejecutivo … La meta del gerente de inversión es al menos $2,000,000 o la suma de las metas de sus ejecutivos INTERNOS, lo que sea mayor."*
+
+> *"Convención de importes: inversiones, renovaciones e incrementos se muestran positivos; decrementos y vencimientos naturales se muestran negativos."*
+
+Sin la primera, la IA no puede explicar por qué alguien sacó 62 puntos. Sin la tercera, **suma mal**. Estas notas hay que ingerirlas y versionarlas junto al corte, no descartarlas al parsear.
+
+**3. Esto es el material más sensible que habría tocado la plataforma.** `Historial_Movimientos` y `BASE` traen **`CLABE` — cuenta bancaria a 18 dígitos** — junto a nombre completo del inversionista, banco y montos. Es secreto financiero bajo LFPDPPP y supervisión CNBV. La plataforma ya enfrentó esta pregunta y la respondió al revés: la tool de mora del asistente se entregó **seudonimizada** (códigos, saldos y días; sin nombres ni teléfonos) precisamente para no mandar PII a un tercero sin visto bueno de cumplimiento (§5.5, riesgo AI-022).
+
+> **Decidido (2026-08-29):** acceso **todo o nada** — quien tenga la bandera ve el reporte completo, CLABE incluida. No hay seudonimización ni permisos por campo en v1.
+>
+> Queda **abierto y es una decisión distinta**: qué de eso viaja al LLM. Enseñarle una CLABE a Tesorería dentro de la plataforma y mandarla a Gemini son dos exposiciones diferentes, y la segunda es la que §5.5 dejó explícitamente pendiente de cumplimiento. Se puede construir el módulo entero sin cerrarla, siempre que las tools del chat no devuelvan `CLABE` por default.
+
+**4. El generador es un script de Python de Felix.** Descarga de una plataforma upstream y genera estos `.xlsx`. Las notas metodológicas, las hojas de `Validaciones` y los campos `ARCHIVOS_ORIGEN` / `ORIGEN_MOVIMIENTO` / `TIPO_PARCHE` son huella de ese pipeline. **Decidido:** se ingiere el Excel, no se toca el upstream. Consecuencia aprovechable: como ya existe un script que corre a diario, el endpoint de carga debe aceptar **también** un POST autenticado por token, para que el script publique solo y desaparezca el paso manual. La UI de carga y el script serían dos clientes del mismo endpoint.
+
+**5. Cada archivo trae la historia completa, y los hechos parecen inmutables — pero no está probado.** Comparados los cortes del 27/08 y del 02/09 por llave natural (`CLAVE` + `FECHA_MOVIMIENTO` + `TIPO_MOVIMIENTO` + `SECUENCIA_MOVIMIENTO` + `MONTO_MOVIMIENTO`, única en ambos):
+
+| | |
+|---|---|
+| Filas en cada corte | 688 y 688 |
+| En ambos | **688** — cero altas, cero bajas |
+| Rango de fechas | **2024-08-26 → 2031-07-01** en los dos |
+| Filas con algún campo distinto | **24 de 688** |
+| Columnas que cambian | **solo 4**: `SITUACION_TEMPORAL`, `EN_PERIODO_ANALIZADO`, `CUENTA_EN_RANKING_PERIODO`, `CUENTA_PARA_META_EN_PERIODO` |
+
+Dos lecturas, ambas útiles:
+
+- **Cada archivo es una reexpresión completa, no un delta.** Va de 2024 a 2031 — incluye vencimientos programados a futuro. Ojo con esto: una `FECHA_MOVIMIENTO` futura es **normal**; una *fecha de corte* futura es otra cosa (ver §14.5).
+- **Lo único que cambió entre cortes es el marcado de periodo**, que es función de la fecha de corte, no un dato. Los ~62 campos de hechos quedaron idénticos.
+
+> ⚠ **Esto no prueba que los hechos sean inmutables.** Cero altas en seis días es poco creíble para una financiera: lo más probable es que **ambos archivos salieran del mismo dump**, generados de una sentada con dos fechas de corte distintas (los cuatro llegaron con el mismo timestamp). La conclusión hay que reconfirmarla con dos cargas de días realmente distintos. **No construir asumiendo inmutabilidad** — construir detectando la reexpresión y avisando.
+
+### 14.4 Precedente reutilizable dentro del repo
+
+Nada de esto arranca de cero:
+
+| Necesidad | Ya resuelto en | Qué se reusa |
+|---|---|---|
+| Subir un `.xlsx` y cargarlo | **§5.6 Actividades** — `POST /api/actividades/cargar`, `lib/actividades/excel.ts` (puro), tabla `act_cargas` como bitácora | El patrón completo: validar el archivo entero **antes** de tocar la base, reemplazo idempotente por periodo, catálogos por upsert. `exceljs` ya está en el árbol |
+| Tablero sobre datos cargados | **§5.6 / §5.4** | Server Component → RPC que devuelve JSON agregado → filtros por `searchParams` |
+| Chat de IA sobre los datos | **§5.5 Asistente IA** — Gemini `2.5-flash` vía Vercel AI SDK, `lib/ai/tools.ts`, KB en system prompt | Se **extiende** con tools nuevas; no se construye un chat nuevo. Y con él viene el guardrail ya escrito: *el agente nunca inventa cifras; todo número proviene de una tool y se cita con `fecha_corte`* |
+
+### 14.5 Decisiones tomadas (2026-08-29)
+
+| # | Pregunta | Respuesta |
+|---|---|---|
+| 1 | Origen de los archivos | Felix descarga de una plataforma upstream y genera los `.xlsx` con **scripts de Python**. Se ingiere el Excel; el upstream no se toca |
+| 2 | Cadencia | **Diaria.** Felix sube el archivo final cada día |
+| 3 | Permisos | **Todo o nada.** Quien tenga acceso ve el reporte completo con toda su información |
+| 4 | Descarga | El **mismo `.xlsx` que subió Felix**, tal cual |
+| 5 | Retención | **El último reemplaza al anterior como vigente, pero se guarda el histórico** |
+
+**Lo que se sigue de la cadencia diaria** — y que rompe el patrón de §5.6:
+
+Actividades **borra e reinserta** por periodo. Aquí eso destruiría exactamente lo que se pidió conservar. El modelo tiene que ser **append-only con puntero a vigente**: cada carga entra completa con su `carga_id`, y "vigente" es la carga con el corte más reciente. El histórico deja de ser una tabla aparte y pasa a ser una consulta con `WHERE carga_id = …`.
+
+El volumen no es objeción: 688 filas de hechos por carga × 365 cargas ≈ **251 mil filas al año**, y el Calendario ~73 mil. Postgres ni se entera. **Hay redundancia** — por el hallazgo 5, la inmensa mayoría de esas filas se repiten idénticas día tras día — pero deduplicar exige apostarle a una inmutabilidad que todavía no está probada. La versión simple gana; si las reexpresiones resultan raras o frecuentes, los datos reales lo dirán y se optimiza después.
+
+El archivo original va a **Supabase Storage** por `carga_id` (lo exige la decisión 4). ~400 KB por día ≈ **146 MB al año**.
+
+### 14.6 Preguntas todavía abiertas
+
+1. **¿Qué se le manda al LLM?** Ver hallazgo 3. No bloquea construir; sí bloquea encender el chat con `CLABE` adentro.
+2. **¿Felix sube los dos reportes a diario, o solo uno?** Dijo "el archivo" en singular. El ingestor debe aceptar ambos y **discriminar por contenido, no por nombre de archivo** — el nombre lo genera su script y puede cambiar. Discriminador limpio: si hay hoja `Historial_Movimientos` es Tablero; si hay `BASE NN` es Calendario.
+3. **El corte 02/09/2026 se entregó el 29/08/2026** — corte en el futuro. Preguntado; respuesta: *"no sé, solo me pasaron así"*. Es decir, **la fecha de corte no es confiable como dato de entrada**. Consecuencia de diseño, no pregunta abierta: si una carga trae corte futuro, hay que marcarla y **no** dejar que se vuelva "la vigente" en silencio.
+4. **¿Un calendario mensual subido a diario cambia a diario?** Si Felix sube el mismo `08_2026` 31 veces, ¿es porque se ajusta con los pagos ya ejecutados, o es el mismo archivo? Cambia si el histórico del Calendario es interesante o es ruido.
 
 ---
 
