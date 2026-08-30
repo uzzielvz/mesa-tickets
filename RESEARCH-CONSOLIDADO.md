@@ -1422,7 +1422,7 @@ El archivo original va a **Supabase Storage** por `carga_id` (lo exige la decisi
 
 ### 14.6 Preguntas todavía abiertas
 
-1. ~~**¿Qué se le manda al LLM?**~~ — **aplazada** con la decisión 7. Vuelve a abrirse el día que se retome el chat, y es lo primero que hay que cerrar entonces.
+1. ~~**¿Qué se le manda al LLM?**~~ — **CERRADA el 2026-08-30**: nada de `CLABE`, ni banco, ni nombres de inversionistas, ni columnas internas del generador. Se implementa como **vistas que no contienen esas columnas**, no como regla de conducta. Lista completa y razonamiento en `PLAN.md §9.8`.
 2. **¿Felix sube los dos reportes a diario, o solo uno?** Dijo "el archivo" en singular. El ingestor debe aceptar ambos y **discriminar por contenido, no por nombre de archivo** — el nombre lo genera su script y puede cambiar. Discriminador limpio: si hay hoja `Historial_Movimientos` es Tablero; si hay `BASE NN` es Calendario.
 3. **El corte 02/09/2026 se entregó el 29/08/2026** — corte en el futuro. Preguntado; respuesta: *"no sé, solo me pasaron así"*. Es decir, **la fecha de corte no es confiable como dato de entrada**. Consecuencia de diseño, no pregunta abierta: si una carga trae corte futuro, hay que marcarla y **no** dejar que se vuelva "la vigente" en silencio.
 4. **¿Un calendario mensual subido a diario cambia a diario?** Si Felix sube el mismo `08_2026` 31 veces, ¿es porque se ajusta con los pagos ya ejecutados, o es el mismo archivo? Cambia si el histórico del Calendario es interesante o es ruido.

@@ -1105,6 +1105,14 @@ Patrón calcado de Actividades: columna en `profiles` (nace en `false`) + `has_*
 
 **Aun así, `CLABE` se aísla en el modelo desde el principio** (§14.7, punto 5): vista completa para tablero y descarga, vista sin PII para lo que consulte el chat el día que llegue. Retrofitear eso después es una migración fea.
 
+#### Tres huecos que I1 tiene que cerrar — no son opcionales
+
+Detectados al revisar este plan el 2026-08-30. Los tres son de seguridad y los tres se olvidan fácil porque quedan fuera de la pantalla:
+
+1. **Las políticas del bucket de Storage.** Toda la RLS de las tablas no sirve de nada si el `.xlsx` original es descargable por cualquier autenticado: **ese archivo trae todas las CLABEs**. El bucket `inversiones` nace **privado**, con política de lectura restringida al mismo predicado que las tablas. Es el agujero más grande del diseño tal como estaba escrito.
+2. **El endpoint de descarga.** Tiene que **revalidar el permiso** contra la carga que se pide, no servir por `storage_path`. Un path adivinable o filtrado no puede ser suficiente para bajar el archivo.
+3. **Retención.** Se van a guardar CLABEs y nombres **todos los días, indefinidamente** — 365 copias al año del padrón completo de fondeadores. Es la misma pregunta abierta que arrastra Reclutamiento (LFPDPPP / CNBV, riesgo R-1 de su runbook), aquí más grande. **No bloquea el v1**, pero se documenta como riesgo con dueño pendiente en vez de lanzarse en silencio.
+
 ### 9.6 Riesgos y lo que no sé
 
 - **I4 es el sprint incierto.** 12 hojas, 66 columnas, formas que cambian entre cortes. Los demás son mecánica conocida; este no. Si algo se desborda, es aquí.
@@ -1136,7 +1144,25 @@ Patrón calcado de Actividades: columna en `profiles` (nace en `false`) + `has_*
 
 **Por qué va después de I6 y no antes.** Un chat sobre datos que nadie validó es **peor que no tener chat**: convierte una cifra mal parseada en prosa segura de sí misma, y la gente actúa sobre ella sin volver al Excel. Primero I2 e I5 demuestran que lo cargado cuadra al centavo; después se le pone voz encima.
 
-**Lo que hay que cerrar antes de encenderlo, no antes de construirlo:** qué viaja al LLM (`RESEARCH §14.6`, punto 1). Es la pregunta de cumplimiento que §5.5 dejó abierta para el detalle de mora, y aquí vuelve con `CLABE` de por medio. Por eso la vista sin PII se construye desde el v1: para que la decisión sea un interruptor y no una migración.
+#### Qué ve el modelo — decidido el 2026-08-30
+
+> *"No quiero la CLABE o datos personales e inútiles al LLM."*
+
+**Se implementa como lista blanca sobre una vista, no como regla de conducta.** Las tools **no leen las tablas**; leen `inv_chat_pagos` y `inv_chat_movimientos`, vistas que **físicamente no contienen** las columnas excluidas. Así no es algo que alguien deba recordar: es algo que no se puede hacer.
+
+| | Columnas |
+|---|---|
+| **Fuera — dato bancario** | `CLABE`, `IBNOMBRE` (banco) |
+| **Fuera — identidad del cliente** | `INVERSIONISTA`, `NOMBRE_CL` — el modelo trabaja con `CLAVE`, igual que la tool de mora de §5.5 trabaja con códigos |
+| **Fuera — plomería inútil** | `ARCHIVOS_ORIGEN`, `TIPO_PARCHE`, `ORIGEN_MOVIMIENTO`, `SECUENCIA_MOVIMIENTO`, `CODIGO_*` y demás columnas internas del generador |
+| **Dentro** | `CLAVE`, montos, fechas, día, medio de pago, sección, universo, tipo de pago y rendimiento, plazo, sobretasa |
+| **Dentro, pero es una elección** | **Nombres de gerentes y ejecutivos.** Son empleados, no clientes, y sin ellos el Tablero entero es ilegible: *"¿quién va primero?"* no tiene respuesta. Se queda salvo instrucción contraria |
+
+**Quitar la plomería no es solo privacidad — mejora las respuestas.** El `Historial` trae 66 columnas y buena parte son rastro interno del generador. Metérselas al modelo agrega ruido y le da más formas de equivocarse. Aquí privacidad y calidad apuntan al mismo lado.
+
+**El encuadre que importa:** esto no contradice el "todo o nada" de §9.5. Quien tenga la bandera **sigue viendo todo en la pantalla y en la descarga** — el punto no es esconderle datos al usuario, que ya los tiene, sino **acotar lo que sale de la empresa** hacia un tercero. Son dos amenazas distintas.
+
+Con esta decisión, `RESEARCH §14.6` punto 1 queda **cerrado**.
 
 ---
 
