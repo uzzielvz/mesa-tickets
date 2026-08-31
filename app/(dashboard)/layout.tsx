@@ -28,7 +28,10 @@ export default async function DashboardLayout({
     profile.acceso_score === true ||
     profile.acceso_cartera === true ||
     profile.acceso_reclutamiento === true ||
-    profile.acceso_actividades === true
+    profile.acceso_actividades === true ||
+    profile.acceso_inversiones_carga === true ||
+    profile.acceso_inversiones_pagos === true ||
+    profile.acceso_inversiones_desempeno === true
 
   if (!tieneAlgunAcceso) redirect('/stand-by')
 

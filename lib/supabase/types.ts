@@ -107,6 +107,12 @@ export interface Database {
           acceso_reclutamiento: boolean
           /** Tablero directivo de actividades (ACT-001). */
           acceso_actividades: boolean
+          /** Sube los reportes de inversiones. No implica poder verlos (INV-001). */
+          acceso_inversiones_carga: boolean
+          /** Ve el Calendario de Pagos a Fondeadores — Tesorería (INV-001). */
+          acceso_inversiones_pagos: boolean
+          /** Ve el Tablero Ejecutivo de Cartera — Dirección (INV-001). */
+          acceso_inversiones_desempeno: boolean
           /** Ve las colas de TODAS las áreas en la mesa (TKT-043). */
           supervisa_tickets: boolean
           created_at: string
@@ -123,6 +129,9 @@ export interface Database {
           acceso_cartera?: boolean
           acceso_reclutamiento?: boolean
           acceso_actividades?: boolean
+          acceso_inversiones_carga?: boolean
+          acceso_inversiones_pagos?: boolean
+          acceso_inversiones_desempeno?: boolean
           supervisa_tickets?: boolean
         }
         Update: {
@@ -137,6 +146,9 @@ export interface Database {
           acceso_cartera?: boolean
           acceso_reclutamiento?: boolean
           acceso_actividades?: boolean
+          acceso_inversiones_carga?: boolean
+          acceso_inversiones_pagos?: boolean
+          acceso_inversiones_desempeno?: boolean
           supervisa_tickets?: boolean
         }
         Relationships: []
@@ -933,6 +945,60 @@ export interface Database {
           area?: string | null
           activo?: boolean
           actualizado_at?: string
+        }
+        Relationships: []
+      }
+      /**
+       * INV-001 — bitácora de cargas de los reportes de inversiones.
+       * Append-only: cada carga se conserva. "Vigente" es la más reciente por
+       * (tipo_reporte, periodo_inicio).
+       */
+      inv_cargas: {
+        Row: {
+          id: string
+          tipo_reporte: 'calendario' | 'tablero'
+          periodo_inicio: string
+          periodo_fin: string
+          nombre_archivo: string
+          storage_path: string
+          hash_archivo: string | null
+          tamano_bytes: number | null
+          estado: 'pendiente' | 'procesado' | 'error'
+          error_detalle: string | null
+          /** {hoja: texto} — la metodología que el archivo declara en sus primeras filas. */
+          notas_metodologicas: Record<string, string>
+          /** Hojas que llegaron con la marca SIN_DATOS. */
+          hojas_degradadas: string[]
+          /** Avisos de ingesta que no impiden guardar (p. ej. corte en el futuro). */
+          avisos: string[]
+          filas: number
+          subido_por: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tipo_reporte: 'calendario' | 'tablero'
+          periodo_inicio: string
+          periodo_fin: string
+          nombre_archivo: string
+          storage_path: string
+          hash_archivo?: string | null
+          tamano_bytes?: number | null
+          estado?: 'pendiente' | 'procesado' | 'error'
+          error_detalle?: string | null
+          notas_metodologicas?: Record<string, string>
+          hojas_degradadas?: string[]
+          avisos?: string[]
+          filas?: number
+          subido_por?: string | null
+        }
+        Update: {
+          estado?: 'pendiente' | 'procesado' | 'error'
+          error_detalle?: string | null
+          notas_metodologicas?: Record<string, string>
+          hojas_degradadas?: string[]
+          avisos?: string[]
+          filas?: number
         }
         Relationships: []
       }

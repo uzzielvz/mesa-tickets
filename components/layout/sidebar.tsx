@@ -9,7 +9,7 @@ import {
   Users, UserPlus, Gauge,
   PieChart, Building2, UserSearch, AlertTriangle, Layers, Upload, KeyRound,
   BarChart3, Briefcase, Kanban, CalendarClock, ClipboardCheck, Settings, Send,
-  Clock4, Activity,
+  Clock4, Activity, Landmark, TrendingUp, FileClock,
   type LucideIcon,
 } from 'lucide-react'
 import Wordmark from '@/components/brand/wordmark'
@@ -125,12 +125,21 @@ function NavContent({
   const hasReclutamientoAccess = accesoReclutamiento || isAdmin
   const hasActividadesAccess = accesoActividades || isAdmin
 
+  // Inversiones tiene tres papeles distintos, así que cada item del menú se
+  // decide por separado: quien carga no necesariamente ve, y quien ve pagos no
+  // necesariamente ve desempeño.
+  const invCarga = profile.acceso_inversiones_carga === true || isAdmin
+  const invPagos = profile.acceso_inversiones_pagos === true || isAdmin
+  const invDesempeno = profile.acceso_inversiones_desempeno === true || isAdmin
+  const hasInversionesAccess = invCarga || invPagos || invDesempeno
+
   // Secciones que contienen la ruta activa.
   const ticketsActive = pathname.startsWith('/tickets') || pathname.startsWith('/admin/catalogo') || pathname.startsWith('/admin/areas')
   const scoreActive = pathname.startsWith('/score') || pathname.startsWith('/admin/score')
   const carteraActive = pathname.startsWith('/cartera') || pathname.startsWith('/admin/cartera')
   const reclutamientoActive = pathname.startsWith('/reclutamiento')
   const actividadesActive = pathname.startsWith('/actividades')
+  const inversionesActive = pathname.startsWith('/inversiones')
 
   // Auto-abre solo la sección activa según la ruta; las demás arrancan colapsadas.
   const [ticketsOpen, setTicketsOpen] = useState(() => ticketsActive)
@@ -138,6 +147,7 @@ function NavContent({
   const [carteraOpen, setCarteraOpen] = useState(() => carteraActive)
   const [reclutamientoOpen, setReclutamientoOpen] = useState(() => reclutamientoActive)
   const [actividadesOpen, setActividadesOpen] = useState(() => actividadesActive)
+  const [inversionesOpen, setInversionesOpen] = useState(() => inversionesActive)
 
   return (
     <div className="flex flex-col gap-3">
@@ -425,6 +435,61 @@ function NavContent({
             onClick={onNav}
             muted
           />
+        </NavSection>
+      )}
+
+      {/* ── Inversiones ── */}
+      {hasInversionesAccess && (
+        <NavSection
+          title="Inversiones"
+          open={inversionesOpen}
+          hasActive={inversionesActive}
+          onToggle={() => setInversionesOpen(v => !v)}
+        >
+          <NavItem
+            href="/inversiones"
+            label="Resumen"
+            icon={Landmark}
+            active={pathname === '/inversiones'}
+            onClick={onNav}
+          />
+          {invPagos && (
+            <NavItem
+              href="/inversiones/pagos"
+              label="Pagos a fondeadores"
+              icon={CalendarClock}
+              active={pathname.startsWith('/inversiones/pagos')}
+              onClick={onNav}
+            />
+          )}
+          {invDesempeno && (
+            <NavItem
+              href="/inversiones/desempeno"
+              label="Desempeño"
+              icon={TrendingUp}
+              active={pathname.startsWith('/inversiones/desempeno')}
+              onClick={onNav}
+            />
+          )}
+          <SectionDivider />
+          <NavItem
+            href="/inversiones/cargas"
+            label="Historial"
+            icon={FileClock}
+            active={pathname.startsWith('/inversiones/cargas')}
+            onClick={onNav}
+            muted
+          />
+          {invCarga && (
+            <NavItem
+              href="/inversiones/cargar"
+              label="Cargar reporte"
+              icon={Upload}
+              active={pathname === '/inversiones/cargar'}
+              onClick={onNav}
+              muted
+            />
+          )}
         </NavSection>
       )}
 
