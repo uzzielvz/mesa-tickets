@@ -19,8 +19,9 @@
 7. [Seguir las evaluaciones y el comité](#7-seguir-las-evaluaciones-y-el-comité)
 8. [Entrevista con la Dirección General, alta y contratación](#8-entrevista-con-la-dirección-general-alta-y-contratación)
 9. [Cuando algo sale mal](#9-cuando-algo-sale-mal)
-10. [Lo que puedes cambiar tú, sin pedirle nada a nadie](#10-lo-que-puedes-cambiar-tú-sin-pedirle-nada-a-nadie)
-11. [Preguntas frecuentes](#11-preguntas-frecuentes)
+10. [Sacar la información a Excel](#10-sacar-la-información-a-excel)
+11. [Lo que puedes cambiar tú, sin pedirle nada a nadie](#11-lo-que-puedes-cambiar-tú-sin-pedirle-nada-a-nadie)
+12. [Preguntas frecuentes](#12-preguntas-frecuentes)
 
 ---
 
@@ -256,7 +257,38 @@ Manda a quien da soporte de la plataforma: **qué estabas haciendo, qué candida
 
 ---
 
-## 10. Lo que puedes cambiar tú, sin pedirle nada a nadie
+## 10. Sacar la información a Excel
+
+Dos pantallas tienen un botón **Exportar CSV**. El archivo se descarga y se abre directo en Excel.
+
+### Candidatos
+
+`Reclutamiento → Candidatos → Exportar CSV`
+
+Baja **los candidatos que estás viendo**: si tienes seleccionada una vacante y filtraste por una etapa, eso es lo que sale. Si quieres todos los de la vacante, quita el filtro de etapa antes de exportar.
+
+Trae una fila por candidato con nombre, correo, teléfono, fuente, etapa, revisión de CV, motivo de descarte, si tiene CV cargado, cuándo cambió de etapa por última vez y cuándo se registró.
+
+### Correos enviados
+
+`Reclutamiento → Correos enviados → Exportar CSV`
+
+Baja la bitácora de correos. Dos diferencias con lo que ves en pantalla, las dos a favor:
+
+- La tabla muestra los últimos 200; **el archivo trae hasta 5,000**.
+- La tabla corta el mensaje de error a dos líneas; **el archivo trae el error completo** que devolvió Gmail. Si estás averiguando por qué un correo no llegó, exporta y busca ahí.
+
+Si tienes puesto el filtro *Con error* o *Enviados*, el archivo respeta ese filtro.
+
+### Dos cosas que debes saber
+
+**Cada exportación queda registrada.** El sistema guarda quién exportó, qué, con qué filtros y cuántas filas. No es para vigilarte: el archivo de candidatos lleva **datos personales de gente que no fue contratada**, y una vez que sale de la plataforma ya no hay permisos que lo protejan. El registro existe para que, si ese archivo aparece donde no debe, se sepa de dónde salió.
+
+**Trátalo como lo que es.** No lo mandes por WhatsApp ni lo dejes en una carpeta compartida. Si ya no lo necesitas, bórralo.
+
+---
+
+## 11. Lo que puedes cambiar tú, sin pedirle nada a nadie
 
 Todo esto se edita en `Reclutamiento → Ajustes` y **surte efecto de inmediato**. No hay que avisarle a nadie ni esperar una actualización del sistema.
 
@@ -274,7 +306,7 @@ Todo esto se edita en `Reclutamiento → Ajustes` y **surte efecto de inmediato*
 
 ---
 
-## 11. Preguntas frecuentes
+## 12. Preguntas frecuentes
 
 **¿Puedo regresar a un candidato a una etapa anterior?**
 No. El proceso solo avanza. Si te equivocaste de candidato, lo que procede es descartarlo con motivo *Otro* y volverlo a capturar.
@@ -284,6 +316,9 @@ Nada se detiene. Puedes pasar a comité con las evaluaciones que tengas; el sist
 
 **¿Puedo reenviar la liga de evaluación a un entrevistador?**
 No hay un botón para eso en la v1. La liga está en el correo que ya recibió — lo más rápido es pedirle que lo busque. Si su liga ya expiró (8 días después de la sesión), hoy no hay forma de generar una nueva sin volver a agendar. Es un límite conocido de esta versión.
+
+**¿Puedo sacar un reporte de cuánto tardamos en contratar, o cuántos candidatos se cayeron en cada etapa?**
+Todavía no dentro de la plataforma. El sistema **sí está guardando** cada cambio de etapa con su fecha, así que el dato existe; lo que falta es la pantalla que lo grafique. Mientras tanto, el CSV de candidatos (sección 10) te da la etapa actual de cada quien.
 
 **¿El candidato ve mis notas o el motivo del descarte?**
 No. Todo eso es interno.

@@ -3,7 +3,7 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-08-29 (**plan del módulo Inversiones**, §9 — research en `RESEARCH §14`, sin código todavía).
+> Última actualización: 2026-08-31 (**Inversiones I1 entregado** §9.3 · **Reclutamiento REC-024**, exportación a CSV, §8.15).
 
 ---
 
@@ -1015,6 +1015,25 @@ No se permite saltar etapas, retroceder, ni salir de un estado terminal (`contra
 
 **Fuera de alcance de S9.5:** previsualización del correo con datos reales, historial de versiones de plantilla, reenvío desde la bitácora, plantillas HTML con diseño (hoy son texto plano).
 
+### 8.15 REC-024 — Exportación a CSV ✅ 2026-08-31
+
+> **Entregado** (`c9a4a91`). A petición directa: *"¿no crees que la herramienta de reclutamiento debería permitir descargar reportes?"*
+
+**El hallazgo que lo justifica:** no existía exportación **en ninguna parte de la plataforma** — cero CSV, cero xlsx, ningún endpoint de descarga fuera del de Inversiones. Y `/reclutamiento` no tiene pantalla propia: hace `redirect` a vacantes.
+
+**Alcance deliberadamente acotado a "exportar lo que ya se ve".** Se separó de un tablero de métricas (embudo, tiempo por etapa, tiempo de contratación) y **solo se hizo lo primero**. Razón: las métricas de proceso no tienen datos todavía — un embudo con cero contrataciones históricas es una pantalla vacía. El dato **sí se está capturando** (`rec_candidato_historial` registra cada transición con fecha), así que el tablero es aditivo cuando el uso lo justifique.
+
+| Pieza | Qué es |
+|---|---|
+| `lib/utils/csv.ts` | Constructor genérico y **puro**. BOM UTF-8 (sin él Excel en Windows rompe los acentos), comillas RFC 4180, y neutralización de celdas que empiezan con `=` `+` `-` `@` — que Excel ejecutaría como fórmula. **Los números se exceptúan a propósito**: un importe negativo neutralizado sale como texto y rompe la suma. Verificado con 7 casos. |
+| `lib/reclutamiento/exportar.ts` | Puro. Define columnas y formato. Las etiquetas son **las de la pantalla**, no los enums: dice *Entrevistas agendadas*, no `entrevistas_agendadas`. Fechas en `YYYY-MM-DD HH:mm`, zona México explícita (el servidor corre en UTC). |
+| `GET /api/reclutamiento/exportar/{candidatos,correos}` | Revalidan permiso; no lo heredan de la pantalla. Candidatos respeta los filtros de la URL; correos respeta el estado pero sube el tope de 200 a 5,000 y trae el error de Gmail sin truncar. |
+| Migración `rec_024` | `rec_exportaciones`: quién, qué recurso, con qué filtros, cuántas filas. Append-only (sin políticas de UPDATE ni DELETE) y con `exportado_por = auth.uid()` en el `with check`, para que la bitácora no sea falsificable por quien la escribe. |
+
+**La decisión de seguridad:** el registro se escribe **antes** de entregar el archivo y **falla cerrado** — si no se puede dejar rastro de quién se llevó los datos, no se entregan. Un CSV de candidatos saca nombre, correo y teléfono de personas que en su mayoría no fueron contratadas, a un archivo donde ya no aplica ninguna RLS. No crea el riesgo R-1 de retención (§8.7), pero lo amplifica; queda registrado como **R-1b** en el runbook, heredando su dueño pendiente.
+
+**Fuera de alcance:** tablero de métricas, pantalla para leer `rec_exportaciones` (hoy solo se consulta en Supabase), exportación en xlsx (`exceljs` ya está en el árbol si se pide).
+
 ---
 
 ## 9. Módulo Inversiones *(I1–I6 planeados — 2026-08-29, sin código todavía)*
@@ -1056,7 +1075,7 @@ Cada uno termina en algo verificable contra los cuatro archivos reales que ya es
 
 | # | Sprint | Entrega | Cómo se verifica |
 |---|---|---|---|
-| **I1** | **Tubería, sin parseo** | Migración `inv_cargas` + RLS + banderas + bucket. `POST /api/inversiones/cargar` sube a Storage y registra la carga en estado `pendiente`, **sin leer el Excel**. Pantallas `/inversiones/cargar` e `/inversiones/cargas` (historial + descarga). Guarda de layout | Felix sube los 4 archivos, los ve listados y los descarga **byte-idénticos** al original |
+| **I1** ✅ | **Tubería, sin parseo** *(entregado 2026-08-31, `d22c6cf`)* | Migraciones `inv_001..003` (tablas + RLS + bucket privado con separación de audiencias por prefijo de ruta) + banderas + tipos. `POST /api/inversiones/cargar` y `GET /api/inversiones/descargar/[id]`, que **revalida permiso contra el `tipo_reporte`**, no sirve por `storage_path`. Pantallas `/inversiones/{cargar,cargas}`; `pagos` y `desempeno` como placeholders **con guarda real**, para poder probar la separación de permisos desde esta iteración. Los tres huecos de §9.5 quedaron cerrados. **Desviación declarada:** se lee el encabezado del Excel antes de guardar, para no almacenar un archivo que no se pudo identificar | Felix sube los 4 archivos, los ve listados y los descarga **byte-idénticos** al original. ⏳ *pendiente de prueba en navegador* |
 | **I2** | **Parseo del Calendario** | `lib/inversiones/excel.ts` puro: `detectarTipo()` + `leerCalendario()`. Tablas `inv_pagos`, `inv_pagos_validaciones`. El endpoint parsea y pasa a `procesado` | **Anclas de agosto:** 201 filas · total `4,999,045.56` · sale de caja `4,040,930.99` · capitalizado `958,114.57` · 8 filas en revisar. Al centavo o no pasa |
 | **I3** | **Vistas de Tesorería** | RPCs `inv_curva_salidas`, `inv_revisar_medio`, `inv_resumen_calendario`. Pantalla `/inversiones/pagos` | La curva reproduce la tabla ya calculada: días **26 (846,372)**, **24 (837,077)** y **13 (622,257)** a la cabeza. La lista de revisar trae los 8 casos ordenados por fecha |
 | **I4** | **Parseo del Tablero** | `leerTablero()` + tablas de las 12 hojas. **Manejo explícito de hojas degradadas** | El corte **27/08 carga completo**; el **02/09 carga con los rankings marcados como degradados y sin tronar**. Los dos archivos ya existen y ejercitan ambos caminos |

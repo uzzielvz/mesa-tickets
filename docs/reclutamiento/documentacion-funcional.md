@@ -69,6 +69,21 @@ Todas cuelgan de la sección **Reclutamiento** del menú lateral.
 | Ajustes | `/reclutamiento/ajustes` | Dirección General, destinatarios del correo de altas, plantillas de correo editables, interruptor de Factorial. |
 | Evaluación (pública) | `/evaluar/[token]` | Lo que abre el entrevistador desde su correo. **Sin sesión.** |
 
+### Exportación a CSV (REC-024)
+
+Las pantallas de **Candidatos** y **Correos enviados** tienen un botón *Exportar CSV*.
+
+| Export | Ruta | Qué saca |
+|---|---|---|
+| Candidatos | `GET /api/reclutamiento/exportar/candidatos?vacante=&etapa=` | Nombre, correo, teléfono, fuente, etapa, revisión de CV, motivo de descarte, si tiene CV, última actualización de etapa y fecha de registro. **Respeta los filtros de la pantalla**, porque viven en la URL. |
+| Correos | `GET /api/reclutamiento/exportar/correos?estado=` | Fecha, plantilla, destinatario, candidato, estado y el **error literal de Gmail sin truncar**. Respeta el filtro de estado pero **no** el tope de 200 de la tabla: sube hasta 5,000. |
+
+Tres cosas del comportamiento que conviene saber:
+
+- **Las etiquetas son las de la pantalla**, no los enums de la base: dice *Entrevistas agendadas*, no `entrevistas_agendadas`.
+- **El archivo abre bien en Excel**: lleva BOM UTF-8 (sin él los acentos se rompen) y neutraliza celdas que empiezan con `=`, `+`, `-` o `@`, que Excel ejecutaría como fórmula. Los números quedan intactos.
+- **Cada exportación queda registrada** en `rec_exportaciones` y el registro se escribe **antes** de entregar el archivo: si no se puede dejar rastro, no se entregan los datos. Ver §10.
+
 ---
 
 ## 5. El agendamiento en cascada
@@ -165,6 +180,9 @@ El módulo sabe dar de alta al empleado en Factorial automáticamente al contrat
 - **El `refresh_token` de Google se guarda cifrado** con AES-256-GCM; la llave (`GOOGLE_TOKEN_ENCRYPTION_KEY`) solo vive en el servidor.
 - **CVs** en el bucket `reclutamiento` de Storage, con RLS. PDF/DOC/DOCX, máximo 10 MB.
 - **Ruta pública de evaluación:** el único dato que sale sin sesión es lo que devuelve `rec_sesion_por_token`, que no incluye CV ni contacto del candidato.
+- **Exportación a CSV:** el permiso se revalida en el endpoint, no se hereda de la pantalla, y **toda exportación se registra** en `rec_exportaciones` (quién, qué, con qué filtros, cuántas filas). El registro se escribe antes de entregar el archivo y falla cerrado. La política de inserción exige `exportado_por = auth.uid()`, de modo que nadie puede registrar una exportación a nombre de otra persona; la tabla no tiene políticas de UPDATE ni DELETE.
+
+  > ⚠ **Un CSV de candidatos es material personal fuera del alcance de la RLS.** Lleva nombre, correo y teléfono de personas que en su mayoría no fueron contratadas, a un archivo que vive en la computadora de quien lo bajó. Esto no crea el riesgo de retención abierto (§12, riesgo R-1 del runbook), pero sí lo amplifica. La bitácora es una mitigación mínima, no una política.
 
 ---
 
@@ -175,7 +193,8 @@ El módulo sabe dar de alta al empleado en Factorial automáticamente al contrat
 - Server Actions en `lib/actions/{reclutamiento,agendamiento,comite,evaluaciones,ajustes}.ts`.
 - Motor de etapas en `lib/reclutamiento/etapas.ts` — **módulo puro**, sin React ni Supabase. Es la única fuente de verdad de "qué sigue"; el kanban, el perfil y las server actions consultan la misma función, para que no puedan contradecirse.
 - RPCs `security definer`: `rec_transicion_etapa`, `rec_sesion_por_token`, `rec_submit_evaluacion`, `rec_credencial_google`.
-- 27 migraciones versionadas (`rec_001` … `rec_023`).
+- 28 migraciones versionadas (`rec_001` … `rec_024`).
+- Construcción de CSV en `lib/utils/csv.ts` (genérico y puro) y definición de columnas en `lib/reclutamiento/exportar.ts` (también puro). Las rutas de `/api` solo consultan y sirven.
 
 ### Tablas principales
 
@@ -192,6 +211,7 @@ El módulo sabe dar de alta al empleado en Factorial automáticamente al contrat
 | `rec_credenciales_google` | `refresh_token` cifrado de la cuenta emisora |
 | `rec_ajustes` | Configuración key/value (DG, destinatarios, Factorial) |
 | `rec_alta_config` | Configuración de alta por candidato |
+| `rec_exportaciones` | Bitácora de exportaciones a CSV: quién, qué recurso, con qué filtros y cuántas filas. Append-only |
 
 ---
 
@@ -207,6 +227,8 @@ Son deliberados, no defectos. Se resuelven según lo pida el uso real.
 6. **Sin scoring ni lectura automática de CVs.**
 7. **Factorial apagado** (§9).
 8. **Una sola cuenta emisora de Google** para todo el módulo (ver §13 para cómo se elige y cómo fijarla).
+9. **No hay tablero de métricas.** La exportación a CSV (§4) da el dato crudo, pero no existe embudo, tiempo por etapa ni tiempo de contratación dentro de la plataforma. Los datos **sí se están capturando** — `rec_candidato_historial` registra cada transición con su fecha —, pero nadie los consume todavía. Se difiere a propósito: un embudo sin contrataciones históricas es una pantalla vacía.
+10. **No hay pantalla para leer `rec_exportaciones`.** La bitácora de exportaciones se registra pero hoy solo se consulta desde Supabase.
 
 ---
 

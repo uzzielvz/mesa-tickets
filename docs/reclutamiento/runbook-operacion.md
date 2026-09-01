@@ -30,6 +30,8 @@ Los envíos de correo son **best-effort**: se intentan, se registran en `rec_cor
 
 `/reclutamiento/correos` es la bitácora. Filtra por **con error**. Cada fila guarda el mensaje literal que devolvió Gmail, más `gmail_message_id` y `gmail_thread_id` cuando el envío sí salió.
 
+El botón **Exportar CSV** de esa misma pantalla sirve para diagnosticar sin entrar a la base: sube el tope de 200 a 5,000 registros y trae el error **sin truncar** (la tabla lo corta a dos líneas).
+
 Tablas útiles para ir más a fondo:
 
 | Tabla | Para qué |
@@ -142,6 +144,7 @@ Tres niveles, de más amplio a más quirúrgico. Los tres son reversibles y ning
 | Interruptor de Factorial | Qué plantillas existen y qué variables acepta cada una |
 | Quién tiene acceso al módulo | La expiración de 8 días del magic link |
 | Entrevistadores de cada sesión | Regenerar un magic link vencido |
+| — | Las columnas que salen en los CSV de exportación |
 
 ---
 
@@ -179,6 +182,7 @@ El alta es **idempotente por `rec_candidatos.factorial_employee_id`**: si ya tie
 | # | Riesgo | Severidad | Estado |
 |---|---|---|---|
 | R-1 | **Retención de datos de candidatos.** El módulo guarda CV, teléfono y correo de personas no contratadas, sin política de purga ni anonimización, en una entidad financiera regulada (LFPDPPP / CNBV). Abierto desde 2026-06-30 en `PLAN.md §8.7`. | Media | **Sin dueño asignado.** No bloquea el lanzamiento; requiere una decisión de negocio + legal, y después una tarea de purga. |
+| R-1b | **La exportación a CSV amplifica R-1.** Desde REC-024 (2026-08-31) cualquiera con acceso al módulo puede bajar un archivo con nombre, correo y teléfono de todos los candidatos de una vacante. Fuera de la plataforma no hay RLS que valga. | Media | **Mitigado parcialmente:** cada exportación se registra en `rec_exportaciones` (quién, qué, filtros, filas) y el registro se escribe antes de entregar el archivo. Es rastreabilidad, **no** una política de manejo. Hereda el dueño pendiente de R-1. |
 | R-2 | **Sin regeneración de magic links.** Un entrevistador que pierde su correo o se pasa de los 8 días no puede calificar sin volver a agendar. | Baja | Límite conocido de la v1. Se resuelve si el uso real lo pide. |
 | R-3 | **Fallo silencioso del correo de altas** sin destinatarios (§2.4): es la única ruta que no deja rastro en la bitácora. | Baja | Mitigado por documentación. Un arreglo real sería registrar el intento fallido. |
 | R-4 | **Sin validación end-to-end previa al lanzamiento.** | — | Se cierra ejecutando [`prevuelo-lanzamiento.md`](./prevuelo-lanzamiento.md). |
