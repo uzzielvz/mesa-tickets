@@ -1,21 +1,76 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Download, CalendarClock } from 'lucide-react'
+import { Download, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import Header from '@/components/layout/header'
-import { etiquetaPeriodo } from '@/lib/inversiones/periodo'
+import { Tile, Panel, Vacio } from '@/components/viz'
+import {
+  CurvaSalidas, Secciones, fmtPesos, fmtPesosExacto, type DiaCurva,
+} from '@/components/inversiones/calendario-viz'
+import { fechaLarga } from '@/lib/inversiones/periodo'
 
 export const dynamic = 'force-dynamic'
 
+interface Resumen {
+  periodo: string | null
+  periodos: { periodo: string }[]
+  carga: {
+    id: string
+    nombre_archivo: string
+    periodo_inicio: string
+    periodo_fin: string
+    created_at: string
+    avisos: string[] | null
+  } | null
+  filas: number
+  total: number
+  salidas: number
+  capitalizado: number
+  revisar: number
+  secciones: { seccion: string; pagos: number; monto: number; capitaliza: boolean }[]
+}
+
+interface Curva { periodo: string | null; dias: DiaCurva[]; max_salidas: number }
+
+interface Revisar {
+  pagos: {
+    clave: string
+    inversionista: string | null
+    fecha_pago: string | null
+    dia: number | null
+    monto: number
+    universo: string | null
+    gerente_inversion: string | null
+  }[]
+  validaciones: {
+    clave: string | null
+    inversionista: string | null
+    universo: string | null
+    observacion: string | null
+  }[]
+}
+
+function mesLargo(periodo: string): string {
+  // El periodo es el primer día del mes; se fija mediodía UTC para que la
+  // conversión de zona no lo empuje al mes anterior.
+  return new Date(`${periodo}T12:00:00Z`).toLocaleDateString('es-MX', {
+    month: 'long', year: 'numeric', timeZone: 'UTC',
+  })
+}
+
 /**
- * Puerta de Tesorería. En I1 solo entrega el archivo: las vistas —la curva de
- * salidas por día y la lista de "revisar medio de pago"— llegan en I3.
+ * Puerta de Tesorería: qué hay que pagar este mes y qué día.
  *
- * La guarda es real desde ahora a propósito: es lo que permite comprobar, antes
- * de que haya contenido que proteger, que quien solo tiene acceso a desempeño no
- * entra aquí.
+ * Todo lo agregado viene de RPCs (`inv_resumen_calendario`, `inv_curva_salidas`,
+ * `inv_revisar_medio`), no de SQL escrito aquí. Es lo que después se envuelve
+ * como tool del chat (RESEARCH §14.7); SQL dentro del componente habría que
+ * reescribirlo entonces.
  */
-export default async function PagosPage() {
+export default async function PagosPage({
+  searchParams,
+}: {
+  searchParams: { periodo?: string }
+}) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -30,21 +85,48 @@ export default async function PagosPage() {
     redirect('/inversiones')
   }
 
-  const { data: cargas } = await supabase
-    .from('inv_cargas')
-    .select('id, periodo_inicio, periodo_fin, nombre_archivo, created_at')
-    .eq('tipo_reporte', 'calendario')
-    .order('periodo_inicio', { ascending: false })
-    .order('created_at', { ascending: false })
-    .limit(12)
+  // Solo se acepta una fecha ISO: lo que venga en el query no entra crudo al RPC.
+  const periodo = /^\d{4}-\d{2}-\d{2}$/.test(searchParams.periodo ?? '')
+    ? searchParams.periodo!
+    : null
 
-  const filas = cargas ?? []
+  const [resumenRes, curvaRes, revisarRes] = await Promise.all([
+    supabase.rpc('inv_resumen_calendario', { p_periodo: periodo }),
+    supabase.rpc('inv_curva_salidas', { p_periodo: periodo }),
+    supabase.rpc('inv_revisar_medio', { p_periodo: periodo }),
+  ])
+
+  const resumen = resumenRes.data as unknown as Resumen | null
+  const curva = curvaRes.data as unknown as Curva | null
+  const revisar = revisarRes.data as unknown as Revisar | null
+
+  if (!resumen || !resumen.carga) {
+    return (
+      <div>
+        <Header
+          title="Pagos a fondeadores"
+          subtitle="Calendario mensual de pagos, generado desde Yunius."
+          action={
+            <Link href="/inversiones" className="text-[13px] text-navy hover:underline font-medium">
+              Volver
+            </Link>
+          }
+        />
+        <div className="px-5 md:px-9 pb-12">
+          <Vacio mensaje="Todavía no hay ningún calendario procesado. En cuanto se cargue uno, aquí aparece el mes completo." />
+        </div>
+      </div>
+    )
+  }
+
+  const avisos = resumen.carga.avisos ?? []
+  const pctCapitalizado = resumen.total > 0 ? (resumen.capitalizado / resumen.total) * 100 : 0
 
   return (
     <div>
       <Header
         title="Pagos a fondeadores"
-        subtitle="Calendario mensual de pagos, generado desde Yunius."
+        subtitle={`Calendario de ${mesLargo(resumen.periodo!)}. Generado desde Yunius.`}
         action={
           <Link href="/inversiones" className="text-[13px] text-navy hover:underline font-medium">
             Volver
@@ -52,51 +134,121 @@ export default async function PagosPage() {
         }
       />
 
-      <div className="px-5 md:px-9 pb-12 flex flex-col gap-5 max-w-2xl">
-        {filas.length === 0 ? (
-          <p className="text-[13px] text-ink-500">
-            Todavía no se ha cargado ningún calendario.
-          </p>
-        ) : (
-          <section className="border border-[#ECECEC] rounded-md bg-white overflow-hidden">
-            <header className="px-5 py-2.5 border-b border-[#ECECEC] bg-surface-sidebar">
-              <h2 className="text-[11px] uppercase tracking-[0.3px] text-ink-400 font-medium">
-                Calendarios disponibles
-              </h2>
-            </header>
-            <ul className="divide-y divide-[#F5F5F5]">
-              {filas.map(c => (
-                <li key={c.id} className="px-5 py-3 flex items-center justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="text-[13px] text-ink-900 font-medium capitalize">
-                      {etiquetaPeriodo('calendario', c.periodo_inicio as string, c.periodo_fin as string)}
-                    </p>
-                    <p className="text-[11.5px] text-ink-400 font-mono truncate">
-                      {c.nombre_archivo as string}
-                    </p>
-                  </div>
-                  <a
-                    href={`/api/inversiones/descargar/${c.id}`}
-                    className="flex items-center gap-1 text-[12.5px] text-navy hover:underline font-medium shrink-0"
-                  >
-                    <Download size={13} /> Descargar
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </section>
+      <div className="px-5 md:px-9 pb-12 flex flex-col gap-4">
+        {/* Selector de mes. Enlaces, no un select: el mes vive en la URL y así
+            se puede compartir "el calendario de septiembre" con un link. */}
+        {resumen.periodos.length > 1 && (
+          <div className="flex flex-wrap gap-1.5">
+            {resumen.periodos.map(x => {
+              const activo = x.periodo === resumen.periodo
+              return (
+                <Link
+                  key={x.periodo}
+                  href={`/inversiones/pagos?periodo=${x.periodo}`}
+                  className={`text-[12px] font-medium rounded px-3 py-[5px] border transition-colors capitalize ${
+                    activo
+                      ? 'border-orange bg-orange/10 text-orange-dark'
+                      : 'border-[#ECECEC] text-ink-500 hover:bg-surface-hover'
+                  }`}
+                >
+                  {mesLargo(x.periodo)}
+                </Link>
+              )
+            })}
+          </div>
         )}
 
-        <div className="border border-[#ECECEC] rounded-md bg-surface-sidebar p-4">
-          <p className="flex items-center gap-2 text-[12.5px] font-medium text-ink-900">
-            <CalendarClock size={15} className="text-ink-400" /> Lo que falta aquí
-          </p>
-          <p className="mt-2 text-[12.5px] text-ink-500">
-            La curva de salidas por día —separando efectivo de transferencia, y sin
-            contar lo que se capitaliza al plazo— y la lista de pagos sin medio
-            definido. Mientras tanto, el archivo se descarga completo.
-          </p>
+        {avisos.length > 0 && (
+          <ul className="border border-[#FFE0B2] bg-[#FFF8E1] rounded-md px-4 py-3 flex flex-col gap-1">
+            {avisos.map((a, i) => (
+              <li key={i} className="flex items-start gap-1.5 text-[12px] text-[#8A6100]">
+                <AlertTriangle size={12} className="mt-0.5 shrink-0" />
+                <span>{a}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <Tile
+            etiqueta="Sale de caja"
+            valor={fmtPesos(resumen.salidas)}
+            apoyo="efectivo que hay que tener"
+            acento
+          />
+          <Tile
+            etiqueta="Total del periodo"
+            valor={fmtPesos(resumen.total)}
+            apoyo={`${resumen.filas.toLocaleString('es-MX')} pagos programados`}
+          />
+          <Tile
+            etiqueta="Se capitaliza"
+            valor={fmtPesos(resumen.capitalizado)}
+            apoyo={`${pctCapitalizado.toFixed(1)}% del total — no sale de caja`}
+          />
+          <Tile
+            etiqueta="Sin medio de pago"
+            valor={String(resumen.revisar)}
+            apoyo={resumen.revisar > 0 ? 'requieren decisión' : 'todo definido'}
+          />
         </div>
+
+        <Panel
+          titulo="Salida de efectivo por día"
+          nota="no incluye lo que se capitaliza"
+        >
+          <CurvaSalidas dias={curva?.dias ?? []} max={curva?.max_salidas ?? 0} />
+        </Panel>
+
+        <div className="grid lg:grid-cols-2 gap-4 items-start">
+          <Panel titulo="Por sección" nota={`${resumen.filas} pagos`}>
+            <Secciones filas={resumen.secciones} />
+          </Panel>
+
+          <Panel
+            titulo="Sin medio de pago definido"
+            nota={revisar?.pagos.length ? `${revisar.pagos.length} casos` : undefined}
+          >
+            {!revisar?.pagos.length ? (
+              <Vacio mensaje="Todos los pagos del mes tienen medio definido." />
+            ) : (
+              <ul className="divide-y divide-[#F5F5F5]">
+                {revisar.pagos.map(r => (
+                  <li key={r.clave} className="px-5 py-2.5 flex items-baseline justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[12.5px] text-ink-900 truncate">
+                        {r.inversionista ?? '—'}
+                      </p>
+                      <p className="text-[11.5px] text-ink-400 font-mono">
+                        {r.clave}
+                        {r.fecha_pago && ` · ${fechaLarga(r.fecha_pago)}`}
+                        {r.universo && ` · ${r.universo}`}
+                      </p>
+                    </div>
+                    <p className="text-[12.5px] text-ink-900 tabular-nums font-medium whitespace-nowrap">
+                      {fmtPesosExacto(r.monto)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
+        </div>
+
+        <p className="text-[11.5px] text-ink-400">
+          Fuente:{' '}
+          <span className="font-mono">{resumen.carga.nombre_archivo}</span>, cargado el{' '}
+          {new Date(resumen.carga.created_at).toLocaleDateString('es-MX', {
+            day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
+          })}
+          .{' '}
+          <a
+            href={`/api/inversiones/descargar/${resumen.carga.id}`}
+            className="text-navy hover:underline font-medium"
+          >
+            <Download size={11} className="inline mb-0.5" /> Descargar el archivo original
+          </a>
+        </p>
       </div>
     </div>
   )

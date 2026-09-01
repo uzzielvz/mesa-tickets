@@ -6,7 +6,7 @@ import { etiquetaPeriodo } from '@/lib/actividades/periodo'
 import {
   Tile, Barras, Heatmap, Panel, BannerError, Vacio,
   fmtHoras, fmtNum, fmtPct, fmtDuracion,
-} from '@/components/actividades/viz'
+} from '@/components/viz'
 
 // ── Contrato del RPC act_resumen ─────────────────────────────────────────────
 interface Resumen {

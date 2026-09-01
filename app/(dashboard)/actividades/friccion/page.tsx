@@ -6,7 +6,7 @@ import { etiquetaPeriodo } from '@/lib/actividades/periodo'
 import {
   Tile, Panel, BannerError, Vacio, LeyendaTipos, colorTipo, etiquetaTipo,
   fmtHoras, fmtNum, fmtPct, fmtDuracion,
-} from '@/components/actividades/viz'
+} from '@/components/viz'
 
 interface Friccion {
   periodo: string | null

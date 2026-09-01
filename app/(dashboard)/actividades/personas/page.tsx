@@ -6,7 +6,7 @@ import { etiquetaPeriodo } from '@/lib/actividades/periodo'
 import {
   Barras, Panel, BannerError, Vacio,
   fmtHoras, fmtNum, fmtPct, fmtDuracion,
-} from '@/components/actividades/viz'
+} from '@/components/viz'
 
 interface Detalle {
   periodo: string | null

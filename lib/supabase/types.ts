@@ -1191,6 +1191,26 @@ export interface Database {
         }
         Returns: unknown
       }
+      // INV-005 (I3): agregados del Calendario de Pagos. Devuelven json; el
+      // contrato de cada uno vive junto a la pantalla que lo consume.
+      // `p_periodo` es el primer día del mes (`2026-08-01`); null = el más
+      // reciente ya procesado.
+      inv_resumen_calendario: {
+        Args: { p_periodo?: string | null }
+        Returns: unknown
+      }
+      inv_curva_salidas: {
+        Args: { p_periodo?: string | null }
+        Returns: unknown
+      }
+      inv_revisar_medio: {
+        Args: { p_periodo?: string | null }
+        Returns: unknown
+      }
+      has_inversiones_pagos: {
+        Args: Record<string, never>
+        Returns: boolean
+      }
       has_actividades_access: {
         Args: Record<string, never>
         Returns: boolean
