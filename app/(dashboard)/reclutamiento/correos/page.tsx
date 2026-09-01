@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { AlertCircle, CheckCircle2 } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Download } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import VolverPipeline from '@/components/reclutamiento/volver-pipeline'
 import { plantillaMeta } from '@/lib/reclutamiento/plantillas'
@@ -73,7 +73,8 @@ export default async function CorreosPage({
         </p>
       </div>
 
-      <div className="flex gap-1.5">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex gap-1.5">
         {FILTROS.map(f => {
           const activo = (estado ?? '') === f.valor
           return (
@@ -90,6 +91,19 @@ export default async function CorreosPage({
             </Link>
           )
         })}
+        </div>
+
+        {/* El CSV respeta el filtro de estado, pero no el tope de 200 de la
+            tabla: quien exporta la bitácora suele estar rastreando un correo
+            que no llegó, y ahí 200 registros se acaban rápido. */}
+        <a
+          href={`/api/reclutamiento/exportar/correos${estado ? `?estado=${estado}` : ''}`}
+          className="flex items-center gap-1.5 border border-[#ECECEC] hover:bg-surface-hover text-ink-700 text-[12px] font-medium rounded px-3 py-[5px] transition-colors"
+          title="Descarga la bitácora completa (hasta 5,000 registros), con el error literal de Gmail."
+        >
+          <Download size={12} />
+          Exportar CSV
+        </a>
       </div>
 
       {correos.length === 0 ? (

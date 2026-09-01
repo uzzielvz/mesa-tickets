@@ -833,6 +833,27 @@ export interface Database {
         }
         Relationships: []
       }
+      // Bitácora de exportaciones a CSV (REC-024). Append-only: no hay Update.
+      rec_exportaciones: {
+        Row: {
+          id: string
+          recurso: 'candidatos' | 'correos'
+          filtros: Record<string, string | null>
+          filas: number
+          exportado_por: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          recurso: 'candidatos' | 'correos'
+          filtros?: Record<string, string | null>
+          filas?: number
+          exportado_por?: string | null
+          created_at?: string
+        }
+        Update: never
+        Relationships: []
+      }
 
       // ── Módulo Actividades (ACT-001) ──────────────────────────────────────
       act_cargas: {

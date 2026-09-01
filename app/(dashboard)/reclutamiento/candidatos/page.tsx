@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Plus } from 'lucide-react'
+import { Plus, Download } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import CandidatoList from '@/components/reclutamiento/candidato-list'
 import VolverPipeline from '@/components/reclutamiento/volver-pipeline'
@@ -58,13 +58,27 @@ export default async function CandidatosPage({
           </p>
         </div>
         {vacanteId && (
-          <Link
-            href={`/reclutamiento/candidatos/nuevo?vacante=${vacanteId}`}
-            className="flex items-center gap-1.5 bg-orange hover:bg-orange-dark text-white text-[12.5px] font-medium rounded px-4 py-[7px] transition-colors"
-          >
-            <Plus size={13} />
-            Nuevo candidato
-          </Link>
+          <div className="flex items-center gap-2">
+            {/* El filtro de etapa vive en la URL, así que el CSV sale con los
+                mismos candidatos que se están viendo. */}
+            <a
+              href={`/api/reclutamiento/exportar/candidatos?vacante=${vacanteId}${
+                searchParams.etapa ? `&etapa=${searchParams.etapa}` : ''
+              }`}
+              className="flex items-center gap-1.5 border border-[#ECECEC] hover:bg-surface-hover text-ink-700 text-[12.5px] font-medium rounded px-3 py-[7px] transition-colors"
+              title="Descarga los candidatos de esta vacante, con los filtros aplicados. Lleva datos personales: queda registrado quién lo exportó."
+            >
+              <Download size={13} />
+              Exportar CSV
+            </a>
+            <Link
+              href={`/reclutamiento/candidatos/nuevo?vacante=${vacanteId}`}
+              className="flex items-center gap-1.5 bg-orange hover:bg-orange-dark text-white text-[12.5px] font-medium rounded px-4 py-[7px] transition-colors"
+            >
+              <Plus size={13} />
+              Nuevo candidato
+            </Link>
+          </div>
         )}
       </div>
 
