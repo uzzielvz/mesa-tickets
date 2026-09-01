@@ -15,7 +15,19 @@ interface Exito {
   notas: number
   hojasDegradadas: string[]
   avisos: string[]
+  procesado: boolean
+  erroresProceso: string[]
+  resumen: {
+    filas: number
+    total: number
+    capitalizado: number
+    salidas: number
+    revisar: number
+  } | null
 }
+
+const pesos = (n: number) =>
+  n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
 
 /**
  * Carga de un reporte. Quien la usa sube un archivo todos los días, así que lo
@@ -120,6 +132,53 @@ export default function CargaInversiones() {
               {exito.hojas.length} hojas · {exito.notas} con notas metodológicas
             </li>
           </ul>
+
+          {/* Las cifras del propio archivo. Es lo que deja verificar de un
+              vistazo que se subió el mes correcto: si el total no se parece al
+              del Excel, algo va mal y se nota aquí, no en tres semanas. */}
+          {exito.resumen && (
+            <dl className="border-t border-[#C8E6C9] pt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[12.5px]">
+              <dt className="text-ink-500">Pagos programados</dt>
+              <dd className="text-ink-900 text-right font-medium">
+                {exito.resumen.filas.toLocaleString('es-MX')}
+              </dd>
+
+              <dt className="text-ink-500">Total del periodo</dt>
+              <dd className="text-ink-900 text-right font-medium">{pesos(exito.resumen.total)}</dd>
+
+              <dt className="text-ink-500">Sale de caja</dt>
+              <dd className="text-ink-900 text-right font-medium">{pesos(exito.resumen.salidas)}</dd>
+
+              <dt className="text-ink-500" title="Rendimiento que se capitaliza en vez de pagarse">
+                Se capitaliza
+              </dt>
+              <dd className="text-ink-500 text-right">{pesos(exito.resumen.capitalizado)}</dd>
+
+              {exito.resumen.revisar > 0 && (
+                <>
+                  <dt className="text-[#8A6100]">Sin medio de pago</dt>
+                  <dd className="text-[#8A6100] text-right font-medium">
+                    {exito.resumen.revisar}
+                  </dd>
+                </>
+              )}
+            </dl>
+          )}
+
+          {/* El archivo quedó guardado y se puede descargar; lo que falló fue
+              leerlo. Se distingue a propósito de un error de subida. */}
+          {!exito.procesado && exito.erroresProceso.length > 0 && (
+            <div className="border-t border-[#C8E6C9] pt-2">
+              <p className="text-[12px] text-[#C62828] font-medium">
+                El archivo se guardó, pero no se pudieron leer sus datos:
+              </p>
+              <ul className="mt-1 flex flex-col gap-0.5">
+                {exito.erroresProceso.map((e, i) => (
+                  <li key={i} className="text-[12px] text-[#C62828]">{e}</li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {exito.avisos.length > 0 && (
             <ul className="border-t border-[#C8E6C9] pt-2 flex flex-col gap-1">

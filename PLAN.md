@@ -3,7 +3,7 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-08-31 (**Inversiones I1 entregado** §9.3 · **Reclutamiento REC-024**, exportación a CSV, §8.15).
+> Última actualización: 2026-09-01 (**Inversiones I2 entregado** §9.3 — y §9.2 regla 2 **corregida**: lo capitalizado son 244,114.57, no 958,114.57).
 
 ---
 
@@ -1066,7 +1066,9 @@ inv_cargas   ← bitácora compartida
 Salen del research y son las que, si se rompen, obligan a rehacer:
 
 1. **Las hojas derivadas se guardan como vienen. Nunca se recalculan.** Recomputar el ranking obliga a reimplementar la fórmula del Python de Felix en SQL, y el día que dé 62.3 donde el Excel dice 62.4 hay dos verdades. **El archivo es la autoridad.**
-2. **`AL PLAZO` no sale de caja.** Se capitaliza. En agosto son **958,114.57 de 4,999,045.56** — casi un millón. Todo agregado de salida de efectivo lo excluye.
+2. **Lo que no sale de caja es la SECCIÓN `INVERSIONES CAPITALIZADAS AL PLAZO`, no la forma de pago.** Se capitaliza en vez de pagarse: en agosto son **244,114.57 de 4,999,045.56**, y la salida real de efectivo es **4,754,930.99**.
+
+   > **Corregido el 2026-09-01, al implementar I2.** Este punto decía 958,114.57 y estaba **mal**. Esa cifra sale de agrupar por `FORMA_PAGO_CALENDARIO = 'AL PLAZO'`, lo que arrastra una **devolución de capital de 714,000** (clave `001181002`, vencimiento del 29/08) que sí sale de caja: es capital que se le regresa al inversionista al terminar el plazo. `TIPO_PAGO = 'C'` manda sobre la forma de pago, y el archivo ya lo resolvió en su columna `SECCION`. Agrupar por forma de pago subestimaba la salida del mes en tres cuartos de millón. **La sección del archivo es la autoridad** — que es la regla 1 aplicada a sí misma.
 3. **Los importes traen signo.** Decrementos y vencimientos vienen negativos; inversiones, renovaciones e incrementos positivos. Sumar sin respetarlo da cifras mal con cara de correctas.
 
 ### 9.3 Los sprints
@@ -1076,8 +1078,8 @@ Cada uno termina en algo verificable contra los cuatro archivos reales que ya es
 | # | Sprint | Entrega | Cómo se verifica |
 |---|---|---|---|
 | **I1** ✅ | **Tubería, sin parseo** *(entregado 2026-08-31, `d22c6cf`)* | Migraciones `inv_001..003` (tablas + RLS + bucket privado con separación de audiencias por prefijo de ruta) + banderas + tipos. `POST /api/inversiones/cargar` y `GET /api/inversiones/descargar/[id]`, que **revalida permiso contra el `tipo_reporte`**, no sirve por `storage_path`. Pantallas `/inversiones/{cargar,cargas}`; `pagos` y `desempeno` como placeholders **con guarda real**, para poder probar la separación de permisos desde esta iteración. Los tres huecos de §9.5 quedaron cerrados. **Desviación declarada:** se lee el encabezado del Excel antes de guardar, para no almacenar un archivo que no se pudo identificar | Felix sube los 4 archivos, los ve listados y los descarga **byte-idénticos** al original. ⏳ *pendiente de prueba en navegador* |
-| **I2** | **Parseo del Calendario** | `lib/inversiones/excel.ts` puro: `detectarTipo()` + `leerCalendario()`. Tablas `inv_pagos`, `inv_pagos_validaciones`. El endpoint parsea y pasa a `procesado` | **Anclas de agosto:** 201 filas · total `4,999,045.56` · sale de caja `4,040,930.99` · capitalizado `958,114.57` · 8 filas en revisar. Al centavo o no pasa |
-| **I3** | **Vistas de Tesorería** | RPCs `inv_curva_salidas`, `inv_revisar_medio`, `inv_resumen_calendario`. Pantalla `/inversiones/pagos` | La curva reproduce la tabla ya calculada: días **26 (846,372)**, **24 (837,077)** y **13 (622,257)** a la cabeza. La lista de revisar trae los 8 casos ordenados por fecha |
+| **I2** ✅ | **Parseo del Calendario** *(entregado 2026-09-01)* | `lib/inversiones/calendario.ts` puro (separado de `excel.ts`, que se quedó con abrir el libro y el encabezado; `tablero.ts` de I4 entrará igual). Migración `inv_004`: `inv_pagos` + `inv_pagos_validaciones` + RLS. `lib/inversiones/procesar.ts` compartido, e ingesta idempotente. **Añadido sobre el plan:** `POST /api/inversiones/reprocesar/[id]`, para reconstruir los hechos desde el .xlsx ya guardado cuando el parser cambie, sin volver a subir ni perder la bitácora | **Anclas de agosto verificadas al centavo:** 201 filas · total `4,999,045.56` · sale de caja `4,754,930.99` · capitalizado `244,114.57` · 8 en revisar · 8 en VALIDACIONES. Y la curva por día: **26 → 846,371.67**, **24 → 837,077.11**, **13 → 622,256.84**. Septiembre cumple el invariante `capitalizado + salidas = total` |
+| **I3** | **Vistas de Tesorería** | RPCs `inv_curva_salidas`, `inv_revisar_medio`, `inv_resumen_calendario`. Pantalla `/inversiones/pagos` | La curva reproduce lo ya verificado en I2: días **26 (846,371.67)**, **24 (837,077.11)** y **13 (622,256.84)** a la cabeza, **excluyendo las capitalizadas**. La lista de revisar trae los 8 casos ordenados por fecha |
 | **I4** | **Parseo del Tablero** | `leerTablero()` + tablas de las 12 hojas. **Manejo explícito de hojas degradadas** | El corte **27/08 carga completo**; el **02/09 carga con los rankings marcados como degradados y sin tronar**. Los dos archivos ya existen y ejercitan ambos caminos |
 | **I5** | **Vistas de Desempeño** | Pantalla `/inversiones/desempeno` (Tablero, Estructura, Rankings, Cumplimiento). Segunda bandera | Las cifras en pantalla son **idénticas** a las del Excel. Si difiere una, es que algo se recalculó — ver regla 1 |
 | **I6** | **Entrega** | Pre-vuelo, permisos reales asignados, documentación mínima, anuncio | Mismo criterio que Reclutamiento: **no se anuncia sin evidencia** |

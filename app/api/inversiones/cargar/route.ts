@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createHash, randomUUID } from 'node:crypto'
 import { createClient } from '@/lib/supabase/server'
-import { leerEncabezado, NOMBRE_REPORTE } from '@/lib/inversiones/excel'
+import { abrirLibro, encabezadoDe, NOMBRE_REPORTE } from '@/lib/inversiones/excel'
+import { procesarCarga, marcarCarga } from '@/lib/inversiones/procesar'
 
 // exceljs es Node puro (zip + streams): no corre en el runtime edge.
 export const runtime = 'nodejs'
@@ -54,7 +55,24 @@ export async function POST(request: Request) {
   // Si el archivo no es uno de los dos reportes, no tiene caso ocupar Storage
   // con él ni dejar una fila huérfana en la bitácora.
   const bytes = await archivo.arrayBuffer()
-  const lectura = await leerEncabezado(bytes)
+
+  // El libro se abre UNA vez y se reusa para el encabezado y para los hechos.
+  // El Tablero pesa 340 KB en 13 hojas; parsearlo dos veces por carga no tiene
+  // ninguna razón de ser.
+  let wb
+  try {
+    wb = await abrirLibro(bytes)
+  } catch (e) {
+    return NextResponse.json({
+      error: 'No se reconoce este archivo',
+      errores: [
+        'El archivo no se pudo abrir como .xlsx. ¿Está completo?',
+        `Detalle técnico: ${e instanceof Error ? e.message : String(e)}`,
+      ],
+    }, { status: 422 })
+  }
+
+  const lectura = encabezadoDe(wb)
 
   if (!lectura.ok) {
     return NextResponse.json({
@@ -135,6 +153,14 @@ export async function POST(request: Request) {
     )
   }
 
+  // ── Ingesta de los hechos ─────────────────────────────────────────────────
+  // Va DESPUÉS de guardar el archivo y registrar la carga, no antes: si el
+  // parseo falla, el original ya está a salvo en Storage y la carga se puede
+  // reprocesar cuando se corrija el parser. Al revés se perdería el archivo.
+  const resultado = await procesarCarga(supabase, carga.id, enc.tipo, wb)
+  const resumen = resultado.ok ? resultado.resumen : null
+  await marcarCarga(supabase, carga.id, resultado, avisos, resumen?.filas ?? 0)
+
   return NextResponse.json({
     ok: true,
     cargaId: carga.id,
@@ -145,7 +171,12 @@ export async function POST(request: Request) {
     hojas: enc.hojas,
     notas: Object.keys(enc.notas).length,
     hojasDegradadas: enc.hojasDegradadas,
-    avisos,
+    avisos: resultado.ok ? [...avisos, ...resultado.avisos] : avisos,
+    // Que el parseo falle no invalida la carga: el archivo quedó guardado y se
+    // puede descargar. Se reporta como problema, no como error de la subida.
+    procesado: resultado.ok,
+    erroresProceso: resultado.ok ? [] : resultado.errores,
+    resumen,
     tamano: archivo.size,
   })
 }

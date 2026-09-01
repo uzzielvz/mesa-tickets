@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import Header from '@/components/layout/header'
 import { etiquetaPeriodo } from '@/lib/inversiones/periodo'
 import { NOMBRE_REPORTE, type TipoReporte } from '@/lib/inversiones/excel'
+import ReprocesarBoton from '@/components/inversiones/reprocesar-boton'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,6 +17,7 @@ interface CargaFila {
   tamano_bytes: number | null
   estado: string
   error_detalle: string | null
+  filas: number
   avisos: string[] | null
   hojas_degradadas: string[] | null
   created_at: string
@@ -33,12 +35,13 @@ export default async function CargasInversionesPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('rol, acceso_inversiones_pagos, acceso_inversiones_desempeno')
+    .select('rol, acceso_inversiones_pagos, acceso_inversiones_desempeno, acceso_inversiones_carga')
     .eq('id', user!.id)
     .single()
 
   const p = profile as Record<string, unknown> | null
   const admin = p?.rol === 'admin'
+  const puedeReprocesar = admin || p?.acceso_inversiones_carga === true
   const puedeBajar: Record<TipoReporte, boolean> = {
     calendario: admin || p?.acceso_inversiones_pagos === true,
     tablero: admin || p?.acceso_inversiones_desempeno === true,
@@ -48,7 +51,7 @@ export default async function CargasInversionesPage() {
     .from('inv_cargas')
     // Un solo literal: partirlo con `+` deja a TypeScript sin poder inferir las
     // columnas y la fila se degrada a `GenericStringError[]`.
-    .select('id, tipo_reporte, periodo_inicio, periodo_fin, nombre_archivo, tamano_bytes, estado, error_detalle, avisos, hojas_degradadas, created_at')
+    .select('id, tipo_reporte, periodo_inicio, periodo_fin, nombre_archivo, tamano_bytes, estado, error_detalle, filas, avisos, hojas_degradadas, created_at')
     .order('created_at', { ascending: false })
     .limit(100)
 
@@ -89,6 +92,9 @@ export default async function CargasInversionesPage() {
                       <p className="text-[12px] text-ink-500 mt-0.5">
                         {etiquetaPeriodo(c.tipo_reporte, c.periodo_inicio, c.periodo_fin)}
                         {' · '}{peso(c.tamano_bytes)}
+                        {c.estado === 'procesado' && c.filas > 0 && (
+                          <span className="text-ink-500"> · {c.filas.toLocaleString('es-MX')} pagos</span>
+                        )}
                         {c.estado === 'pendiente' && (
                           <span className="text-ink-400"> · sin procesar</span>
                         )}
@@ -107,6 +113,7 @@ export default async function CargasInversionesPage() {
                           day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
                         })}
                       </time>
+                      {puedeReprocesar && <ReprocesarBoton cargaId={c.id} />}
                       {puede ? (
                         <a
                           href={`/api/inversiones/descargar/${c.id}`}

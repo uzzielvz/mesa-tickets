@@ -18,7 +18,7 @@ export type TipoReporte = 'calendario' | 'tablero'
 /** Hoja que identifica sin ambigüedad al Tablero Ejecutivo. */
 const HOJA_TABLERO = 'historial_movimientos'
 /** Las hojas del Calendario llevan el mes pegado: `BASE 08`, `CALENDARIO 08`. */
-const RE_HOJA_BASE = /^base\s+\d{1,2}$/i
+export const RE_HOJA_BASE = /^base\s+\d{1,2}$/i
 const RE_HOJA_CALENDARIO = /^calendario\s+\d{1,2}$/i
 
 /** Marca que el generador escribe cuando una hoja no tuvo con qué llenarse. */
@@ -44,7 +44,7 @@ export type LecturaEncabezado =
  * con formato. Los encabezados de estos archivos vienen con formato, así que sin
  * aplanar el richText las notas metodológicas salen vacías.
  */
-function texto(valor: unknown): string {
+export function texto(valor: unknown): string {
   if (valor === null || valor === undefined) return ''
   if (typeof valor === 'string') return valor.trim()
   if (typeof valor === 'number' || typeof valor === 'boolean') return String(valor)
@@ -59,7 +59,7 @@ function texto(valor: unknown): string {
 }
 
 /** Las primeras `n` filas de una hoja, aplanadas a texto. */
-function primerasFilas(ws: ExcelJS.Worksheet, n: number): string[][] {
+export function primerasFilas(ws: ExcelJS.Worksheet, n: number): string[][] {
   const filas: string[][] = []
   for (let i = 1; i <= Math.min(n, ws.rowCount || n); i++) {
     const fila = ws.getRow(i)
@@ -225,24 +225,22 @@ async function normalizarRelacionesDeTabla(buffer: ArrayBuffer): Promise<ArrayBu
   return salida.buffer.slice(salida.byteOffset, salida.byteOffset + salida.byteLength) as ArrayBuffer
 }
 
-export async function leerEncabezado(buffer: ArrayBuffer): Promise<LecturaEncabezado> {
+/**
+ * Abre el libro, aplicando antes la normalización de rutas. Lanza si el archivo
+ * no es un .xlsx legible.
+ *
+ * Se expone para que quien necesite encabezado **y** datos abra el archivo una
+ * sola vez: el Tablero pesa 340 KB y 13 hojas, y parsearlo dos veces por carga
+ * no tiene ninguna razón de ser.
+ */
+export async function abrirLibro(buffer: ArrayBuffer): Promise<ExcelJS.Workbook> {
   const wb = new ExcelJS.Workbook()
-  try {
-    await wb.xlsx.load(await normalizarRelacionesDeTabla(buffer))
-  } catch (e) {
-    // El detalle importa: la primera versión de esto decía solo "no se pudo
-    // abrir" y escondió durante toda una iteración que el Tablero fallaba por
-    // un bug de exceljs con las tablas, no por venir incompleto.
-    const detalle = e instanceof Error ? e.message : String(e)
-    return {
-      ok: false,
-      errores: [
-        'El archivo no se pudo abrir como .xlsx. ¿Está completo?',
-        `Detalle técnico: ${detalle}`,
-      ],
-    }
-  }
+  await wb.xlsx.load(await normalizarRelacionesDeTabla(buffer))
+  return wb
+}
 
+/** El encabezado a partir de un libro ya abierto. */
+export function encabezadoDe(wb: ExcelJS.Workbook): LecturaEncabezado {
   if (wb.worksheets.length === 0) {
     return { ok: false, errores: ['El archivo no tiene ninguna hoja.'] }
   }
@@ -304,6 +302,27 @@ export async function leerEncabezado(buffer: ArrayBuffer): Promise<LecturaEncabe
       avisos,
     },
   }
+}
+
+/** Abre el archivo y devuelve su encabezado. Para quien solo necesita eso. */
+export async function leerEncabezado(buffer: ArrayBuffer): Promise<LecturaEncabezado> {
+  let wb: ExcelJS.Workbook
+  try {
+    wb = await abrirLibro(buffer)
+  } catch (e) {
+    // El detalle importa: la primera versión de esto decía solo "no se pudo
+    // abrir" y escondió durante toda una iteración que el Tablero fallaba por
+    // un bug de exceljs con las tablas, no por venir incompleto.
+    const detalle = e instanceof Error ? e.message : String(e)
+    return {
+      ok: false,
+      errores: [
+        'El archivo no se pudo abrir como .xlsx. ¿Está completo?',
+        `Detalle técnico: ${detalle}`,
+      ],
+    }
+  }
+  return encabezadoDe(wb)
 }
 
 /** Etiqueta legible de un reporte, para pantallas y mensajes. */

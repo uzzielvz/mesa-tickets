@@ -1023,6 +1023,92 @@ export interface Database {
         }
         Relationships: []
       }
+      /**
+       * Hechos del Calendario (INV-004). Una fila por pago programado, tal como
+       * viene de la hoja `BASE MM`.
+       *
+       * Ojo con dos columnas que se llaman casi igual: `tipo_pago` es 'C'
+       * (devolución de capital) o 'R' (rendimiento); `periodicidad` es 'Mensual'
+       * o 'Al plazo'. En el archivo son TIPO_PAGO y TIPOPAGO.
+       */
+      inv_pagos: {
+        Row: {
+          id: string
+          carga_id: string
+          fila: number
+          indice_origen: number | null
+          clave: string
+          monto: number
+          inversionista: string | null
+          fecha_pago: string | null
+          dia: number | null
+          tipo_pago: string | null
+          universo: string | null
+          forma_pago: string | null
+          periodicidad: string | null
+          tipo_rendimiento: string | null
+          seccion: string
+          nombre_cl: string | null
+          banco: string | null
+          clabe: string | null
+          gerente_inversion: string | null
+          gerente_ejecutivo: string | null
+          ejecutivo: string | null
+          fuente_catalogo: string | null
+          /** Derivada de `seccion`: el rendimiento se capitaliza, no sale de caja. */
+          capitaliza: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          carga_id: string
+          fila: number
+          indice_origen?: number | null
+          clave: string
+          monto?: number
+          inversionista?: string | null
+          fecha_pago?: string | null
+          dia?: number | null
+          tipo_pago?: string | null
+          universo?: string | null
+          forma_pago?: string | null
+          periodicidad?: string | null
+          tipo_rendimiento?: string | null
+          seccion: string
+          nombre_cl?: string | null
+          banco?: string | null
+          clabe?: string | null
+          gerente_inversion?: string | null
+          gerente_ejecutivo?: string | null
+          ejecutivo?: string | null
+          fuente_catalogo?: string | null
+        }
+        Update: never
+        Relationships: []
+      }
+      inv_pagos_validaciones: {
+        Row: {
+          id: string
+          carga_id: string
+          fila: number
+          universo: string | null
+          clave: string | null
+          inversionista: string | null
+          observacion: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          carga_id: string
+          fila: number
+          universo?: string | null
+          clave?: string | null
+          inversionista?: string | null
+          observacion?: string | null
+        }
+        Update: never
+        Relationships: []
+      }
     }
     Views: {
       // rec_candidatos + requisitos derivados (REC-068). Solo lectura.
