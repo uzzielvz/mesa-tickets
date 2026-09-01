@@ -1071,6 +1071,19 @@ Salen del research y son las que, si se rompen, obligan a rehacer:
    > **Corregido el 2026-09-01, al implementar I2.** Este punto decía 958,114.57 y estaba **mal**. Esa cifra sale de agrupar por `FORMA_PAGO_CALENDARIO = 'AL PLAZO'`, lo que arrastra una **devolución de capital de 714,000** (clave `001181002`, vencimiento del 29/08) que sí sale de caja: es capital que se le regresa al inversionista al terminar el plazo. `TIPO_PAGO = 'C'` manda sobre la forma de pago, y el archivo ya lo resolvió en su columna `SECCION`. Agrupar por forma de pago subestimaba la salida del mes en tres cuartos de millón. **La sección del archivo es la autoridad** — que es la regla 1 aplicada a sí misma.
 3. **Los importes traen signo.** Decrementos y vencimientos vienen negativos; inversiones, renovaciones e incrementos positivos. Sumar sin respetarlo da cifras mal con cara de correctas.
 
+4. **La CLABE no se guarda: llega rota.** *(Descubierto el 2026-09-01 al empezar I4.)* Una CLABE tiene 18 dígitos siempre, y el script de Felix escribe la columna como **número**. float64 no alcanza:
+
+   | | 16 dígitos | 17 | 18 |
+   |---|---|---|---|
+   | Calendario (159 valores) | 20 | 114 | 25 |
+   | Tablero (543 valores) | — | 391 | 152 |
+
+   Y no es solo que se pierdan los ceros de la izquierda: `3.642040123857307e16` se convierte en `36420401238573072`, donde el `2` final **lo inventa la conversión binaria**. En el Calendario de agosto, **159 de 159** están así.
+
+   Se borró de `inv_pagos` (migración `inv_007`) y no entra a `inv_movimientos`. **Un número de cuenta casi correcto es peor que ninguno**: una columna vacía se nota, un dígito equivocado no, y el uso natural de una CLABE es copiarla a una transferencia. No contradice la regla 1 — esa es sobre no recalcular lo que el archivo ya computó; aquí el archivo perdió el dato antes de llegar y no es autoridad de nada. La autoridad es Yunius.
+
+   **Pendiente aguas arriba:** es un renglón en el script de Felix (escribir esa columna como texto). Mientras no se haga, el `.xlsx` que se descarga de la plataforma trae las CLABEs igual de corrompidas — el archivo se guarda tal cual llegó. El parser cuenta cuántas vienen rotas y lo dice como aviso en cada carga.
+
 ### 9.3 Los sprints
 
 Cada uno termina en algo verificable contra los cuatro archivos reales que ya están analizados.

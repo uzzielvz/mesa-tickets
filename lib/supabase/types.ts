@@ -1050,7 +1050,6 @@ export interface Database {
           seccion: string
           nombre_cl: string | null
           banco: string | null
-          clabe: string | null
           gerente_inversion: string | null
           gerente_ejecutivo: string | null
           ejecutivo: string | null
@@ -1077,7 +1076,6 @@ export interface Database {
           seccion: string
           nombre_cl?: string | null
           banco?: string | null
-          clabe?: string | null
           gerente_inversion?: string | null
           gerente_ejecutivo?: string | null
           ejecutivo?: string | null

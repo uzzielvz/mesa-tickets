@@ -1,0 +1,40 @@
+-- INV-007 — Se deja de guardar la CLABE. No se puede guardar bien.
+--
+-- ── El hallazgo ─────────────────────────────────────────────────────────────
+--
+-- Una CLABE tiene **18 dígitos, siempre**. En los archivos que genera el script
+-- de Felix la columna viene como NÚMERO, no como texto, y float64 no alcanza
+-- para 18 dígitos significativos. Medido sobre los archivos reales:
+--
+--                        16 dígitos   17     18
+--   Calendario (159)          20      114     25
+--   Tablero    (543)           —      391    152
+--
+-- O sea: el 84% de las CLABEs del Calendario y el 72% de las del Tablero ya no
+-- tienen la forma de una CLABE. Y no es solo que se pierdan los ceros de la
+-- izquierda: `3.642040123857307e16` se convierte en `36420401238573072`, donde
+-- el `2` final **lo inventa la conversión binaria**. Los últimos dígitos son
+-- ruido con forma de dato.
+--
+-- ── Por qué se borra en vez de guardarse con una advertencia ────────────────
+--
+-- Porque el consumidor es Tesorería y el uso natural de una CLABE es copiarla a
+-- una transferencia. Un número de cuenta *casi* correcto es peor que ninguno:
+-- una columna vacía se nota, un dígito equivocado no. En una financiera regulada
+-- eso es dinero al destinatario equivocado.
+--
+-- No contradice la regla 1 (§9.2, "el archivo es la autoridad"). Esa regla es
+-- sobre no recalcular cifras que el archivo ya computó. Aquí el archivo no es
+-- autoridad de nada: perdió el dato antes de llegar. La autoridad de la CLABE es
+-- Yunius, y quien la necesite la saca de ahí.
+--
+-- Se conserva `banco`, que sí sobrevive el viaje y basta para saber si la
+-- inversión tiene datos bancarios.
+--
+-- ── Lo que hay que arreglar aguas arriba ────────────────────────────────────
+-- Es un renglón en el script de Felix: escribir la columna como texto
+-- (`dtype=str` al leer, o formato de celda de texto al escribir). Mientras no se
+-- haga, **el .xlsx que se descarga de la plataforma trae las CLABEs igual de
+-- corrompidas** — el archivo se guarda tal cual llegó, y eso no cambia.
+
+alter table inv_pagos drop column if exists clabe;

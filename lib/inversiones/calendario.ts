@@ -71,7 +71,8 @@ export interface PagoCalendario {
   periodicidad: string | null    // TIPOPAGO
   tipo_rendimiento: string | null // TIPOREN
   banco: string | null           // IBNOMBRE
-  clabe: string | null
+  // `CLABE` NO se guarda: llega corrompida. Ver `clabesRotas()` y la migración
+  // inv_007.
   gerente_inversion: string | null
   gerente_ejecutivo: string | null
   ejecutivo: string | null
@@ -202,6 +203,10 @@ export function leerCalendario(wb: ExcelJS.Workbook): LecturaCalendario {
   const pagos: PagoCalendario[] = []
   const seccionesDesconocidas = new Set<string>()
   const sinFecha: string[] = []
+  // Se cuentan aunque no se guarden: es la única señal de que el generador
+  // aguas arriba sigue escribiendo la CLABE como número. Ver inv_007.
+  let clabes = 0
+  let clabesRotas = 0
 
   // Ancho de la clave más frecuente, para restaurar ceros si alguna llega numérica.
   const anchoClave = 9
@@ -231,6 +236,18 @@ export function leerCalendario(wb: ExcelJS.Workbook): LecturaCalendario {
     const f = fecha(v(fila, 'FECHA_PAGO'))
     if (!f) sinFecha.push(cve || `fila ${i}`)
 
+    // Una CLABE bien escrita es texto de exactamente 18 dígitos. Si llega como
+    // número, Excel ya le comió los ceros de la izquierda y float64 le alteró
+    // los últimos dígitos: deja de ser una cuenta bancaria y pasa a ser un
+    // número parecido a una.
+    const clabeCruda = v(fila, 'CLABE')
+    if (clabeCruda !== null && clabeCruda !== undefined && clabeCruda !== '') {
+      clabes++
+      if (typeof clabeCruda !== 'string' || !/^\d{18}$/.test(clabeCruda.trim())) {
+        clabesRotas++
+      }
+    }
+
     const diaCrudo = numero(v(fila, 'DIA'))
 
     pagos.push({
@@ -252,7 +269,6 @@ export function leerCalendario(wb: ExcelJS.Workbook): LecturaCalendario {
       periodicidad: nulo(texto(v(fila, 'TIPOPAGO'))),
       tipo_rendimiento: nulo(texto(v(fila, 'TIPOREN'))),
       banco: nulo(texto(v(fila, 'IBNOMBRE'))),
-      clabe: nulo(texto(v(fila, 'CLABE'))),
       gerente_inversion: nulo(texto(v(fila, 'GERENTE_INVERSION'))),
       gerente_ejecutivo: nulo(texto(v(fila, 'GERENTE_EJECUTIVO'))),
       ejecutivo: nulo(texto(v(fila, 'EJECUTIVO'))),
@@ -278,6 +294,13 @@ export function leerCalendario(wb: ExcelJS.Workbook): LecturaCalendario {
     avisos.push(
       `${sinFecha.length} pago(s) sin fecha legible (${sinFecha.slice(0, 3).join(', ')}` +
       `${sinFecha.length > 3 ? '…' : ''}).`,
+    )
+  }
+  if (clabesRotas > 0) {
+    avisos.push(
+      `${clabesRotas} de ${clabes} CLABEs vienen como número en el archivo y perdieron ` +
+      'dígitos, así que no se guardan. Para arreglarlo, el script que genera el ' +
+      'reporte debe escribir esa columna como texto.',
     )
   }
 
