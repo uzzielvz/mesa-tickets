@@ -11,6 +11,7 @@
  */
 
 import ExcelJS from 'exceljs'
+import JSZip from 'jszip'
 
 export type TipoReporte = 'calendario' | 'tablero'
 
@@ -145,9 +146,13 @@ function notasMetodologicas(wb: ExcelJS.Workbook): Record<string, string> {
   for (const ws of wb.worksheets) {
     const lineas: string[] = []
     for (const fila of primerasFilas(ws, 8)) {
-      const conTexto = fila.filter(Boolean)
-      // Una sola celda y con cuerpo = es prosa, no un encabezado de tabla.
-      if (conTexto.length === 1 && conTexto[0].length > 25) lineas.push(conTexto[0])
+      // Se cuentan valores DISTINTOS, no celdas. Estas notas van en una celda
+      // combinada a lo ancho de la hoja, y exceljs devuelve el mismo texto
+      // repetido en cada columna del rango — el título del Calendario aparece
+      // 36 veces. Contando celdas, ninguna nota calificaría nunca.
+      const distintos = Array.from(new Set(fila.filter(Boolean)))
+      // Un solo valor y con cuerpo = es prosa, no un encabezado de tabla.
+      if (distintos.length === 1 && distintos[0].length > 25) lineas.push(distintos[0])
     }
     if (lineas.length > 0) notas[ws.name.trim()] = lineas.join('\n')
   }
@@ -171,12 +176,71 @@ function hojasDegradadas(wb: ExcelJS.Workbook): string[] {
   return degradadas
 }
 
+/** Relación a una tabla escrita con ruta absoluta: `Target="/xl/tables/table1.xml"`. */
+const RE_REL_TABLA_ABSOLUTA = /Target="\/xl\/(tables\/table\d+\.xml)"/g
+
+/**
+ * Reescribe las relaciones de tabla de ruta absoluta a relativa.
+ *
+ * **Por qué existe esto.** El Tablero de Felix trae 21 tablas de Excel (las
+ * escribe openpyxl desde su script de Python) y `exceljs@4.4.0` **truena al
+ * abrirlo**: `Cannot read properties of undefined (reading 'name')` en
+ * `doc/worksheet.js:920`.
+ *
+ * La causa es una discrepancia de formato que las dos partes tienen derecho a
+ * usar: openpyxl escribe la relación como `Target="/xl/tables/table1.xml"`
+ * (absoluta) y exceljs indexa las tablas que parsea como `../tables/table1.xml`
+ * (relativa). Al reconciliar no encuentra la tabla, obtiene `undefined` y
+ * revienta. Las dos formas son válidas en OPC; exceljs solo soporta una, y el
+ * proyecto lleva sin publicar desde 2023, así que no hay versión que actualizar.
+ *
+ * Se normaliza **una copia en memoria**: el archivo que se guarda en Storage es
+ * siempre el original que subió Felix, byte por byte. Solo se toca la ruta en
+ * los `.rels`; ninguna celda cambia.
+ *
+ * Si el archivo no trae tablas —el Calendario no las trae— se devuelve el buffer
+ * original sin recomprimir.
+ */
+async function normalizarRelacionesDeTabla(buffer: ArrayBuffer): Promise<ArrayBuffer> {
+  const zip = await JSZip.loadAsync(buffer)
+  const rels = Object.keys(zip.files).filter(n =>
+    /^xl\/worksheets\/_rels\/.+\.rels$/.test(n),
+  )
+
+  let corregidos = 0
+  for (const nombre of rels) {
+    const archivo = zip.file(nombre)
+    if (!archivo) continue
+    const xml = await archivo.async('string')
+    const nuevo = xml.replace(RE_REL_TABLA_ABSOLUTA, 'Target="../$1"')
+    if (nuevo !== xml) {
+      zip.file(nombre, nuevo)
+      corregidos++
+    }
+  }
+
+  if (corregidos === 0) return buffer
+
+  const salida = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' })
+  return salida.buffer.slice(salida.byteOffset, salida.byteOffset + salida.byteLength) as ArrayBuffer
+}
+
 export async function leerEncabezado(buffer: ArrayBuffer): Promise<LecturaEncabezado> {
   const wb = new ExcelJS.Workbook()
   try {
-    await wb.xlsx.load(buffer)
-  } catch {
-    return { ok: false, errores: ['El archivo no se pudo abrir como .xlsx. ¿Está completo?'] }
+    await wb.xlsx.load(await normalizarRelacionesDeTabla(buffer))
+  } catch (e) {
+    // El detalle importa: la primera versión de esto decía solo "no se pudo
+    // abrir" y escondió durante toda una iteración que el Tablero fallaba por
+    // un bug de exceljs con las tablas, no por venir incompleto.
+    const detalle = e instanceof Error ? e.message : String(e)
+    return {
+      ok: false,
+      errores: [
+        'El archivo no se pudo abrir como .xlsx. ¿Está completo?',
+        `Detalle técnico: ${detalle}`,
+      ],
+    }
   }
 
   if (wb.worksheets.length === 0) {
