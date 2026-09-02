@@ -79,7 +79,7 @@ export async function POST(
     a => !a.startsWith('Sección no reconocida') && !a.includes('sin fecha legible'),
   )
   const resumen = resultado.ok ? resultado.resumen : null
-  await marcarCarga(supabase, carga.id as string, resultado, previos, resumen?.filas ?? 0)
+  await marcarCarga(supabase, carga.id as string, resultado, previos)
 
   if (!resultado.ok) {
     return NextResponse.json({ ok: false, errores: resultado.errores }, { status: 422 })

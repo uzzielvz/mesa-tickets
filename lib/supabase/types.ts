@@ -90,6 +90,455 @@ export interface TicketWithStatus {
   ultima_respuesta_at: string | null
 }
 
+// ── Inversiones · Tablero Ejecutivo (INV-008) ──
+//
+// Se declaran aparte en vez de en línea dentro de `Database`: son siete tablas y
+// una de ellas tiene 66 columnas, así que repetir cada campo dos veces —como
+// hacen las tablas de arriba— serían mil líneas que nadie va a revisar y en las
+// que un typo pasaría inadvertido.
+//
+// ⚠ Tienen que ser `type` y NO `interface`. Una `interface` no tiene index
+// signature implícita, así que no satisface la restricción `GenericSchema` de
+// supabase-js: el tipo `Database` entero deja de cumplirla y la inferencia
+// colapsa a `never` en TODA la aplicación. El síntoma es desconcertante —158
+// errores en módulos que nadie tocó, ninguno en este archivo— y la causa es solo
+// la palabra `interface`.
+
+/** Un renglón de `Historial_Movimientos`: la tabla de hechos del Tablero. */
+export type InvMovimiento = {
+  id: string
+  carga_id: string
+  fila: number
+  fuente_universo: string | null
+  situacion_temporal: string | null
+  en_periodo_analizado: boolean | null
+  estado_movimiento: string | null
+  motivo_validacion: string | null
+  afecta_saldo_al_corte: boolean | null
+  cuenta_en_ranking_periodo: boolean | null
+  cuenta_para_meta: boolean | null
+  cuenta_para_meta_en_periodo: boolean | null
+  tipo_movimiento: string | null
+  fecha_movimiento: string | null
+  clave: string | null
+  tipo_inversion_base: string | null
+  codigo_cliente: string | null
+  codigo_inversion: string | null
+  codigo_ejecutivo: string | null
+  situacion_inversion: string | null
+  tipo_relacion: string | null
+  gerente_ejecutivo: string | null
+  gerente_inversion: string | null
+  ejecutivo: string | null
+  inversionista: string | null
+  generacion: string | null
+  tipo_colaborador: string | null
+  banco_inversion: string | null
+  /** NULL mientras el generador la escriba como número. Ver INV-007. */
+  clabe_inversion: string | null
+  tiene_datos_bancarios: boolean | null
+  medio_sugerido_por_datos_bancarios: string | null
+  medio_movimiento: string | null
+  nivel_confianza_medio: string | null
+  fuente_medio_movimiento: string | null
+  validacion_medio_movimiento: string | null
+  observacion_medio_movimiento: string | null
+  monto_movimiento: number | null
+  monto_para_meta: number | null
+  monto_efectivo_movimiento: number | null
+  monto_transferencia_movimiento: number | null
+  transferencia_informada_en_texto: boolean | null
+  monto_transferencia: number | null
+  total_incrementos_efectivo_fuente: number | null
+  total_incrementos_transferencia_fuente: number | null
+  diferencia_efectivo_vs_fuente: number | null
+  diferencia_transferencia_vs_fuente: number | null
+  saldo_antes_movimiento: number | null
+  saldo_despues_movimiento: number | null
+  porcentaje_sobre_saldo_antes: number | null
+  saldo_vigente_al_corte: number | null
+  monto_original: number | null
+  monto_total_registrado: number | null
+  apertura: string | null
+  fecha_fin: string | null
+  plazo_contractual_meses: number | null
+  meses_efectivos_movimiento: number | null
+  factor_tiempo: number | null
+  factor_tipo: number | null
+  valor_ponderado_ranking: number | null
+  tipo_pago: string | null
+  tipo_rendimiento: string | null
+  sobretasa_actual: number | null
+  sobretasa_movimiento: number | null
+  periodos_gracia: number | null
+  origen_movimiento: string | null
+  tipo_parche: string | null
+  secuencia_movimiento: number | null
+  detalle_movimiento: string | null
+  archivos_origen: string | null
+  created_at: string
+}
+
+export type InvCumplimiento = {
+  id: string
+  carga_id: string
+  fila: number
+  mes: string | null
+  gerente_ejecutivo: string | null
+  gerente_inversion: string | null
+  ejecutivo: string | null
+  meta_mensual: number | null
+  nueva: number | null
+  renovacion: number | null
+  incremento: number | null
+  colocacion_total: number | null
+  cumplimiento_pct: number | null
+  cumplio: boolean | null
+  created_at: string
+}
+
+export type InvRankingNivel = 'gerente_ejecutivo' | 'gerente_inversion' | 'ejecutivo'
+
+export type InvRanking = {
+  id: string
+  carga_id: string
+  con_meta: boolean
+  nivel: InvRankingNivel
+  posicion: number | null
+  gerente_ejecutivo: string | null
+  gerente_inversion: string | null
+  ejecutivo: string | null
+  nuevas: number | null
+  renovaciones: number | null
+  incrementos: number | null
+  decrementos: number | null
+  vencimiento_natural: number | null
+  valor_nuevas_ponderado: number | null
+  valor_renovaciones_ponderado: number | null
+  valor_incrementos_ponderado: number | null
+  produccion_ponderada: number | null
+  clientes_nuevos: number | null
+  concentracion_mayor_cliente: number | null
+  factor_diversificacion: number | null
+  vencimientos_elegibles: number | null
+  renovado_sobre_vencimientos: number | null
+  retencion_vencimientos: number | null
+  saldo_vigente_corte: number | null
+  cartera_expuesta: number | null
+  tasa_decremento: number | null
+  puntaje_produccion: number | null
+  puntaje_clientes: number | null
+  puntaje_retencion: number | null
+  penalizacion_decrementos: number | null
+  crecimiento_neto: number | null
+  meta_periodo: number | null
+  colocacion_para_meta: number | null
+  cumplimiento_meta: number | null
+  meses_cumplidos: number | null
+  meses_evaluados: number | null
+  puntaje_sin_meta: number | null
+  puntaje_meta: number | null
+  puntaje: number | null
+  lectura: string | null
+  created_at: string
+}
+
+export type InvTableroResumen = {
+  id: string
+  carga_id: string
+  hoja: string
+  /** 'CREDIFLEXI' | 'RAMI' | 'TOTALES' en la hoja Tablero; NULL en Estructura. */
+  universo: string | null
+  nivel: 'total' | 'gerente' | 'gerente_inversion' | 'ejecutivo'
+  orden: number
+  gerente_ejecutivo: string | null
+  gerente_inversion: string | null
+  ejecutivo: string | null
+  generacion: string | null
+  tipo_colaborador: string | null
+  origen: string | null
+  ejecutivos: number | null
+  inv_vigentes: number | null
+  vigente: number | null
+  abierto: number | null
+  vencido: number | null
+  crecimiento_neto: number | null
+  created_at: string
+}
+
+export type InvPosicion = {
+  id: string
+  carga_id: string
+  universo: string
+  fila: number
+  clave: string | null
+  gerente_ejecutivo: string | null
+  gerente_inversion: string | null
+  ejecutivo: string | null
+  inversionista: string | null
+  apertura: string | null
+  fecha_fin: string | null
+  monto_original: number | null
+  saldo_vigente_corte: number | null
+  total_abierto_hasta_corte: number | null
+  total_salido_hasta_corte: number | null
+  plazo: number | null
+  tipo_pago: string | null
+  tipo_rendimiento: string | null
+  sobretasa_actual: number | null
+  archivos_origen: string | null
+  created_at: string
+}
+
+export type InvEvento = {
+  id: string
+  carga_id: string
+  universo: string
+  grupo: 'abiertos' | 'vencidos'
+  fila: number
+  tipo_evento: string | null
+  fecha_evento: string | null
+  clave: string | null
+  gerente_ejecutivo: string | null
+  gerente_inversion: string | null
+  ejecutivo: string | null
+  inversionista: string | null
+  monto_evento: number | null
+  monto_original: number | null
+  apertura: string | null
+  fecha_fin: string | null
+  saldo_antes_evento: number | null
+  saldo_despues_evento: number | null
+  plazo: number | null
+  tipo_pago: string | null
+  tipo_rendimiento: string | null
+  sobretasa_actual: number | null
+  detalle_evento: string | null
+  created_at: string
+}
+
+export type InvValidacion = {
+  id: string
+  carga_id: string
+  fila: number
+  universo: string | null
+  tipo_validacion: string | null
+  clave: string | null
+  detalle: string | null
+  created_at: string
+}
+
+// `Insert` de cada tabla, plano y sin utilidades de tipo.
+// Se generaron a partir de las interfaces de arriba en vez de derivarlas con
+// `Partial<Omit<...>> & {...}`: esa forma es correcta pero vuelve el tipo
+// `Database` tan complejo que la inferencia de supabase-js se rinde y colapsa
+// a `never` en TODA la aplicacion — 158 errores en modulos que no se tocaron.
+
+export type InvMovimientoInsert = {
+  carga_id: string
+  fila: number
+  fuente_universo?: string | null
+  situacion_temporal?: string | null
+  en_periodo_analizado?: boolean | null
+  estado_movimiento?: string | null
+  motivo_validacion?: string | null
+  afecta_saldo_al_corte?: boolean | null
+  cuenta_en_ranking_periodo?: boolean | null
+  cuenta_para_meta?: boolean | null
+  cuenta_para_meta_en_periodo?: boolean | null
+  tipo_movimiento?: string | null
+  fecha_movimiento?: string | null
+  clave?: string | null
+  tipo_inversion_base?: string | null
+  codigo_cliente?: string | null
+  codigo_inversion?: string | null
+  codigo_ejecutivo?: string | null
+  situacion_inversion?: string | null
+  tipo_relacion?: string | null
+  gerente_ejecutivo?: string | null
+  gerente_inversion?: string | null
+  ejecutivo?: string | null
+  inversionista?: string | null
+  generacion?: string | null
+  tipo_colaborador?: string | null
+  banco_inversion?: string | null
+  clabe_inversion?: string | null
+  tiene_datos_bancarios?: boolean | null
+  medio_sugerido_por_datos_bancarios?: string | null
+  medio_movimiento?: string | null
+  nivel_confianza_medio?: string | null
+  fuente_medio_movimiento?: string | null
+  validacion_medio_movimiento?: string | null
+  observacion_medio_movimiento?: string | null
+  monto_movimiento?: number | null
+  monto_para_meta?: number | null
+  monto_efectivo_movimiento?: number | null
+  monto_transferencia_movimiento?: number | null
+  transferencia_informada_en_texto?: boolean | null
+  monto_transferencia?: number | null
+  total_incrementos_efectivo_fuente?: number | null
+  total_incrementos_transferencia_fuente?: number | null
+  diferencia_efectivo_vs_fuente?: number | null
+  diferencia_transferencia_vs_fuente?: number | null
+  saldo_antes_movimiento?: number | null
+  saldo_despues_movimiento?: number | null
+  porcentaje_sobre_saldo_antes?: number | null
+  saldo_vigente_al_corte?: number | null
+  monto_original?: number | null
+  monto_total_registrado?: number | null
+  apertura?: string | null
+  fecha_fin?: string | null
+  plazo_contractual_meses?: number | null
+  meses_efectivos_movimiento?: number | null
+  factor_tiempo?: number | null
+  factor_tipo?: number | null
+  valor_ponderado_ranking?: number | null
+  tipo_pago?: string | null
+  tipo_rendimiento?: string | null
+  sobretasa_actual?: number | null
+  sobretasa_movimiento?: number | null
+  periodos_gracia?: number | null
+  origen_movimiento?: string | null
+  tipo_parche?: string | null
+  secuencia_movimiento?: number | null
+  detalle_movimiento?: string | null
+  archivos_origen?: string | null
+}
+
+export type InvCumplimientoInsert = {
+  carga_id: string
+  fila: number
+  mes?: string | null
+  gerente_ejecutivo?: string | null
+  gerente_inversion?: string | null
+  ejecutivo?: string | null
+  meta_mensual?: number | null
+  nueva?: number | null
+  renovacion?: number | null
+  incremento?: number | null
+  colocacion_total?: number | null
+  cumplimiento_pct?: number | null
+  cumplio?: boolean | null
+}
+
+export type InvRankingInsert = {
+  carga_id: string
+  con_meta: boolean
+  nivel: InvRankingNivel
+  posicion?: number | null
+  gerente_ejecutivo?: string | null
+  gerente_inversion?: string | null
+  ejecutivo?: string | null
+  nuevas?: number | null
+  renovaciones?: number | null
+  incrementos?: number | null
+  decrementos?: number | null
+  vencimiento_natural?: number | null
+  valor_nuevas_ponderado?: number | null
+  valor_renovaciones_ponderado?: number | null
+  valor_incrementos_ponderado?: number | null
+  produccion_ponderada?: number | null
+  clientes_nuevos?: number | null
+  concentracion_mayor_cliente?: number | null
+  factor_diversificacion?: number | null
+  vencimientos_elegibles?: number | null
+  renovado_sobre_vencimientos?: number | null
+  retencion_vencimientos?: number | null
+  saldo_vigente_corte?: number | null
+  cartera_expuesta?: number | null
+  tasa_decremento?: number | null
+  puntaje_produccion?: number | null
+  puntaje_clientes?: number | null
+  puntaje_retencion?: number | null
+  penalizacion_decrementos?: number | null
+  crecimiento_neto?: number | null
+  meta_periodo?: number | null
+  colocacion_para_meta?: number | null
+  cumplimiento_meta?: number | null
+  meses_cumplidos?: number | null
+  meses_evaluados?: number | null
+  puntaje_sin_meta?: number | null
+  puntaje_meta?: number | null
+  puntaje?: number | null
+  lectura?: string | null
+}
+
+export type InvTableroResumenInsert = {
+  carga_id: string
+  hoja: string
+  universo?: string | null
+  nivel: 'total' | 'gerente' | 'gerente_inversion' | 'ejecutivo'
+  orden: number
+  gerente_ejecutivo?: string | null
+  gerente_inversion?: string | null
+  ejecutivo?: string | null
+  generacion?: string | null
+  tipo_colaborador?: string | null
+  origen?: string | null
+  ejecutivos?: number | null
+  inv_vigentes?: number | null
+  vigente?: number | null
+  abierto?: number | null
+  vencido?: number | null
+  crecimiento_neto?: number | null
+}
+
+export type InvPosicionInsert = {
+  carga_id: string
+  universo: string
+  fila: number
+  clave?: string | null
+  gerente_ejecutivo?: string | null
+  gerente_inversion?: string | null
+  ejecutivo?: string | null
+  inversionista?: string | null
+  apertura?: string | null
+  fecha_fin?: string | null
+  monto_original?: number | null
+  saldo_vigente_corte?: number | null
+  total_abierto_hasta_corte?: number | null
+  total_salido_hasta_corte?: number | null
+  plazo?: number | null
+  tipo_pago?: string | null
+  tipo_rendimiento?: string | null
+  sobretasa_actual?: number | null
+  archivos_origen?: string | null
+}
+
+export type InvEventoInsert = {
+  carga_id: string
+  universo: string
+  grupo: 'abiertos' | 'vencidos'
+  fila: number
+  tipo_evento?: string | null
+  fecha_evento?: string | null
+  clave?: string | null
+  gerente_ejecutivo?: string | null
+  gerente_inversion?: string | null
+  ejecutivo?: string | null
+  inversionista?: string | null
+  monto_evento?: number | null
+  monto_original?: number | null
+  apertura?: string | null
+  fecha_fin?: string | null
+  saldo_antes_evento?: number | null
+  saldo_despues_evento?: number | null
+  plazo?: number | null
+  tipo_pago?: string | null
+  tipo_rendimiento?: string | null
+  sobretasa_actual?: number | null
+  detalle_evento?: string | null
+}
+
+export type InvValidacionInsert = {
+  carga_id: string
+  fila: number
+  universo?: string | null
+  tipo_validacion?: string | null
+  clave?: string | null
+  detalle?: string | null
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -1104,6 +1553,53 @@ export interface Database {
           inversionista?: string | null
           observacion?: string | null
         }
+        Update: never
+        Relationships: []
+      }
+
+      // ── Tablero Ejecutivo (INV-008) ────────────────────────────────────
+      // `Insert` deriva de la interfaz con Partial: son siete tablas, una de
+      // ellas de 66 columnas, y repetir cada campo dos veces sería ruido en el
+      // que un typo pasaría inadvertido. Lo obligatorio se exige aparte.
+      inv_movimientos: {
+        Row: InvMovimiento
+        Insert: InvMovimientoInsert
+        Update: never
+        Relationships: []
+      }
+      inv_cumplimiento: {
+        Row: InvCumplimiento
+        Insert: InvCumplimientoInsert
+        Update: never
+        Relationships: []
+      }
+      inv_ranking: {
+        Row: InvRanking
+        Insert: InvRankingInsert
+        Update: never
+        Relationships: []
+      }
+      inv_tablero_resumen: {
+        Row: InvTableroResumen
+        Insert: InvTableroResumenInsert
+        Update: never
+        Relationships: []
+      }
+      inv_posiciones: {
+        Row: InvPosicion
+        Insert: InvPosicionInsert
+        Update: never
+        Relationships: []
+      }
+      inv_eventos: {
+        Row: InvEvento
+        Insert: InvEventoInsert
+        Update: never
+        Relationships: []
+      }
+      inv_validaciones: {
+        Row: InvValidacion
+        Insert: InvValidacionInsert
         Update: never
         Relationships: []
       }

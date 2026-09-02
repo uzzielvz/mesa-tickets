@@ -159,7 +159,7 @@ export async function POST(request: Request) {
   // reprocesar cuando se corrija el parser. Al revés se perdería el archivo.
   const resultado = await procesarCarga(supabase, carga.id, enc.tipo, wb)
   const resumen = resultado.ok ? resultado.resumen : null
-  await marcarCarga(supabase, carga.id, resultado, avisos, resumen?.filas ?? 0)
+  await marcarCarga(supabase, carga.id, resultado, avisos)
 
   return NextResponse.json({
     ok: true,

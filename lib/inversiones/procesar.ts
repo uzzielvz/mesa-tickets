@@ -14,18 +14,31 @@
 import type ExcelJS from 'exceljs'
 import type { createClient } from '@/lib/supabase/server'
 import { leerCalendario, type ResumenCalendario } from '@/lib/inversiones/calendario'
+import { leerTablero, type ResumenTablero } from '@/lib/inversiones/tablero'
 import type { TipoReporte } from '@/lib/inversiones/excel'
 
-/** Postgres tiene límite de parámetros por sentencia; 500 filas va sobrado. */
-const LOTE = 500
+/**
+ * Postgres tiene límite de parámetros por sentencia y `inv_movimientos` tiene 66
+ * columnas: 200 filas × 68 ≈ 13,600 parámetros, cómodo bajo el tope de 65,535.
+ */
+const LOTE = 200
+
+/** Tablas de hechos, en el orden en que se limpian y se llenan. */
+const TABLAS_CALENDARIO = ['inv_pagos', 'inv_pagos_validaciones'] as const
+const TABLAS_TABLERO = [
+  'inv_movimientos', 'inv_cumplimiento', 'inv_ranking',
+  'inv_tablero_resumen', 'inv_posiciones', 'inv_eventos', 'inv_validaciones',
+] as const
+
+type TablaHechos = (typeof TABLAS_CALENDARIO)[number] | (typeof TABLAS_TABLERO)[number]
 
 export type ResultadoProceso =
-  | { ok: true; resumen: ResumenCalendario | null; avisos: string[] }
+  | { ok: true; resumen: ResumenCalendario | ResumenTablero | null; avisos: string[]; filas: number }
   | { ok: false; errores: string[] }
 
 async function insertarEnLotes<T>(
   supabase: ReturnType<typeof createClient>,
-  tabla: 'inv_pagos' | 'inv_pagos_validaciones',
+  tabla: TablaHechos,
   filas: T[],
 ): Promise<string | null> {
   for (let i = 0; i < filas.length; i += LOTE) {
@@ -49,51 +62,79 @@ export async function procesarCarga(
   tipo: TipoReporte,
   wb: ExcelJS.Workbook,
 ): Promise<ResultadoProceso> {
-  if (tipo === 'tablero') {
-    // I4 todavía no existe. Se dice explícitamente en vez de dejar la carga en
-    // `pendiente` sin explicación, que se lee como si algo hubiera fallado.
+  const tablas = tipo === 'calendario' ? TABLAS_CALENDARIO : TABLAS_TABLERO
+
+  const limpiar = async () => {
+    for (const t of tablas) await supabase.from(t).delete().eq('carga_id', cargaId)
+  }
+
+  // Idempotencia: fuera lo anterior de esta carga antes de escribir.
+  await limpiar()
+
+  /**
+   * Guarda un conjunto. Si algo falla, borra TODO lo de esta carga: media carga
+   * guardada es peor que ninguna, porque las sumas darían cifras plausibles y
+   * equivocadas.
+   */
+  const guardar = async (
+    tabla: TablaHechos,
+    filas: Record<string, unknown>[],
+  ): Promise<string | null> => {
+    if (filas.length === 0) return null
+    const err = await insertarEnLotes(
+      supabase, tabla, filas.map(f => ({ ...f, carga_id: cargaId })),
+    )
+    if (err) {
+      await limpiar()
+      return `No se pudo guardar ${tabla}: ${err}`
+    }
+    return null
+  }
+
+  if (tipo === 'calendario') {
+    const lectura = leerCalendario(wb)
+    if (!lectura.ok) return { ok: false, errores: lectura.errores }
+
+    for (const [tabla, filas] of [
+      ['inv_pagos', lectura.pagos],
+      ['inv_pagos_validaciones', lectura.validaciones],
+    ] as const) {
+      const err = await guardar(tabla, filas as unknown as Record<string, unknown>[])
+      if (err) return { ok: false, errores: [err] }
+    }
+
     return {
       ok: true,
-      resumen: null,
-      avisos: ['El Tablero Ejecutivo se guarda completo, pero todavía no se leen sus datos.'],
+      resumen: lectura.resumen,
+      avisos: lectura.avisos,
+      filas: lectura.resumen.filas,
     }
   }
 
-  const lectura = leerCalendario(wb)
+  const lectura = leerTablero(wb)
   if (!lectura.ok) return { ok: false, errores: lectura.errores }
 
-  // Idempotencia: fuera lo anterior de esta carga.
-  const { error: errBorrado } = await supabase.from('inv_pagos').delete().eq('carga_id', cargaId)
-  if (errBorrado) {
-    return { ok: false, errores: [`No se pudo limpiar la carga previa: ${errBorrado.message}`] }
-  }
-  await supabase.from('inv_pagos_validaciones').delete().eq('carga_id', cargaId)
-
-  const errPagos = await insertarEnLotes(
-    supabase,
-    'inv_pagos',
-    lectura.pagos.map(p => ({ ...p, carga_id: cargaId })),
-  )
-  if (errPagos) {
-    // Sin esto quedaría media carga guardada, que es peor que ninguna: las sumas
-    // darían cifras plausibles y equivocadas.
-    await supabase.from('inv_pagos').delete().eq('carga_id', cargaId)
-    return { ok: false, errores: [`No se pudieron guardar los pagos: ${errPagos}`] }
+  for (const [tabla, filas] of [
+    ['inv_movimientos', lectura.movimientos],
+    ['inv_cumplimiento', lectura.cumplimiento],
+    ['inv_ranking', lectura.ranking],
+    ['inv_tablero_resumen', lectura.tableroResumen],
+    ['inv_posiciones', lectura.posiciones],
+    ['inv_eventos', lectura.eventos],
+    ['inv_validaciones', lectura.validaciones],
+  ] as const) {
+    const err = await guardar(tabla, filas)
+    if (err) return { ok: false, errores: [err] }
   }
 
-  if (lectura.validaciones.length > 0) {
-    const errVal = await insertarEnLotes(
-      supabase,
-      'inv_pagos_validaciones',
-      lectura.validaciones.map(v => ({ ...v, carga_id: cargaId })),
-    )
-    if (errVal) {
-      await supabase.from('inv_pagos').delete().eq('carga_id', cargaId)
-      return { ok: false, errores: [`No se pudieron guardar las validaciones: ${errVal}`] }
-    }
+  return {
+    ok: true,
+    resumen: lectura.resumen,
+    avisos: lectura.avisos,
+    // Las filas que cuentan son los hechos, no la suma de las siete tablas: es
+    // la cifra que se compara contra el archivo cuando algo no cuadra.
+    filas: lectura.resumen.movimientos,
   }
-
-  return { ok: true, resumen: lectura.resumen, avisos: lectura.avisos }
 }
 
 /** Marca el desenlace en la bitácora. La carga nunca se queda sin estado. */
@@ -102,7 +143,6 @@ export async function marcarCarga(
   cargaId: string,
   resultado: ResultadoProceso,
   avisosPrevios: string[],
-  filas: number,
 ): Promise<void> {
   const avisos = resultado.ok
     ? [...avisosPrevios, ...resultado.avisos]
@@ -114,7 +154,9 @@ export async function marcarCarga(
       estado: resultado.ok ? 'procesado' : 'error',
       error_detalle: resultado.ok ? null : resultado.errores.join(' · '),
       avisos,
-      filas,
+      // `filas` cuenta los HECHOS de la carga: pagos en el Calendario,
+      // movimientos en el Tablero. No es la suma de todas las tablas.
+      filas: resultado.ok ? resultado.filas : 0,
     })
     .eq('id', cargaId)
 }
