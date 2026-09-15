@@ -1701,6 +1701,27 @@ export interface Database {
         Args: { p_periodo?: string | null }
         Returns: unknown
       }
+      // INV-009 (I5): lectura del Tablero Ejecutivo. Contrato en la página.
+      inv_resumen_tablero: {
+        Args: { p_corte?: string | null }
+        Returns: unknown
+      }
+      inv_tablero_filas: {
+        Args: { p_corte?: string | null; p_hoja?: string }
+        Returns: unknown
+      }
+      inv_ranking_filas: {
+        Args: {
+          p_corte?: string | null
+          p_con_meta?: boolean
+          p_nivel?: string
+        }
+        Returns: unknown
+      }
+      inv_cumplimiento_serie: {
+        Args: { p_corte?: string | null }
+        Returns: unknown
+      }
       has_inversiones_pagos: {
         Args: Record<string, never>
         Returns: boolean
