@@ -553,17 +553,8 @@ function NavContent({
             href="/vacaciones"
             label="Personal"
             icon={Plane}
-            active={pathname === '/vacaciones' || /^\/vacaciones\/[0-9a-f-]{36}/i.test(pathname)}
+            active={pathname.startsWith('/vacaciones')}
             onClick={onNav}
-          />
-          <SectionDivider />
-          <NavItem
-            href="/vacaciones/importar"
-            label="Importar base"
-            icon={Upload}
-            active={pathname.startsWith('/vacaciones/importar')}
-            onClick={onNav}
-            muted
           />
         </NavSection>
       )}

@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Search, Upload, AlertTriangle, ArrowRight } from 'lucide-react'
+import { Search, AlertTriangle, ArrowRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import Header from '@/components/layout/header'
 import { Tile, Panel, Vacio, BannerError } from '@/components/viz'
@@ -14,6 +14,9 @@ const fmt = (n: number) => n.toLocaleString('es-MX', { maximumFractionDigits: 1 
  * La base de Gente y Cultura, viva (VAC-001). Lo que antes era un Excel cuyo
  * TODAY() se congelaba al guardarse: aquí la antigüedad y los saldos se
  * calculan contra la fecha real en cada consulta (RPC `vac_saldos`).
+ *
+ * La plataforma ES la base: el Excel se cargó una sola vez al arrancar
+ * (2026-10-04, `vac_importar_base`) y de ahí en adelante todo se registra aquí.
  */
 export default async function VacacionesPage({
   searchParams,
@@ -47,27 +50,14 @@ export default async function VacacionesPage({
       <Header
         title="Vacaciones"
         subtitle="La base de Gente y Cultura, con antigüedad y saldos calculados al día de hoy."
-        action={
-          <Link href="/vacaciones/importar" className="text-[13px] text-navy hover:underline font-medium">
-            Importar base
-          </Link>
-        }
       />
 
       <div className="px-5 md:px-9 pb-12 flex flex-col gap-5">
         {error && <BannerError mensaje={error.message} />}
 
         {todos.length === 0 ? (
-          <Panel titulo="Todavía no hay personal cargado">
-            <div className="px-5 py-5 flex flex-col gap-2">
-              <p className="text-[12.5px] text-ink-500">
-                Se empieza importando la base de Excel de Gente y Cultura. Se puede volver a importar
-                sin duplicar a nadie.
-              </p>
-              <Link href="/vacaciones/importar" className="inline-flex items-center gap-1.5 text-[13px] text-navy font-medium hover:underline">
-                <Upload size={14} /> Importar la base
-              </Link>
-            </div>
+          <Panel titulo="No hay personal registrado">
+            <Vacio mensaje="La base de Gente y Cultura no tiene a nadie todavía." />
           </Panel>
         ) : (
           <>
