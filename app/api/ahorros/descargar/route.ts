@@ -82,7 +82,6 @@ export async function GET(request: Request) {
   nota.getCell(1).value =
     'El rendimiento corresponde a las garantías semanales. No incluye el rendimiento sobre la base de ahorro.'
   nota.getCell(1).font = { italic: true, color: { argb: 'FF6B6B6B' } }
-  hoja.getCell(`A${nota.number + 1}`).value = ''
 
   // ── Detalle semanal ──
   const detalle = libro.addWorksheet('Detalle semanal', { views: [{ state: 'frozen', ySplit: 1 }] })
