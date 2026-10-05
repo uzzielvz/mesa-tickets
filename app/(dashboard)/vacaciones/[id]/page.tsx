@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { Printer } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import Header from '@/components/layout/header'
@@ -18,6 +18,16 @@ export default async function EmpleadoVacacionesPage({ params }: { params: { id:
   if (!/^[0-9a-f-]{36}$/i.test(params.id)) notFound()
 
   const supabase = createClient()
+  // Pantalla de Gente y Cultura: el expediente de cualquier persona.
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('rol, acceso_vacaciones_rh')
+    .eq('id', user!.id)
+    .single()
+  const pr = profile as Record<string, unknown> | null
+  if (!(pr?.rol === 'admin' || pr?.acceso_vacaciones_rh === true)) redirect('/vacaciones/mias')
+
   const [{ data: saldo }, { data: movs }, { data: jefes }] = await Promise.all([
     supabase.rpc('vac_saldos', { p_empleado: params.id }),
     supabase
@@ -122,7 +132,7 @@ export default async function EmpleadoVacacionesPage({ params }: { params: { id:
                           )}
                         </p>
                         <span className="flex items-center gap-3">
-                          {m.origen === 'registro_rh' && !m.anulado_at && (
+                          {m.origen !== 'importado' && !m.anulado_at && (
                             <a
                               href={`/formato/vacaciones/${m.id}`}
                               target="_blank"
@@ -136,7 +146,7 @@ export default async function EmpleadoVacacionesPage({ params }: { params: { id:
                         </span>
                       </div>
                       <p className="text-[11.5px] text-ink-400">
-                        {m.origen === 'importado' ? 'Importado del Excel' : `Folio ${m.folio} · registrado ${fechaCorta(m.created_at)}`}
+                        {m.origen === 'importado' ? 'Importado del Excel' : `Folio ${m.folio} · ${m.origen === 'solicitud' ? 'solicitado en la plataforma y aprobado' : 'registrado'} ${fechaCorta(m.created_at)}`}
                         {m.anulado_at && ` · anulado ${fechaCorta(m.anulado_at)}`}
                       </p>
                       {m.fechas_texto && (

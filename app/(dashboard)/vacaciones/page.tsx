@@ -1,10 +1,12 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { Search, AlertTriangle, ArrowRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import Header from '@/components/layout/header'
 import { Tile, Panel, Vacio, BannerError } from '@/components/viz'
+import ResolverSolicitud from '@/components/vacaciones/resolver-solicitud'
 import { antiguedad, fechaCorta, hoyMexico, nombreClave, sumarDias } from '@/lib/vacaciones/calendario'
-import type { SaldoEmpleado } from '@/lib/vacaciones/tipos'
+import type { BandejaRh, SaldoEmpleado } from '@/lib/vacaciones/tipos'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,8 +26,22 @@ export default async function VacacionesPage({
   searchParams: { q?: string; ver?: string }
 }) {
   const supabase = createClient()
-  const { data, error } = await supabase.rpc('vac_saldos', {})
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('rol, acceso_vacaciones_rh')
+    .eq('id', user!.id)
+    .single()
+  const p = profile as Record<string, unknown> | null
+  // Quien no es de Gente y Cultura entra al módulo por "Mis vacaciones".
+  if (!(p?.rol === 'admin' || p?.acceso_vacaciones_rh === true)) redirect('/vacaciones/mias')
+
+  const [{ data, error }, { data: bandejaData }] = await Promise.all([
+    supabase.rpc('vac_saldos', {}),
+    supabase.rpc('vac_bandeja_rh', {}),
+  ])
   const todos = (data as unknown as SaldoEmpleado[] | null) ?? []
+  const bandeja = (bandejaData as unknown as BandejaRh | null) ?? { por_vobo: [], esperando_jefe: [] }
   const hoy = hoyMexico()
 
   const activos = todos.filter(e => e.activo)
@@ -55,6 +71,57 @@ export default async function VacacionesPage({
       <div className="px-5 md:px-9 pb-12 flex flex-col gap-5">
         {error && <BannerError mensaje={error.message} />}
 
+        {/* ── Solicitudes: el Vo. Bo. de RH y lo que espera a un jefe ── */}
+        {(bandeja.por_vobo.length > 0 || bandeja.esperando_jefe.length > 0) && (
+          <div className="grid lg:grid-cols-[minmax(0,1fr)_320px] gap-4 items-start">
+            <Panel titulo="Esperan tu Vo. Bo." nota={`${bandeja.por_vobo.length} ${bandeja.por_vobo.length === 1 ? 'solicitud' : 'solicitudes'}`}>
+              {bandeja.por_vobo.length === 0 ? (
+                <Vacio mensaje="Nada por revisar. Las que autorice un jefe aparecen aquí." />
+              ) : (
+                <ul className="divide-y divide-[#F5F5F5]">
+                  {bandeja.por_vobo.map(s => (
+                    <li key={s.id} className="px-5 py-3.5 flex flex-col gap-2">
+                      <div className="flex flex-wrap items-baseline justify-between gap-2">
+                        <p className="text-[13px] text-ink-900">
+                          <Link href={`/vacaciones/${s.empleado_id}`} className="font-medium hover:text-navy">{s.empleado}</Link>
+                          <span className="text-ink-500">
+                            {' · '}{fmt(s.dias)} {s.tipo === 'flotante' ? (s.dias === 1 ? 'día flotante' : 'días flotantes') : (s.dias === 1 ? 'día' : 'días')}
+                            {' · '}{fechaCorta(s.fecha_inicio)}{s.fecha_fin !== s.fecha_inicio && ` – ${fechaCorta(s.fecha_fin)}`}
+                          </span>
+                        </p>
+                        <p className="text-[11.5px] text-ink-400">Folio {s.folio} · le quedan {fmt(s.disponibles)}</p>
+                      </div>
+                      <p className="text-[12px] text-ink-500">
+                        {s.jefe ? <>Autorizó {s.jefe}{s.jefe_at && ` el ${fechaCorta(s.jefe_at)}`}</> : 'Sin jefe asignado: llega directo a RH'}
+                        {s.jefe_comentario && <> · “{s.jefe_comentario}”</>}
+                        {s.observaciones && <> · Nota: {s.observaciones}</>}
+                      </p>
+                      <ResolverSolicitud id={s.id} modo="rh" />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Panel>
+            <Panel titulo="Esperan a su jefe" nota={String(bandeja.esperando_jefe.length)}>
+              {bandeja.esperando_jefe.length === 0 ? (
+                <Vacio mensaje="Ningún jefe tiene solicitudes pendientes." />
+              ) : (
+                <ul className="divide-y divide-[#F5F5F5]">
+                  {bandeja.esperando_jefe.map(s => (
+                    <li key={s.id} className="px-5 py-2.5">
+                      <p className="text-[12.5px] text-ink-900">{s.empleado}</p>
+                      <p className={`text-[11.5px] ${s.dias_para_inicio <= 5 ? 'text-[#C62828]' : 'text-ink-400'}`}>
+                        {s.jefe ?? 'Sin jefe'} · {s.dias_esperando === 0 ? 'desde hoy' : `${s.dias_esperando} ${s.dias_esperando === 1 ? 'día' : 'días'} esperando`}
+                        {' · '}sale en {s.dias_para_inicio} {s.dias_para_inicio === 1 ? 'día' : 'días'}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Panel>
+          </div>
+        )}
+
         {todos.length === 0 ? (
           <Panel titulo="No hay personal registrado">
             <Vacio mensaje="La base de Gente y Cultura no tiene a nadie todavía." />
@@ -65,7 +132,7 @@ export default async function VacacionesPage({
               <Tile etiqueta="Días por tomar" valor={fmt(pendientes)} apoyo={`entre ${conDerecho.length} personas con derecho`} acento />
               <Tile etiqueta="Personal activo" valor={String(activos.length)} apoyo={`${activos.length - conDerecho.length} aún sin cumplir un año`} />
               <Tile etiqueta="Cumplen años de servicio" valor={String(proximos.length)} apoyo="en los próximos 30 días" />
-              <Tile etiqueta="Sin jefe asignado" valor={String(sinJefe)} apoyo={`${sinCorreo} sin correo · se necesitan para la fase 2`} />
+              <Tile etiqueta="Sin jefe asignado" valor={String(sinJefe)} apoyo={`${sinCorreo} sin correo: no pueden pedir en línea`} />
             </div>
 
             {faltaban.length > 0 && (

@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import Header from '@/components/layout/header'
 import { formatName } from '@/lib/utils/format'
+import type { MiContexto, MisVacaciones } from '@/lib/vacaciones/tipos'
 
 interface StatCardProps {
   label: string
@@ -26,11 +27,21 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: profile }, { data: rawMios }, { data: rawAsignados }] = await Promise.all([
+  const [{ data: profile }, { data: rawMios }, { data: rawAsignados }, { data: vacData }, { data: ctxData }] = await Promise.all([
     supabase.from('profiles').select('rol, nombre_completo, acceso_score, acceso_tickets').eq('id', user.id).single(),
     supabase.from('tickets_with_status').select('status').eq('levantado_por_id', user.id),
     supabase.from('tickets_with_status').select('status').eq('responsable_id', user.id),
+    supabase.rpc('vac_mis_vacaciones', {}),
+    supabase.rpc('vac_mi_contexto', {}),
   ])
+
+  // Vacaciones (VAC-004): lo primero que pidió Gente y Cultura es que la página
+  // diga de entrada cuántos días te quedan.
+  const vacEmpleado = (vacData as unknown as MisVacaciones | null)?.empleado ?? null
+  const vacCtx = ctxData as unknown as MiContexto | null
+  const vacDisponibles = vacEmpleado
+    ? Math.max(Number(vacEmpleado.restantes_total) - Number(vacEmpleado.dias_en_tramite ?? 0), 0)
+    : 0
 
   const accesoScore = (profile as { acceso_score?: boolean } | null)?.acceso_score === true
   const accesoTickets = (profile as { acceso_tickets?: boolean } | null)?.acceso_tickets === true
@@ -81,6 +92,28 @@ export default async function DashboardPage() {
       />
 
       <div className="px-5 md:px-9 pb-12 flex flex-col gap-8">
+        {vacEmpleado && (
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.4px] text-ink-400 font-medium mb-3">Vacaciones</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <StatCard
+                label="Te quedan"
+                value={vacDisponibles}
+                href="/vacaciones/mias"
+                description={vacEmpleado.anios >= 1 ? 'días de vacaciones' : 'aún no cumples un año'}
+              />
+              {vacCtx?.es_jefe && (
+                <StatCard
+                  label="Por autorizar"
+                  value={vacCtx.pendientes_jefe}
+                  href="/vacaciones/equipo"
+                  description="solicitudes de tu equipo"
+                />
+              )}
+            </div>
+          </div>
+        )}
+
         {hasTicketsAccess && (
           <div>
             <p className="text-[11px] uppercase tracking-[0.4px] text-ink-400 font-medium mb-3">Mis tickets</p>

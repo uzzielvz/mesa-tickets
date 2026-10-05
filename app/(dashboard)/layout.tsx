@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Sidebar from '@/components/layout/sidebar'
+import type { MiContexto } from '@/lib/vacaciones/tipos'
 
 export default async function DashboardLayout({
   children,
@@ -20,9 +21,16 @@ export default async function DashboardLayout({
 
   if (!profile) redirect('/login')
 
+  // Vacaciones (VAC-004): cualquiera cuyo correo esté en la base de Gente y
+  // Cultura entra a "Mis vacaciones" sin bandera, y quien tiene equipo ve sus
+  // solicitudes por autorizar. Es lo único que un empleado sin accesos ve.
+  const { data: ctxData } = await supabase.rpc('vac_mi_contexto', {})
+  const vac = (ctxData as unknown as MiContexto | null) ?? { empleado_id: null, es_jefe: false, pendientes_jefe: 0 }
+
   // Sin ningún acceso otorgado → sala de espera corporativa.
   // El área y los accesos los asigna un admin desde /admin/usuarios.
   const tieneAlgunAcceso =
+    vac.empleado_id !== null ||
     profile.rol === 'admin' ||
     profile.acceso_tickets === true ||
     profile.acceso_score === true ||
@@ -73,6 +81,7 @@ export default async function DashboardLayout({
           asignados: asignadosCount ?? 0,
           cola: colaCount ?? 0,
         }}
+        vac={vac}
       />
       <main className="flex-1 min-w-0 w-full max-w-[1100px]">
         {children}

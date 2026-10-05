@@ -2,9 +2,12 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
 /**
- * Guarda de módulo. En la fase 1 solo entra Gente y Cultura: la pantalla
- * enseña nombres, antigüedad y saldos de todo el personal. La fase 2 abrirá una
- * vista propia para cada empleado y su jefe.
+ * Guarda de módulo. Entran dos audiencias:
+ *   · Gente y Cultura (bandera `acceso_vacaciones_rh` o admin): todo el personal.
+ *   · Cualquier persona cuyo correo esté en la base (VAC-004): "Mis vacaciones"
+ *     y, si tiene equipo, "Mi equipo".
+ * Cada pantalla de RH vuelve a comprobar su bandera; los RPCs del empleado y
+ * del jefe solo devuelven lo de quien pregunta.
  */
 export default async function VacacionesLayout({
   children,
@@ -16,14 +19,14 @@ export default async function VacacionesLayout({
 
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('rol, acceso_vacaciones_rh')
-    .eq('id', user.id)
-    .single()
+  const [{ data: profile }, { data: yo }] = await Promise.all([
+    supabase.from('profiles').select('rol, acceso_vacaciones_rh').eq('id', user.id).single(),
+    supabase.rpc('vac_mi_empleado', {}),
+  ])
 
   const p = profile as Record<string, unknown> | null
-  if (!(p?.rol === 'admin' || p?.acceso_vacaciones_rh === true)) redirect('/dashboard')
+  const rh = p?.rol === 'admin' || p?.acceso_vacaciones_rh === true
+  if (!rh && !yo) redirect('/dashboard')
 
   return <>{children}</>
 }

@@ -1758,11 +1758,13 @@ export interface Database {
           fecha_regreso: string | null
           fechas_texto: string | null
           observaciones: string | null
-          origen: 'importado' | 'registro_rh'
+          origen: 'importado' | 'registro_rh' | 'solicitud'
           registrado_por: string | null
           created_at: string
           anulado_at: string | null
           anulado_por: string | null
+          /** La solicitud aprobada de la que nació (VAC-004). */
+          solicitud_id: string | null
         }
         Insert: {
           empleado_id: string
@@ -1781,6 +1783,38 @@ export interface Database {
           anulado_at?: string | null
           anulado_por?: string | null
         }
+        Relationships: []
+      }
+      /**
+       * VAC-004 — solicitudes de vacaciones o días flotantes. Se escriben solo por
+       * RPC; RH las lee directo, empleados y jefes por `vac_mis_vacaciones` y
+       * `vac_bandeja_jefe`.
+       */
+      vac_solicitudes: {
+        Row: {
+          id: string
+          folio: number
+          empleado_id: string
+          tipo: 'vacaciones' | 'flotante'
+          fecha_inicio: string
+          fecha_fin: string
+          dias: number
+          fecha_regreso: string | null
+          observaciones: string | null
+          estado: 'pendiente_jefe' | 'pendiente_rh' | 'aprobada' | 'rechazada' | 'cancelada'
+          jefe_id: string | null
+          solicitada_por: string | null
+          created_at: string
+          jefe_at: string | null
+          jefe_por: string | null
+          jefe_comentario: string | null
+          rh_at: string | null
+          rh_por: string | null
+          rh_comentario: string | null
+          cancelada_at: string | null
+        }
+        Insert: never
+        Update: never
         Relationships: []
       }
       /** AUD-001 — cada carga es una foto completa; la vigente es la de mayor `secuencia`. */
@@ -2004,6 +2038,43 @@ export interface Database {
       has_vacaciones_rh: {
         Args: Record<string, never>
         Returns: boolean
+      }
+      // VAC-004: fase 2 — solicitud del empleado, autorización del jefe y Vo. Bo. de RH.
+      vac_mi_contexto: {
+        Args: Record<string, never>
+        Returns: unknown
+      }
+      vac_mi_empleado: {
+        Args: Record<string, never>
+        Returns: string | null
+      }
+      vac_mis_vacaciones: {
+        Args: Record<string, never>
+        Returns: unknown
+      }
+      vac_solicitar: {
+        Args: { p_tipo: 'vacaciones' | 'flotante'; p_inicio: string; p_fin: string; p_observaciones?: string | null }
+        Returns: unknown
+      }
+      vac_cancelar_solicitud: {
+        Args: { p_id: string }
+        Returns: undefined
+      }
+      vac_bandeja_jefe: {
+        Args: Record<string, never>
+        Returns: unknown
+      }
+      vac_resolver_jefe: {
+        Args: { p_id: string; p_autoriza: boolean; p_comentario?: string | null }
+        Returns: undefined
+      }
+      vac_bandeja_rh: {
+        Args: Record<string, never>
+        Returns: unknown
+      }
+      vac_resolver_rh: {
+        Args: { p_id: string; p_aprueba: boolean; p_comentario?: string | null }
+        Returns: unknown
       }
       // AUD-002: auditor de depósitos. Contrato en lib/auditor/tipos.ts.
       aud_cargar: {

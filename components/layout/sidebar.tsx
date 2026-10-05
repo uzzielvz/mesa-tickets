@@ -15,12 +15,15 @@ import {
 import Wordmark from '@/components/brand/wordmark'
 import UserMenu from '@/components/layout/user-menu'
 import type { Database } from '@/lib/supabase/types'
+import type { MiContexto } from '@/lib/vacaciones/tipos'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 
 interface SidebarProps {
   profile: Profile
   counts?: { mios: number; asignados: number; cola: number }
+  /** Vacaciones fase 2: si la persona está en la base y si tiene equipo. */
+  vac?: MiContexto
 }
 
 interface NavItemProps {
@@ -105,11 +108,13 @@ function NavContent({
   pathname,
   profile,
   counts,
+  vac,
   onNav,
 }: {
   pathname: string
   profile: Profile
   counts?: SidebarProps['counts']
+  vac?: MiContexto
   onNav?: () => void
 }) {
   const isAdmin = profile.rol === 'admin'
@@ -138,7 +143,12 @@ function NavContent({
   const hasAhorrosAccess = profile.acceso_ahorros === true || ahoCarga
 
   // Vacaciones, fase 1: solo Gente y Cultura.
-  const hasVacacionesAccess = profile.acceso_vacaciones_rh === true || isAdmin
+  // Gente y Cultura ve al personal; cualquiera en la base ve lo suyo, y quien
+  // tiene equipo ve lo que le toca autorizar.
+  const vacRh = profile.acceso_vacaciones_rh === true || isAdmin
+  const vacEmpleado = !!vac?.empleado_id
+  const vacJefe = vac?.es_jefe === true
+  const hasVacacionesAccess = vacRh || vacEmpleado
 
   // Auditor de depósitos: quien carga (Felix / Charly) también consulta.
   const audCarga = profile.acceso_auditor_carga === true || isAdmin
@@ -549,13 +559,37 @@ function NavContent({
           hasActive={vacacionesActive}
           onToggle={() => setVacacionesOpen(v => !v)}
         >
-          <NavItem
-            href="/vacaciones"
-            label="Personal"
-            icon={Plane}
-            active={pathname.startsWith('/vacaciones')}
-            onClick={onNav}
-          />
+          {vacEmpleado && (
+            <NavItem
+              href="/vacaciones/mias"
+              label="Mis vacaciones"
+              icon={Plane}
+              active={pathname.startsWith('/vacaciones/mias')}
+              onClick={onNav}
+            />
+          )}
+          {vacJefe && (
+            <NavItem
+              href="/vacaciones/equipo"
+              label="Mi equipo"
+              icon={Users2}
+              count={vac?.pendientes_jefe}
+              active={pathname.startsWith('/vacaciones/equipo')}
+              onClick={onNav}
+            />
+          )}
+          {vacRh && (
+            <>
+              {(vacEmpleado || vacJefe) && <SectionDivider />}
+              <NavItem
+                href="/vacaciones"
+                label="Personal"
+                icon={Users}
+                active={pathname === '/vacaciones' || /^\/vacaciones\/[0-9a-f-]{36}/i.test(pathname)}
+                onClick={onNav}
+              />
+            </>
+          )}
         </NavSection>
       )}
 
@@ -618,7 +652,7 @@ function NavContent({
   )
 }
 
-export default function Sidebar({ profile, counts }: SidebarProps) {
+export default function Sidebar({ profile, counts, vac }: SidebarProps) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
 
@@ -643,7 +677,7 @@ export default function Sidebar({ profile, counts }: SidebarProps) {
           onClick={e => e.stopPropagation()}
         >
           <div className="flex-1 px-[14px] py-5 overflow-y-auto">
-            <NavContent pathname={pathname} profile={profile} counts={counts} onNav={() => setOpen(false)} />
+            <NavContent pathname={pathname} profile={profile} counts={counts} vac={vac} onNav={() => setOpen(false)} />
           </div>
           <div className="border-t border-border px-[14px] py-4">
             <UserMenu profile={profile} />
@@ -657,7 +691,7 @@ export default function Sidebar({ profile, counts }: SidebarProps) {
           <div className="mb-6">
             <Wordmark />
           </div>
-          <NavContent pathname={pathname} profile={profile} counts={counts} />
+          <NavContent pathname={pathname} profile={profile} counts={counts} vac={vac} />
         </div>
         <div className="border-t border-border border-t-[0.5px] px-[14px] py-4">
           <UserMenu profile={profile} />

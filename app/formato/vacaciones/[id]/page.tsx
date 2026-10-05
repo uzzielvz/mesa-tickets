@@ -30,7 +30,7 @@ export default async function FormatoVacacionesPage({ params }: { params: { id: 
   const m = mov as Movimiento | null
   if (!m || m.anulado_at || !m.fecha_inicio) notFound()
 
-  const [{ data: saldo }, { data: hermanos }, { data: quien }] = await Promise.all([
+  const [{ data: saldo }, { data: hermanos }, { data: quien }, { data: solicitud }] = await Promise.all([
     supabase.rpc('vac_saldos', { p_empleado: m.empleado_id }),
     supabase
       .from('vac_movimientos')
@@ -42,7 +42,34 @@ export default async function FormatoVacacionesPage({ params }: { params: { id: 
     m.registrado_por
       ? supabase.from('profiles').select('nombre_completo').eq('id', m.registrado_por).maybeSingle()
       : Promise.resolve({ data: null }),
+    m.solicitud_id
+      ? supabase
+          .from('vac_solicitudes')
+          .select('folio, solicitada_por, created_at, jefe_por, jefe_at, rh_por, rh_at')
+          .eq('id', m.solicitud_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ])
+
+  // Si los días vienen de una solicitud en la plataforma, las tres firmas ya
+  // ocurrieron ahí: quién y cuándo es el acuse de la firma electrónica simple.
+  const sol = solicitud as {
+    folio: number; solicitada_por: string | null; created_at: string
+    jefe_por: string | null; jefe_at: string | null; rh_por: string | null; rh_at: string | null
+  } | null
+  const firmantes = sol
+    ? await supabase
+        .from('profiles')
+        .select('id, nombre_completo')
+        .in('id', [sol.solicitada_por, sol.jefe_por, sol.rh_por].filter((x): x is string => !!x))
+    : { data: [] as { id: string; nombre_completo: string }[] }
+  const nombreDe = (id: string | null) => (firmantes.data ?? []).find(f => f.id === id)?.nombre_completo ?? null
+  const acuse = (cuando: string | null, porId: string | null) =>
+    cuando
+      ? `Firmado en la plataforma${nombreDe(porId) ? ` por ${nombreDe(porId)}` : ''} · ${new Date(cuando).toLocaleString('es-MX', {
+          day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/Mexico_City',
+        })}`
+      : undefined
 
   const e = ((saldo as unknown as SaldoEmpleado[] | null) ?? [])[0]
   if (!e) notFound()
@@ -145,15 +172,28 @@ export default async function FormatoVacacionesPage({ params }: { params: { id: 
           </p>
 
           <div className="grid grid-cols-3 gap-6 mt-14 text-center text-[11.5px]">
-            <Firma nombre={e.nombre} rol="Firma de Conformidad del Empleado" />
-            <Firma nombre={e.jefe_nombre} rol="Firma de Autorización del Jefe directo" />
-            <Firma nombre={(quien as { nombre_completo?: string } | null)?.nombre_completo ?? null} rol={rhFirma} />
+            <Firma
+              nombre={e.nombre}
+              rol="Firma de Conformidad del Empleado"
+              acuse={sol ? acuse(sol.created_at, sol.solicitada_por) : undefined}
+            />
+            <Firma
+              nombre={e.jefe_nombre}
+              rol="Firma de Autorización del Jefe directo"
+              acuse={sol ? acuse(sol.jefe_at, sol.jefe_por) : undefined}
+            />
+            <Firma
+              nombre={(sol ? nombreDe(sol.rh_por) : null) ?? (quien as { nombre_completo?: string } | null)?.nombre_completo ?? null}
+              rol={rhFirma}
+              acuse={sol ? acuse(sol.rh_at, sol.rh_por) : undefined}
+            />
           </div>
         </section>
       </article>
 
       <p className="text-[10.5px] text-ink-400 mt-2">
         Generado en la plataforma de CrediFlexi a partir de la base de Gente y Cultura · Folio {m.folio}
+        {sol && <> · Solicitud {sol.folio}, autorizada en la plataforma</>}
       </p>
     </div>
   )
@@ -172,11 +212,12 @@ function Campo({ etiqueta, valor, ancho }: { etiqueta: string; valor: string | n
   )
 }
 
-function Firma({ nombre, rol }: { nombre: string | null; rol: string }) {
+function Firma({ nombre, rol, acuse }: { nombre: string | null; rol: string; acuse?: string }) {
   return (
     <div>
       <div className="border-t border-ink-900 pt-1 min-h-[16px] font-medium">{nombre ?? ''}</div>
       <p className="font-bold mt-0.5">{rol}</p>
+      {acuse && <p className="text-[9.5px] text-ink-500 mt-1 leading-snug">✓ {acuse}</p>}
     </div>
   )
 }
