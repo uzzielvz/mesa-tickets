@@ -9,7 +9,7 @@ import {
   Users, UserPlus, Gauge,
   PieChart, Building2, UserSearch, AlertTriangle, Layers, Upload, KeyRound,
   BarChart3, Briefcase, Kanban, CalendarClock, ClipboardCheck, Settings, Send,
-  Clock4, Activity, Landmark, TrendingUp, FileClock,
+  Clock4, Activity, Landmark, TrendingUp, FileClock, PiggyBank,
   type LucideIcon,
 } from 'lucide-react'
 import Wordmark from '@/components/brand/wordmark'
@@ -133,6 +133,10 @@ function NavContent({
   const invDesempeno = profile.acceso_inversiones_desempeno === true || isAdmin
   const hasInversionesAccess = invCarga || invPagos || invDesempeno
 
+  // Ahorros: quien carga (Data Science) también consulta.
+  const ahoCarga = profile.acceso_ahorros_carga === true || isAdmin
+  const hasAhorrosAccess = profile.acceso_ahorros === true || ahoCarga
+
   // Secciones que contienen la ruta activa.
   const ticketsActive = pathname.startsWith('/tickets') || pathname.startsWith('/admin/catalogo') || pathname.startsWith('/admin/areas')
   const scoreActive = pathname.startsWith('/score') || pathname.startsWith('/admin/score')
@@ -140,6 +144,7 @@ function NavContent({
   const reclutamientoActive = pathname.startsWith('/reclutamiento')
   const actividadesActive = pathname.startsWith('/actividades')
   const inversionesActive = pathname.startsWith('/inversiones')
+  const ahorrosActive = pathname.startsWith('/ahorros')
 
   // Auto-abre solo la sección activa según la ruta; las demás arrancan colapsadas.
   const [ticketsOpen, setTicketsOpen] = useState(() => ticketsActive)
@@ -148,6 +153,7 @@ function NavContent({
   const [reclutamientoOpen, setReclutamientoOpen] = useState(() => reclutamientoActive)
   const [actividadesOpen, setActividadesOpen] = useState(() => actividadesActive)
   const [inversionesOpen, setInversionesOpen] = useState(() => inversionesActive)
+  const [ahorrosOpen, setAhorrosOpen] = useState(() => ahorrosActive)
 
   return (
     <div className="flex flex-col gap-3">
@@ -489,6 +495,37 @@ function NavContent({
               onClick={onNav}
               muted
             />
+          )}
+        </NavSection>
+      )}
+
+      {/* ── Ahorros ── */}
+      {hasAhorrosAccess && (
+        <NavSection
+          title="Ahorros"
+          open={ahorrosOpen}
+          hasActive={ahorrosActive}
+          onToggle={() => setAhorrosOpen(v => !v)}
+        >
+          <NavItem
+            href="/ahorros"
+            label="Consultar grupo"
+            icon={PiggyBank}
+            active={pathname === '/ahorros'}
+            onClick={onNav}
+          />
+          {ahoCarga && (
+            <>
+              <SectionDivider />
+              <NavItem
+                href="/ahorros/cargar"
+                label="Cargar archivo"
+                icon={Upload}
+                active={pathname.startsWith('/ahorros/cargar')}
+                onClick={onNav}
+                muted
+              />
+            </>
           )}
         </NavSection>
       )}

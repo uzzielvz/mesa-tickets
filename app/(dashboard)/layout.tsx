@@ -31,7 +31,9 @@ export default async function DashboardLayout({
     profile.acceso_actividades === true ||
     profile.acceso_inversiones_carga === true ||
     profile.acceso_inversiones_pagos === true ||
-    profile.acceso_inversiones_desempeno === true
+    profile.acceso_inversiones_desempeno === true ||
+    profile.acceso_ahorros === true ||
+    profile.acceso_ahorros_carga === true
 
   if (!tieneAlgunAcceso) redirect('/stand-by')
 

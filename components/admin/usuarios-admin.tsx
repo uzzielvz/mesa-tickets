@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
-interface Profile { id: string; nombre_completo: string; email: string; rol: string; area_id: string | null; activo: boolean; acceso_tickets: boolean; acceso_score: boolean; acceso_cartera: boolean; acceso_reclutamiento: boolean; acceso_actividades: boolean; acceso_inversiones_carga: boolean; acceso_inversiones_pagos: boolean; acceso_inversiones_desempeno: boolean; supervisa_tickets: boolean }
+interface Profile { id: string; nombre_completo: string; email: string; rol: string; area_id: string | null; activo: boolean; acceso_tickets: boolean; acceso_score: boolean; acceso_cartera: boolean; acceso_reclutamiento: boolean; acceso_actividades: boolean; acceso_inversiones_carga: boolean; acceso_inversiones_pagos: boolean; acceso_inversiones_desempeno: boolean; acceso_ahorros: boolean; acceso_ahorros_carga: boolean; supervisa_tickets: boolean }
 interface Area { id: string; nombre: string }
 
 const selectClass = 'bg-white border border-[#ECECEC] rounded px-2 py-1 text-[12.5px] text-ink-900 outline-none focus:border-orange transition-all'
@@ -122,6 +122,31 @@ export default function UsuariosAdmin({ profiles, areas }: { profiles: Profile[]
     setSaving(null)
   }
 
+  // Ahorros (AHO-001): dos papeles. Quien consulta (asesores, gerentes) y quien
+  // sube el CSV ya cuadrado (Data Science). Quien carga también consulta.
+  const CAMBIO_AHO = {
+    ver:   (v: boolean) => ({ acceso_ahorros: v }),
+    carga: (v: boolean) => ({ acceso_ahorros_carga: v }),
+  } as const
+
+  async function toggleAhorros(
+    id: string,
+    clave: keyof typeof CAMBIO_AHO,
+    actual: boolean,
+    etiqueta: string,
+  ) {
+    setSaving(id)
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('profiles')
+      .update(CAMBIO_AHO[clave](!actual))
+      .eq('id', id)
+    if (error) { toast.error('Error al actualizar acceso.'); setSaving(null); return }
+    toast.success(actual ? `${etiqueta} retirado` : `${etiqueta} otorgado`)
+    router.refresh()
+    setSaving(null)
+  }
+
   // Supervisor de la mesa: ve las colas de TODAS las áreas sin ser admin
   // del sistema (TKT-043). Es ortogonal al rol, por eso va como toggle.
   async function toggleSupervisaTickets(id: string, actual: boolean) {
@@ -135,10 +160,10 @@ export default function UsuariosAdmin({ profiles, areas }: { profiles: Profile[]
   }
 
   return (
-    <div className="border border-[#ECECEC] rounded-md overflow-hidden max-w-4xl">
+    <div className="border border-[#ECECEC] rounded-md overflow-hidden max-w-5xl">
       {/* Headers */}
-      <div className="hidden md:grid grid-cols-[1fr_110px_130px_70px_70px_70px_76px_84px_116px_88px] px-5 py-2 border-b border-[#ECECEC] bg-surface-sidebar">
-        {['Usuario', 'Rol', 'Área', 'Tickets', 'Score', 'Cartera', 'Reclut.', 'Activid.', 'Inversiones', 'Supervisa'].map(h => (
+      <div className="hidden md:grid grid-cols-[1fr_110px_130px_70px_70px_70px_76px_84px_116px_84px_88px] px-5 py-2 border-b border-[#ECECEC] bg-surface-sidebar">
+        {['Usuario', 'Rol', 'Área', 'Tickets', 'Score', 'Cartera', 'Reclut.', 'Activid.', 'Inversiones', 'Ahorros', 'Supervisa'].map(h => (
           <span key={h} className="text-[11px] uppercase tracking-[0.3px] text-ink-400 font-medium">{h}</span>
         ))}
       </div>
@@ -146,7 +171,7 @@ export default function UsuariosAdmin({ profiles, areas }: { profiles: Profile[]
       {profiles.map((profile, i) => (
         <div
           key={profile.id}
-          className={`grid grid-cols-1 md:grid-cols-[1fr_110px_130px_70px_70px_70px_76px_84px_116px_88px] items-center px-5 py-3 gap-2 ${i < profiles.length - 1 ? 'border-b border-[#F5F5F5]' : ''} ${saving === profile.id ? 'opacity-50' : ''}`}
+          className={`grid grid-cols-1 md:grid-cols-[1fr_110px_130px_70px_70px_70px_76px_84px_116px_84px_88px] items-center px-5 py-3 gap-2 ${i < profiles.length - 1 ? 'border-b border-[#F5F5F5]' : ''} ${saving === profile.id ? 'opacity-50' : ''}`}
         >
           <div>
             <p className="text-[13px] font-medium text-ink-900">{profile.nombre_completo}</p>
@@ -273,6 +298,31 @@ export default function UsuariosAdmin({ profiles, areas }: { profiles: Profile[]
                 <button
                   key={campo}
                   onClick={() => toggleInversiones(profile.id, clave, activo, etiqueta)}
+                  disabled={saving === profile.id}
+                  title={`${activo ? 'Quitar' : 'Dar'}: ${ayuda}`}
+                  className={`
+                    h-5 w-5 rounded text-[10px] font-semibold leading-none
+                    transition-colors cursor-pointer disabled:cursor-not-allowed
+                    ${activo ? 'bg-navy text-white' : 'bg-[#ECECEC] text-ink-400'}
+                  `}
+                >
+                  {letra}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Ahorros — dos papeles en una sola columna: Ver · Cargar */}
+          <div className="flex items-center gap-1.5">
+            {([
+              ['ver', 'acceso_ahorros', 'V', 'Consultar ahorros por grupo y descargar el Excel', 'Acceso a ahorros'],
+              ['carga', 'acceso_ahorros_carga', 'C', 'Subir el CSV de ahorros ya cuadrado (también consulta)', 'Acceso de carga de ahorros'],
+            ] as const).map(([clave, campo, letra, ayuda, etiqueta]) => {
+              const activo = profile[campo] === true
+              return (
+                <button
+                  key={campo}
+                  onClick={() => toggleAhorros(profile.id, clave, activo, etiqueta)}
                   disabled={saving === profile.id}
                   title={`${activo ? 'Quitar' : 'Dar'}: ${ayuda}`}
                   className={`
