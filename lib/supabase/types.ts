@@ -566,6 +566,8 @@ export interface Database {
           acceso_ahorros: boolean
           /** Sube el CSV de ahorros ya cuadrado — Data Science (AHO-001). */
           acceso_ahorros_carga: boolean
+          /** Gente y Cultura: todo el personal, registros y formatos (VAC-001). */
+          acceso_vacaciones_rh: boolean
           /** Ve las colas de TODAS las áreas en la mesa (TKT-043). */
           supervisa_tickets: boolean
           created_at: string
@@ -587,6 +589,7 @@ export interface Database {
           acceso_inversiones_desempeno?: boolean
           acceso_ahorros?: boolean
           acceso_ahorros_carga?: boolean
+          acceso_vacaciones_rh?: boolean
           supervisa_tickets?: boolean
         }
         Update: {
@@ -606,6 +609,7 @@ export interface Database {
           acceso_inversiones_desempeno?: boolean
           acceso_ahorros?: boolean
           acceso_ahorros_carga?: boolean
+          acceso_vacaciones_rh?: boolean
           supervisa_tickets?: boolean
         }
         Relationships: []
@@ -1677,6 +1681,100 @@ export interface Database {
         Update: never
         Relationships: []
       }
+      /** VAC-001 — Art. 76 LFT: días por año de servicio. */
+      vac_dias_ley: {
+        Row: { desde: number; hasta: number; dias: number }
+        Insert: never
+        Update: never
+        Relationships: []
+      }
+      /**
+       * VAC-001 — el personal. Los saldos NO viven aquí: salen de `vac_saldos`.
+       * area, numero_empleado, email y jefe_id no vienen en el Excel; los
+       * captura Gente y Cultura.
+       */
+      vac_empleados: {
+        Row: {
+          id: string
+          nombre: string
+          nombre_clave: string
+          puesto: string | null
+          area: string | null
+          numero_empleado: string | null
+          fecha_ingreso: string
+          email: string | null
+          jefe_id: string | null
+          activo: boolean
+          notas: string | null
+          en_ciclo1: boolean
+          en_ciclo2: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          nombre: string
+          nombre_clave: string
+          fecha_ingreso: string
+          puesto?: string | null
+          area?: string | null
+          numero_empleado?: string | null
+          email?: string | null
+          jefe_id?: string | null
+          activo?: boolean
+          notas?: string | null
+        }
+        Update: {
+          nombre?: string
+          puesto?: string | null
+          area?: string | null
+          numero_empleado?: string | null
+          fecha_ingreso?: string
+          email?: string | null
+          jefe_id?: string | null
+          activo?: boolean
+          notas?: string | null
+        }
+        Relationships: []
+      }
+      /** VAC-001 — días tomados. Append-only: se anula, no se borra. */
+      vac_movimientos: {
+        Row: {
+          id: string
+          folio: number
+          empleado_id: string
+          tipo: 'vacaciones' | 'flotante'
+          periodo: number | null
+          dias: number
+          fecha_inicio: string | null
+          fecha_fin: string | null
+          fecha_regreso: string | null
+          fechas_texto: string | null
+          observaciones: string | null
+          origen: 'importado' | 'registro_rh'
+          registrado_por: string | null
+          created_at: string
+          anulado_at: string | null
+          anulado_por: string | null
+        }
+        Insert: {
+          empleado_id: string
+          tipo: 'vacaciones' | 'flotante'
+          periodo?: number | null
+          dias: number
+          fecha_inicio?: string | null
+          fecha_fin?: string | null
+          fecha_regreso?: string | null
+          fechas_texto?: string | null
+          observaciones?: string | null
+          origen: 'importado' | 'registro_rh'
+          registrado_por?: string | null
+        }
+        Update: {
+          anulado_at?: string | null
+          anulado_por?: string | null
+        }
+        Relationships: []
+      }
       /** AHO-001 — consultas y descargas. Solo lo lee quien carga. */
       aho_eventos: {
         Row: {
@@ -1841,6 +1939,23 @@ export interface Database {
         Returns: unknown
       }
       has_ahorros_access: {
+        Args: Record<string, never>
+        Returns: boolean
+      }
+      // VAC-003: vacaciones. Contrato de `vac_saldos` en lib/vacaciones/tipos.ts.
+      vac_saldos: {
+        Args: { p_empleado?: string | null }
+        Returns: unknown
+      }
+      vac_importar_base: {
+        Args: { p_empleados: unknown }
+        Returns: unknown
+      }
+      vac_dias_por_anio: {
+        Args: { p_anio: number }
+        Returns: number
+      }
+      has_vacaciones_rh: {
         Args: Record<string, never>
         Returns: boolean
       }
