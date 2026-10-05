@@ -3,7 +3,8 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-09-02 (**Inversiones I2, I3 e I4 entregados** §9.3 · §9.2 regla 2 corregida y regla 4 nueva: la CLABE llega rota del generador).
+> Última actualización: 2026-10-04 (**medición de uso** en producción y tres vías nuevas entregadas: **Ahorros** §10, **Vacaciones fase 1** §11, **Auditor** §12 — enmienda en §0).
+> Anterior: 2026-09-15 (**Inversiones I5 entregado** §9.3 — el v1 queda completo salvo la entrega. I1 e I3 **verificados en navegador**; se les cae el pendiente).
 
 ---
 
@@ -18,6 +19,14 @@
 > **Enmienda (2026-08-24):** **Reclutamiento sale de la pausa y entra en lanzamiento** (§0 bis). No es desarrollo nuevo: el código estaba completo desde el 31 de julio. Lo que se hizo fue el **paquete de entrega** que le faltaba — documentación, manual, runbook, guion de validación, presentación y anuncio. La vía de tickets no avanzó.
 
 > **Enmienda (2026-08-29):** se abre una **tercera vía, Inversiones** (§9), a petición directa: custodiar y consultar los dos reportes que Felix genera a diario desde Yunius. Research completo en `RESEARCH §14`, plan en **§9**, **sin código todavía**. Alcance del v1 cerrado el mismo día: repositorio + vistas de Tesorería + Tablero Ejecutivo, los dos reportes, **sin chat de IA**. La cola de tickets de abajo sigue vigente y sin avanzar.
+
+> **Enmienda (2026-10-04): medición de uso y tres vías nuevas.**
+>
+> **Lo que dicen los datos** (consulta de solo lectura en producción, detalle en `RESEARCH §15.1`): **Score es el único módulo con uso sostenido** —y está en pausa—; **Tickets no recibe un ticket desde el 12 de agosto**; Reclutamiento, Actividades e Inversiones no tienen usuarios fuera del admin, y **el Tablero de Inversiones está vacío en producción**. La deuda ya no es de código: es de **adopción**.
+>
+> **Lo que se entregó el mismo día**, a petición directa y con sus requisitos ya levantados: **Visor de ahorros** (Felix, §10), **Vacaciones fase 1** (Gente y Cultura, §11) y **Auditor de depósitos** (Charly, §12). Los tres están desplegados y con datos de arranque, detrás de banderas que **todavía nadie más que el admin tiene**.
+>
+> **Pendiente de decidir** (junta del 2026-10-05): qué pasa con la cola de tickets de abajo, si Score sale de la pausa, y en qué orden se le da cada herramienta a su usuario. Ninguna de las tres vías nuevas está entregada hasta que su usuario la use.
 
 ### Vía activa — Mesa de Tickets
 
@@ -1036,7 +1045,7 @@ No se permite saltar etapas, retroceder, ni salir de un estado terminal (`contra
 
 ---
 
-## 9. Módulo Inversiones *(I1–I6 planeados — 2026-08-29, sin código todavía)*
+## 9. Módulo Inversiones *(I1–I5 entregados · I6 entrega pendiente · I7 fuera del v1)*
 
 > **Research completo en `RESEARCH-CONSOLIDADO.md §14`.** Ahí está el análisis de los archivos, los cinco hallazgos que condicionan el diseño y las decisiones ya tomadas. Esta sección es solo el plan de ejecución; no repite el porqué.
 
@@ -1090,11 +1099,11 @@ Cada uno termina en algo verificable contra los cuatro archivos reales que ya es
 
 | # | Sprint | Entrega | Cómo se verifica |
 |---|---|---|---|
-| **I1** ✅ | **Tubería, sin parseo** *(entregado 2026-08-31, `d22c6cf`)* | Migraciones `inv_001..003` (tablas + RLS + bucket privado con separación de audiencias por prefijo de ruta) + banderas + tipos. `POST /api/inversiones/cargar` y `GET /api/inversiones/descargar/[id]`, que **revalida permiso contra el `tipo_reporte`**, no sirve por `storage_path`. Pantallas `/inversiones/{cargar,cargas}`; `pagos` y `desempeno` como placeholders **con guarda real**, para poder probar la separación de permisos desde esta iteración. Los tres huecos de §9.5 quedaron cerrados. **Desviación declarada:** se lee el encabezado del Excel antes de guardar, para no almacenar un archivo que no se pudo identificar | Felix sube los 4 archivos, los ve listados y los descarga **byte-idénticos** al original. ⏳ *pendiente de prueba en navegador* |
+| **I1** ✅ | **Tubería, sin parseo** *(entregado 2026-08-31, `d22c6cf`)* | Migraciones `inv_001..003` (tablas + RLS + bucket privado con separación de audiencias por prefijo de ruta) + banderas + tipos. `POST /api/inversiones/cargar` y `GET /api/inversiones/descargar/[id]`, que **revalida permiso contra el `tipo_reporte`**, no sirve por `storage_path`. Pantallas `/inversiones/{cargar,cargas}`; `pagos` y `desempeno` como placeholders **con guarda real**, para poder probar la separación de permisos desde esta iteración. Los tres huecos de §9.5 quedaron cerrados. **Desviación declarada:** se lee el encabezado del Excel antes de guardar, para no almacenar un archivo que no se pudo identificar | Felix sube los 4 archivos, los ve listados y los descarga **byte-idénticos** al original. ✅ *verificado en navegador el 2026-09-15* |
 | **I2** ✅ | **Parseo del Calendario** *(entregado 2026-09-01)* | `lib/inversiones/calendario.ts` puro (separado de `excel.ts`, que se quedó con abrir el libro y el encabezado; `tablero.ts` de I4 entrará igual). Migración `inv_004`: `inv_pagos` + `inv_pagos_validaciones` + RLS. `lib/inversiones/procesar.ts` compartido, e ingesta idempotente. **Añadido sobre el plan:** `POST /api/inversiones/reprocesar/[id]`, para reconstruir los hechos desde el .xlsx ya guardado cuando el parser cambie, sin volver a subir ni perder la bitácora | **Anclas de agosto verificadas al centavo:** 201 filas · total `4,999,045.56` · sale de caja `4,754,930.99` · capitalizado `244,114.57` · 8 en revisar · 8 en VALIDACIONES. Y la curva por día: **26 → 846,371.67**, **24 → 837,077.11**, **13 → 622,256.84**. Septiembre cumple el invariante `capitalizado + salidas = total` |
-| **I3** ✅ | **Vistas de Tesorería** *(entregado 2026-09-01)* | Migración `inv_005`: RPCs `inv_resumen_calendario`, `inv_curva_salidas`, `inv_revisar_medio` (+ `inv_006`, que reescribe la curva sin dos SRF en el mismo `select`). Pantalla `/inversiones/pagos` con selector de mes en la URL, cuatro tiles, curva diaria, desglose por sección y la lista de casos sin medio. `components/actividades/viz.tsx` se movió a `components/viz.tsx` para no acoplar Inversiones con Actividades | La curva reproduce lo verificado en I2: días **26 (846,371.67)**, **24 (837,077.11)** y **13 (622,256.84)** a la cabeza, **excluyendo las capitalizadas**. La lista de revisar trae los 8 casos ordenados por fecha. ⏳ *pendiente de prueba en navegador* |
+| **I3** ✅ | **Vistas de Tesorería** *(entregado 2026-09-01)* | Migración `inv_005`: RPCs `inv_resumen_calendario`, `inv_curva_salidas`, `inv_revisar_medio` (+ `inv_006`, que reescribe la curva sin dos SRF en el mismo `select`). Pantalla `/inversiones/pagos` con selector de mes en la URL, cuatro tiles, curva diaria, desglose por sección y la lista de casos sin medio. `components/actividades/viz.tsx` se movió a `components/viz.tsx` para no acoplar Inversiones con Actividades | La curva reproduce lo verificado en I2: días **26 (846,371.67)**, **24 (837,077.11)** y **13 (622,256.84)** a la cabeza, **excluyendo las capitalizadas**. La lista de revisar trae los 8 casos ordenados por fecha. ✅ *verificado en navegador el 2026-09-15* |
 | **I4** ✅ | **Parseo del Tablero** *(entregado 2026-09-02)* | `lib/inversiones/tablero.ts` + migración `inv_008` con siete tablas. Detector de bloques para las cuatro hojas apiladas, guarda de CLABE, y `inv_007` revertida: la columna vuelve con validación de 18 dígitos en vez de borrarse | **Verificado contra los dos cortes.** 27/08: 688 movimientos · 828 filas de cumplimiento · 58 de ranking (5+10+14 × 2 hojas) · 88 de resumen · 183 posiciones · 22 eventos · 46 validaciones. Ranking #1 = Sergio Soto con 100 pts (95.88 con meta); total vigente 96,347,123.57. **02/09 carga sin tronar** con los dos rankings marcados como degradados |
-| **I5** | **Vistas de Desempeño** | Pantalla `/inversiones/desempeno` (Tablero, Estructura, Rankings, Cumplimiento). Segunda bandera | Las cifras en pantalla son **idénticas** a las del Excel. Si difiere una, es que algo se recalculó — ver regla 1 |
+| **I5** ✅ | **Vistas de Desempeño** *(entregado 2026-09-15)* | Migración `inv_009` con los RPCs de lectura del Tablero: `inv_resumen_tablero`, `inv_tablero_filas`, `inv_ranking_filas`, `inv_cumplimiento_serie` (+ `inv_carga_tablero` y `inv_cortes_tablero`, internos). Sus tipos, la pantalla `/inversiones/desempeno` y `components/inversiones/desempeno-viz.tsx`. **Ninguna función calcula nada**: seleccionan, ordenan y empaquetan lo que el archivo ya computó — regla 1 | Las cifras en pantalla son **idénticas** a las del Excel. Si difiere una, es que algo se recalculó — ver regla 1. ⏳ *falta el cotejo formal contra los dos cortes* |
 | **I6** | **Entrega** | Pre-vuelo, permisos reales asignados, documentación mínima, anuncio | Mismo criterio que Reclutamiento: **no se anuncia sin evidencia** |
 | **I7** | **Chat de IA** *(fuera del v1 — §9.8)* | Tools sobre los RPCs de I3/I5 + tool de consulta parametrizada + system prompt + widget | Un set de preguntas con respuesta conocida, contestadas al centavo y citando el corte |
 
@@ -1197,6 +1206,61 @@ Detectados al revisar este plan el 2026-08-30. Los tres son de seguridad y los t
 **El encuadre que importa:** esto no contradice el "todo o nada" de §9.5. Quien tenga la bandera **sigue viendo todo en la pantalla y en la descarga** — el punto no es esconderle datos al usuario, que ya los tiene, sino **acotar lo que sale de la empresa** hacia un tercero. Son dos amenazas distintas.
 
 Con esta decisión, `RESEARCH §14.6` punto 1 queda **cerrado**.
+
+---
+
+## 10. Visor de ahorros *(AHO-001..003 — desplegado 2026-10-04)*
+
+**El problema.** Los clientes le piden a Felix (Data Science) su archivo de ahorros y rendimientos; él filtra un Excel, arma el correo y lo manda: ~10 min por dispersión, **~1 h diaria**. Era un compromiso vencido desde el 2026-09-21.
+
+**Lo que hay.** `/ahorros`: el asesor escribe grupo + ciclo (o pega `000439_C01`), ve una tabla por clienta (prestado, base, pago semanal, ahorro, rendimiento y una tira de 16 semanas) y descarga el Excel (valores planos, sin hojas ocultas). `/ahorros/cargar`: Felix revisa el archivo antes de escribir y lo sube por lotes. Banderas `acceso_ahorros` (V) y `acceso_ahorros_carga` (C). Cada consulta y descarga queda en `aho_eventos`: **el uso se mide desde el día uno**.
+
+**Reglas (de Felix, no negociables):** (1) valores planos, no se recalcula nada; (2) upsert por `Pago_ID`, nunca borrar; (3) la tabla es temporal: pantalla y Excel leen de `aho_buscar`; (4) se ve mejor que la plantilla.
+
+**Defaults tomados sin su respuesta (cambiables):** el rendimiento mostrado es el de las garantías **sin el interés de la base** (con aviso en pantalla y en el Excel); el pago de corte lo elige el asesor (10–16, por defecto 12 como la plantilla); solo estado de ahorro, no la hoja de dispersión; quien tiene la bandera ve todos los grupos.
+
+**Datos en producción:** solo el **grupo 439 ciclo 1**, que coincide al centavo con la dispersión que Felix ya entregó. El CSV completo **no** se cargó: no está confirmado como cuadrado y lo que entra no se borra desde la pantalla.
+
+| # | Qué sigue | Quién |
+|---|---|---|
+| 1 | Dar la bandera C y que suba lo que ya cuadró | Felix |
+| 2 | El interés sobre la base de ahorro: ¿lo agrega al CSV? | Felix |
+| 3 | La semana de renovación por grupo, y quién debe ver qué grupos | Felix |
+| 4 | Banderas V a asesores y gerentes, y medir con `aho_eventos` | Plataforma |
+
+## 11. Vacaciones *(VAC-001..003, fase 1 — desplegada 2026-10-04)*
+
+**El pedido.** Junta del 17 de agosto, levantado con **Jesús Montellano** (Gente y Cultura) el 21 de septiembre. Hoy: formato en papel con tres firmas (empleado, jefe directo, Vo. Bo. de RH) y una base de Excel mantenida a mano.
+
+**Fase 1 (lo que hay).** `/vacaciones`: el personal con antigüedad y saldos **calculados contra la fecha real** (el Excel tiene `HOY()` congelado), con filtros y hallazgos. `/vacaciones/[id]`: periodos por año de servicio, registro de vacaciones o día flotante (días hábiles y regreso calculados, corregibles), historial con anulación, y los datos que el Excel no trae. `/formato/vacaciones/[id]`: el formato GYC-VAC012026 o GYC-DF012026 **prellenado** para imprimir y firmar. Bandera `acceso_vacaciones_rh`.
+
+**Reglas verificadas contra la base:** CICLO N = derecho del N-ésimo aniversario (tabla del Art. 76 LFT en `vac_dias_ley`); días hábiles de lunes a viernes (23 de 26 casos cuadran) sin los festivos del Art. 74.
+
+**Datos en producción:** la base de Montellano, cargada una vez (86 personas, 28 registros de vacaciones y 15 de flotantes), más el archivo "Información para Sistemas": **69 personas con correo y puesto, 68 con jefe directo**. No hay pantalla de importar: la plataforma es la base.
+
+**Hallazgos para Montellano:** a la hoja visible le faltaban 10 personas (5 con derecho a 12 días); hay **450 días pendientes** entre 45 personas y el Director General acumula 26; 4 personas con correo no están en la base (sin fecha de ingreso); 17 de la base no vienen en el archivo de Sistemas (¿bajas?); dos correos dicen "ixtapluca".
+
+| # | Qué sigue | Quién |
+|---|---|---|
+| 1 | Bandera a Montellano (tiene que entrar una vez para tener cuenta) | Plataforma |
+| 2 | Confirmar: ¿Vo. Bo. de RH y del Coordinador son dos personas? ¿Cuántos flotantes por año? ¿Vencen los días? | Montellano |
+| 3 | Fechas de ingreso de las 4 personas faltantes y estatus de las 17 que no vienen | Montellano |
+| 4 | **Fase 2:** el empleado solicita, el jefe autoriza, RH da el Vo. Bo., recordatorios al jefe. **Depende de que el envío de correos funcione** (pendiente #1 de tickets) | Plataforma |
+
+## 12. Auditor de depósitos *(AUD-001..002 — desplegado 2026-10-04)*
+
+**El pedido.** Charly (junta del 18 de septiembre) contacta a cada promotor uno por uno para explicarle sus depósitos sin conciliar. Modelo acordado: **Charly escribe las consultas SQL y la plataforma pone la interfaz**.
+
+**Lo que hay.** `/auditor`: los depósitos con `CONCILIADO = N` de la carga vigente, totales, filtro por grupo y cuántos se resolvieron desde la carga anterior. `/auditor/cargar`: el archivo de Yunius (`pagos_registrados_*.xlsx`); cada carga es una foto completa y la vigente es la de mayor `secuencia`. Banderas `acceso_auditor` (V) y `acceso_auditor_carga` (C). El esquema para Charly está en `docs/auditor/esquema-para-charly.md`.
+
+**Datos en producción:** la foto de septiembre: **1,090 depósitos, 45 sin conciliar por $333,651.39 en 44 grupos**.
+
+| # | Qué sigue | Quién |
+|---|---|---|
+| 1 | Mandarle el esquema a Charly y darle bandera (parece ser `carlos.mejia`) | Plataforma |
+| 2 | Agregar la columna `PROMOTOR` (correo de la plataforma) al archivo | Felix |
+| 3 | Con el promotor: cada promotor ve solo lo suyo. Requiere que tengan cuenta | Plataforma |
+| 4 | Las consultas de Charly entran como RPC `security definer`, nunca SQL suelto | Charly + Plataforma |
 
 ---
 

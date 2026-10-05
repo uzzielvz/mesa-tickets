@@ -1,10 +1,12 @@
 # RESEARCH CONSOLIDADO — mea-tickets (CrediFlexi Operaciones)
 
 > Documento vivo. Single source of truth del estado real del repo.
-> Última actualización: 2026-08-29 (§14, research de origen de los **reportes de inversiones** — sin código todavía).
+> Última actualización: 2026-10-04 (§15 nueva: **medición de uso** en producción y tres módulos entregados el mismo día — **Ahorros, Vacaciones fase 1 y Auditor**. §11 al día: 99 migraciones. §14: Inversiones I1–I5 implementados).
 > Para el plan de trabajo activo ver `PLAN.md`.
 
 ---
+
+> **Al 2026-10-04:** además de lo que dice este bloque, se construyeron Inversiones (I1–I5) y tres módulos nuevos — Ahorros, Vacaciones fase 1 y Auditor (§15) — y la medición de uso mostró que **Score es el único módulo con uso sostenido** (§15.1). La cola vigente sigue viviendo en `PLAN.md §0`.
 
 > **Foco activo (2026-08-11, vigente): Mesa de Tickets.** Cartera, Score y Factorial están **en pausa** — desplegados y operables, sin desarrollo nuevo. **Reclutamiento salió de la pausa el 2026-08-24 y está en lanzamiento de su v1** (§13; paquete de entrega en `docs/reclutamiento/`) — no fue desarrollo nuevo, fue la entrega que le faltaba. Este documento sigue describiendo los cinco módulos porque el contexto no caduca; la cola de trabajo vigente vive en `PLAN.md §0`.
 
@@ -31,7 +33,10 @@
 5. **Reclutamiento** — el pipeline `postulado → contratado` opera completo desde el kanban, con Meets y correos reales vía Google Workspace, evaluaciones por magic link y alta automática en Factorial HR. **Su deuda no es de código, es de validación**: el smoke test end-to-end nunca se corrió con correos de prueba y el alta en Factorial sigue apagada por interruptor.
 6. **Actividades** *(2026-08-18)* — tablero directivo de uso del tiempo, portado desde un Excel y un Power BI. Cuatro tablas, tres RPCs, tres pantallas y una de carga. **Es el módulo mejor verificado del repo antes de existir en producción**: sus 8 medidas se comprobaron una por una contra el tablero original, y el parser y las RPCs reproducen las cifras exactas. Sus datos hoy son **dummy**. Detalle en §5.6.
 
+**Módulos agregados después de este resumen** (detalle en §14 y §15): **Inversiones** (I1–I5, 2026-09-15), y el 2026-10-04 **Visor de ahorros**, **Vacaciones fase 1** y **Auditor de depósitos**. La medición de uso del 2026-10-04 (§15.1) mostró que **Score es el único módulo con uso sostenido**; los demás no tienen usuarios fuera del admin.
+
 **Riesgos principales**:
+- **Datos personales del personal en `vac_empleados`** (desde 2026-10-04): nombre, fecha de ingreso, correo y jefe directo de 86 personas. RLS solo para Gente y Cultura y admin; nunca abrir `select` a todos (§15.4).
 - **`FACTORIAL_API_KEY` es god-mode**: la API Key de Factorial no se puede acotar por scope, así que da acceso total a los datos de RH de la empresa. Solo server-side, nunca en cliente (§13.9).
 - **Destinatarios reales seedeados**: `bienvenida_contratacion` tiene 3 empleados de CrediFlexi en CC. Cualquier prueba de contratación les manda correo si no se reapunta antes desde `/reclutamiento/ajustes`.
 - Seguridad RLS: `attachments_insert` no valida participación; `profiles_select using (true)` expone PII.
@@ -1082,8 +1087,32 @@ Tres decisiones de modelo que conviene no deshacer sin leer esto:
 | 75 | `20260811210000_tkt_remitente_plataforma.sql` | `rec_credenciales_google.email` (validar remitente + header `From`); `tkt_credencial_google()` devuelve token **y** correo |
 | 76 | `20260811230000_tkt_remitente_fuera_de_bd.sql` | **`drop function tkt_credencial_google()`** — el remitente de la mesa pasa a variables de entorno (`TICKETS_GOOGLE_REFRESH_TOKEN` + `TICKETS_SENDER_EMAIL`) |
 | 77 | `20260812120000_tkt_data_science_sla.sql` | Data Science: `prioridad = 'alta'`, `sla_min = 240`. Con SLA nulo el reloj nunca corría y el área no se medía |
+| 78 | `20260818130000_act_001_tablas.sql` | Actividades: `act_cargas`, `act_registros`, `act_empleados`, `act_puestos` + bandera `acceso_actividades` |
+| 79 | `20260818130100_act_002_rls.sql` | RLS de Actividades + `has_actividades_access()` |
+| 80 | `20260818130200_act_003_resumen_rpc.sql` | `act_resumen` — KPIs del tablero |
+| 81 | `20260818130300_act_004_detalle_friccion_rpc.sql` | `act_detalle`, `act_friccion` |
+| 82 | `20260830120000_inv_001_tablas.sql` | Inversiones: `inv_cargas` + tres banderas (`carga`, `pagos`, `desempeno`) |
+| 83 | `20260830120100_inv_002_rls.sql` | Tres predicados `has_inversiones_*` + RLS de la bitácora |
+| 84 | `20260830120200_inv_003_bucket.sql` | Bucket privado `inversiones` con audiencias separadas por prefijo de ruta |
+| 85 | `20260831120000_rec_024_exportaciones.sql` | `rec_exportaciones` — bitácora de exportaciones a CSV (REC-024) |
+| 86 | `20260901120000_inv_004_pagos.sql` | `inv_pagos` + `inv_pagos_validaciones` (Calendario) |
+| 87 | `20260901130000_inv_005_rpcs_calendario.sql` | `inv_resumen_calendario`, `inv_curva_salidas`, `inv_revisar_medio` |
+| 88 | `20260901140000_inv_006_curva_series.sql` | Reescribe la curva sin dos SRF en el mismo `select` |
+| 89 | `20260901150000_inv_007_clabe_no_confiable.sql` | Quita la CLABE (llegaba rota del generador). **Revertida por la 90** |
+| 90 | `20260901160000_inv_008_tablero.sql` | Siete tablas del Tablero; la CLABE vuelve, con validación de 18 dígitos |
+| 91 | `20260915140000_inv_009_rpcs_desempeno.sql` | RPCs de Desempeño. **Se aplicó a remoto con otra versión** (`20260915210215`); el historial se reparó el 2026-10-04 (§15.3) |
+| 92 | `20261004120000_aho_001_tablas.sql` | Ahorros: banderas `acceso_ahorros` / `acceso_ahorros_carga`, `aho_cargas`, `aho_pagos` (`numeric` sin escala), `aho_eventos` |
+| 93 | `20261004120100_aho_002_rls.sql` | `has_ahorros_access()` / `has_ahorros_carga()`; sin políticas de escritura |
+| 94 | `20261004120200_aho_003_rpcs.sql` | Carga por lotes (`aho_iniciar_carga` → `aho_cargar_lote` → `aho_cerrar_carga`), `aho_buscar`, `aho_resumen`, `aho_registrar_evento` |
+| 95 | `20261004150000_vac_001_tablas.sql` | Vacaciones: bandera `acceso_vacaciones_rh`, `vac_dias_ley` (Art. 76 LFT), `vac_empleados`, `vac_movimientos` (append-only, folio) |
+| 96 | `20261004150100_vac_002_rls.sql` | `has_vacaciones_rh()`; sin `delete` |
+| 97 | `20261004150200_vac_003_rpcs.sql` | `vac_dias_por_anio`, `vac_saldos` (contra la fecha real de México), `vac_importar_base` (atómico, idempotente; se usó una vez para la carga inicial) |
+| 98 | `20261004180000_aud_001_tablas.sql` | Auditor: banderas `acceso_auditor` / `acceso_auditor_carga`, `aud_cargas` (con `secuencia`), `aud_registros` + RLS |
+| 99 | `20261004180100_aud_002_rpcs.sql` | `aud_cargar` (atómico), `aud_pendientes` (carga vigente, filtro por grupo, resueltos por llave) |
 
-> **Estado 2026-08-18:** **77** migraciones locales. Las 69 primeras tenían par remoto al 2026-08-10; **las 8 de tickets del 11-12 de agosto no se verificaron contra remoto** — correr `npm run db:status` antes de asumir nada. Importa especialmente la **73**: si `pg_cron` no está en el plan, esa migración falla sola por diseño y el autocierre queda escrito pero nunca corre.
+> **Estado 2026-10-04:** **99** migraciones locales, **todas con par remoto** según `migration list` después de reparar la 91 (§15.3). Este inventario estaba desfasado desde el 2026-08-18: le faltaban las 22 migraciones de Actividades, Inversiones, REC-024 y los tres módulos del 2026-10-04.
+>
+> **Estado 2026-08-18 (histórico):** **77** migraciones locales. Las 69 primeras tenían par remoto al 2026-08-10; **las 8 de tickets del 11-12 de agosto no se verificaron contra remoto** — correr `npm run db:status` antes de asumir nada. Importa especialmente la **73**: si `pg_cron` no está en el plan, esa migración falla sola por diseño y el autocierre queda escrito pero nunca corre.
 >
 > **Este inventario se quedó desfasado 7 días** (decía 69 y afirmaba paridad total). Es exactamente el mismo modo de falla que el documento ya advertía para `database.types.ts`: un archivo que miente con cara de autoridad porque nada truena cuando se desactualiza. Actualizarlo es parte del cierre de cualquier sesión que toque `supabase/migrations/`.
 >
@@ -1280,7 +1309,9 @@ CrediFlexi necesita automatizar el tramo de reclutamiento que va de **"el candid
 
 ---
 
-## 14. Reportes de Inversiones — research de origen *(2026-08-29, sin código todavía)*
+## 14. Reportes de Inversiones — research de origen *(2026-08-29 · I1–I5 implementados al 2026-09-15, ver `PLAN §9`)*
+
+> **Nota 2026-10-04:** esta sección es el research previo al código y se conserva como tal. El módulo se construyó del 31 de agosto al 15 de septiembre (I1–I5); lo que sigue pendiente es la entrega (I6). **Al 2026-10-04 el Tablero está vacío en producción** — solo se cargaron dos Calendarios (§15.1).
 
 Encargo en exploración: que **Felix suba estos reportes** a la plataforma, que **Tesorería y otras áreas** los consulten o descarguen, y que puedan **preguntarle a una IA** sobre su contenido. Esta sección documenta **qué son los archivos**. No hay decisión de arquitectura tomada ni nombre de módulo.
 
@@ -1479,6 +1510,49 @@ Ninguna es trabajo extra para el v1; las cinco son trabajo doble si se omiten.
 #### Lo que sí queda para después
 
 Escribir las tools, el system prompt, el widget y la evaluación. Con los cinco puntos de arriba hechos, es **aditivo**: no toca el modelo de datos ni las pantallas.
+
+---
+
+## 15. Uso real y tres módulos nuevos *(2026-10-04)*
+
+### 15.1 Medición de uso en producción
+
+Consulta de **solo lectura** (`begin transaction read only` contra el pooler) para responder "¿sirve lo que hay?" con datos y no con impresiones.
+
+| Módulo | Estado en `PLAN §0` | Uso real al 2026-10-04 |
+|---|---|---|
+| **Score** | en pausa | **El único vivo.** 96 acreditados; dos usuarias capturan cada semana desde mayo (59 y 22 registros), la última el 29 de septiembre |
+| **Tickets** | foco principal | 9 tickets, **todos del 11 y 12 de agosto** (demo y pruebas). Ninguno después. Dos de Felix siguen abiertos desde agosto |
+| **Reclutamiento** | en lanzamiento | 0 vacantes, 0 candidatos, 0 correos. Gustó en las presentaciones del 1 y 4 de septiembre; nadie lo opera |
+| **Actividades** | activo | Una carga, la dummy del 18 de agosto |
+| **Inversiones** | I6 pendiente | Dos Calendarios subidos por el admin; **las 7 tablas del Tablero vacías**. Nadie tiene banderas de consulta |
+
+**Cómo medirlo bien:** `auth.users.last_sign_in_at` engaña, porque solo cambia cuando alguien vuelve a iniciar sesión. La señal útil es `auth.sessions.refreshed_at`, que se mueve con el uso.
+
+**Lectura:** el foco de `§0` estaba puesto en el módulo sin usuarios, y el único con uso sostenido estaba en pausa. La deuda dejó de ser de código y de verificación: es de **adopción**.
+
+### 15.2 Patrones técnicos nuevos
+
+- **Archivos grandes se leen en el navegador.** El CSV de ahorros pesa ~29 MB y una función de Vercel acepta 4.5 MB. Se parsea en el cliente con un lector puro (`lib/ahorros/csv.ts`, sin `'use client'`) y se manda en lotes de 1,000 filas (~600 KB) a un RPC: `iniciar → lote × N → cerrar`, con bitácora que registra si la carga quedó a medias.
+- **Los números viajan como texto hasta `numeric`.** Un rendimiento trae hasta 20 decimales; pasarlo por un `number` de JavaScript lo redondearía antes de guardarlo. Mismo criterio para montos del Auditor.
+- **Upsert que no reescribe filas idénticas:** `on conflict … do update … where (t.*) is distinct from (excluded.*)`, y `returning (t.xmax = 0)` para contar insertadas contra actualizadas. Resubir el mismo archivo da 0 y 0, y `carga_id` apunta a la carga que de verdad cambió la fila.
+- **"Foto completa" con consecutivo.** En el Auditor cada carga reemplaza a la anterior sin borrarla, y la vigente se decide por `secuencia` (identity), no por `created_at`: dos cargas en una misma transacción comparten `now()`. Lo encontró la prueba con `rollback`.
+- **Comparar fotos sin llave natural.** El archivo de Yunius no trae id de depósito; "resueltos desde la carga anterior" se cuenta por llave (grupo, ciclo, periodo, fecha, monto) como `min(lo que bajó de N, lo que subió de C)`. Así no cuenta un depósito que solo dejó de venir, ni se confunde con un gemelo ya conciliado.
+- **Migraciones probadas contra producción sin dejar rastro.** Se aplican dentro de `begin … rollback`, simulando la sesión con `set_config('request.jwt.claims', …)` para que `auth.uid()` y los RPCs `security definer` se comporten como en la app, con `lock_timeout` para no bloquear `profiles`. Encontró dos defectos antes de llegar a remoto.
+- **Render de páginas de servidor sin sesión.** Con `sucrase` (ya en `node_modules`) se transpilan las páginas al vuelo, se sustituyen `@/lib/supabase/server`, `next/navigation` y `next/link` por stubs, y se renderizan con `react-dom/server` usando datos reales sacados con `rollback`. Cubre el modo de falla de §5.6 (`next build` no prueba que una ruta renderice).
+
+### 15.3 Incidentes y lecciones del día
+
+- **Historial de migraciones desalineado.** `inv_009` se había aplicado a remoto como `20260915210215` (fuera del CLI), y la local `20260915140000` aparecía pendiente. Se comparó el contenido: era idéntico salvo comentarios. Se reparó con `migration repair` (revertida la remota, aplicada la local) antes de empujar.
+- **Una copia vieja de este documento casi se commitea encima.** El working copy de `RESEARCH-CONSOLIDADO.md` traía un diff de 852 líneas que parecía reacomodo de tablas de un editor, pero **borraba 51 líneas de §14** (la versión era anterior a los commits del 29 de agosto). Se restauró desde git; la copia quedó respaldada fuera del repo. Lección: un diff grande de "formato" en un documento vivo se revisa ignorando espacios (`git diff --ignore-all-space`) antes de commitearlo.
+- **Vacaciones arrancó vacía en producción.** Todas las pruebas corrieron con `rollback`, y el módulo terminó pidiéndole a RH que importara el Excel. El usuario lo corrigió: **la carga inicial es parte de la entrega**, no un paso del flujo. La base se cargó una vez y se quitaron la pantalla y la ruta de importación.
+
+### 15.4 Riesgos y datos fuera del repo
+
+- **Datos cargados por script, no reproducibles desde el repo.** La base de Vacaciones (86 personas, 43 registros), el cruce del archivo "Información para Sistemas" (69 correos y puestos, 68 jefes), el grupo 439 C01 de Ahorros y la foto de septiembre del Auditor se cargaron con scripts locales que no se subieron, porque manejan datos personales. El esquema y los RPCs sí están en el repo.
+- **PII del personal** en `vac_empleados` (ver §1). Los correos genéricos `asesor.<sucursal>N` son cuentas por puesto, no por persona, y dos escriben "ixtapluca" en vez de "ixtapaluca"; están sin verificar.
+- **Ahorros solo tiene un grupo cuadrado.** El CSV completo no se cargó: trae garantías negativas, pagos atípicos y 152 grupo-ciclo sin datos del crédito, y lo que entra no se borra desde la pantalla. Regla de Data Science: solo entra lo cuadrado.
+- **Vacaciones fase 2 depende de los correos.** La solicitud del empleado y los recordatorios al jefe necesitan que el envío de correos de la plataforma funcione, y eso sigue sin verificarse (`PLAN §0`, pendiente #1 de tickets).
 
 ---
 
