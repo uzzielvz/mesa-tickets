@@ -27,6 +27,11 @@
 > **Lo que se entregó el mismo día**, a petición directa y con sus requisitos ya levantados: **Visor de ahorros** (Felix, §10), **Vacaciones fase 1** (Gente y Cultura, §11) y **Auditor de depósitos** (Charly, §12). Los tres están desplegados y con datos de arranque, detrás de banderas que **todavía nadie más que el admin tiene**.
 >
 > **Pendiente de decidir** (junta del 2026-10-05): qué pasa con la cola de tickets de abajo, si Score sale de la pausa, y en qué orden se le da cada herramienta a su usuario. Ninguna de las tres vías nuevas está entregada hasta que su usuario la use.
+>
+> **Cola siguiente (definida por el usuario el 2026-10-05, en este orden):**
+> 1. **Que Felix suba desde Python, sin pantalla.** Una función que reciba su `DataFrame` (ahorros y pagos registrados) y lo mande a la plataforma por los mismos RPCs de carga, autenticada con un token personal revocable. Así su script publica directo y deja de bajar, guardar y subir archivos.
+> 2. **Cerrar Vacaciones y probarlo de punta a punta con personas reales:** completar los datos que faltan (Montellano), dar las banderas, y una solicitud real que recorra empleado → jefe → Vo. Bo. → constancia, con guion de prueba y criterio de listo.
+> 3. **Auditor: en espera** de que Felix apruebe la vista por promotor (si el "Recuperador" del reporte de Yunius es el promotor).
 
 ### Vía activa — Mesa de Tickets
 
