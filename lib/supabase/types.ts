@@ -568,6 +568,10 @@ export interface Database {
           acceso_ahorros_carga: boolean
           /** Gente y Cultura: todo el personal, registros y formatos (VAC-001). */
           acceso_vacaciones_rh: boolean
+          /** Ve los depósitos sin conciliar de toda la cartera (AUD-001). */
+          acceso_auditor: boolean
+          /** Sube el archivo de pagos registrados de Yunius (AUD-001). */
+          acceso_auditor_carga: boolean
           /** Ve las colas de TODAS las áreas en la mesa (TKT-043). */
           supervisa_tickets: boolean
           created_at: string
@@ -590,6 +594,8 @@ export interface Database {
           acceso_ahorros?: boolean
           acceso_ahorros_carga?: boolean
           acceso_vacaciones_rh?: boolean
+          acceso_auditor?: boolean
+          acceso_auditor_carga?: boolean
           supervisa_tickets?: boolean
         }
         Update: {
@@ -610,6 +616,8 @@ export interface Database {
           acceso_ahorros?: boolean
           acceso_ahorros_carga?: boolean
           acceso_vacaciones_rh?: boolean
+          acceso_auditor?: boolean
+          acceso_auditor_carga?: boolean
           supervisa_tickets?: boolean
         }
         Relationships: []
@@ -1775,6 +1783,44 @@ export interface Database {
         }
         Relationships: []
       }
+      /** AUD-001 — cada carga es una foto completa; la vigente es la de mayor `secuencia`. */
+      aud_cargas: {
+        Row: {
+          id: string
+          secuencia: number
+          nombre_archivo: string
+          registros: number
+          sin_conciliar: number
+          monto_sin_conciliar: number
+          fecha_min: string | null
+          fecha_max: string | null
+          avisos: string[]
+          subido_por: string | null
+          created_at: string
+        }
+        Insert: never
+        Update: never
+        Relationships: []
+      }
+      /** AUD-001 — un depósito registrado en Yunius. Se escribe solo por `aud_cargar`. */
+      aud_registros: {
+        Row: {
+          id: number
+          carga_id: string
+          fila: number
+          conciliado: boolean
+          ciclo: string
+          grupo_id: string
+          periodo: number | null
+          nombre_grupo: string | null
+          fecha_deposito: string
+          monto: number
+          promotor: string | null
+        }
+        Insert: never
+        Update: never
+        Relationships: []
+      }
       /** AHO-001 — consultas y descargas. Solo lo lee quien carga. */
       aho_eventos: {
         Row: {
@@ -1956,6 +2002,23 @@ export interface Database {
         Returns: number
       }
       has_vacaciones_rh: {
+        Args: Record<string, never>
+        Returns: boolean
+      }
+      // AUD-002: auditor de depósitos. Contrato en lib/auditor/tipos.ts.
+      aud_cargar: {
+        Args: { p_nombre: string; p_filas: unknown; p_avisos: string[] }
+        Returns: unknown
+      }
+      aud_pendientes: {
+        Args: { p_grupo?: string | null }
+        Returns: unknown
+      }
+      has_auditor_access: {
+        Args: Record<string, never>
+        Returns: boolean
+      }
+      has_auditor_carga: {
         Args: Record<string, never>
         Returns: boolean
       }

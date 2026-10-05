@@ -9,7 +9,7 @@ import {
   Users, UserPlus, Gauge,
   PieChart, Building2, UserSearch, AlertTriangle, Layers, Upload, KeyRound,
   BarChart3, Briefcase, Kanban, CalendarClock, ClipboardCheck, Settings, Send,
-  Clock4, Activity, Landmark, TrendingUp, FileClock, PiggyBank, Plane,
+  Clock4, Activity, Landmark, TrendingUp, FileClock, PiggyBank, Plane, ScanSearch,
   type LucideIcon,
 } from 'lucide-react'
 import Wordmark from '@/components/brand/wordmark'
@@ -140,6 +140,10 @@ function NavContent({
   // Vacaciones, fase 1: solo Gente y Cultura.
   const hasVacacionesAccess = profile.acceso_vacaciones_rh === true || isAdmin
 
+  // Auditor de depósitos: quien carga (Felix / Charly) también consulta.
+  const audCarga = profile.acceso_auditor_carga === true || isAdmin
+  const hasAuditorAccess = profile.acceso_auditor === true || audCarga
+
   // Secciones que contienen la ruta activa.
   const ticketsActive = pathname.startsWith('/tickets') || pathname.startsWith('/admin/catalogo') || pathname.startsWith('/admin/areas')
   const scoreActive = pathname.startsWith('/score') || pathname.startsWith('/admin/score')
@@ -149,6 +153,7 @@ function NavContent({
   const inversionesActive = pathname.startsWith('/inversiones')
   const ahorrosActive = pathname.startsWith('/ahorros')
   const vacacionesActive = pathname.startsWith('/vacaciones')
+  const auditorActive = pathname.startsWith('/auditor')
 
   // Auto-abre solo la sección activa según la ruta; las demás arrancan colapsadas.
   const [ticketsOpen, setTicketsOpen] = useState(() => ticketsActive)
@@ -159,6 +164,7 @@ function NavContent({
   const [inversionesOpen, setInversionesOpen] = useState(() => inversionesActive)
   const [ahorrosOpen, setAhorrosOpen] = useState(() => ahorrosActive)
   const [vacacionesOpen, setVacacionesOpen] = useState(() => vacacionesActive)
+  const [auditorOpen, setAuditorOpen] = useState(() => auditorActive)
 
   return (
     <div className="flex flex-col gap-3">
@@ -559,6 +565,37 @@ function NavContent({
             onClick={onNav}
             muted
           />
+        </NavSection>
+      )}
+
+      {/* ── Auditor de depósitos ── */}
+      {hasAuditorAccess && (
+        <NavSection
+          title="Auditor"
+          open={auditorOpen}
+          hasActive={auditorActive}
+          onToggle={() => setAuditorOpen(v => !v)}
+        >
+          <NavItem
+            href="/auditor"
+            label="Sin conciliar"
+            icon={ScanSearch}
+            active={pathname === '/auditor'}
+            onClick={onNav}
+          />
+          {audCarga && (
+            <>
+              <SectionDivider />
+              <NavItem
+                href="/auditor/cargar"
+                label="Cargar archivo"
+                icon={Upload}
+                active={pathname.startsWith('/auditor/cargar')}
+                onClick={onNav}
+                muted
+              />
+            </>
+          )}
         </NavSection>
       )}
 
