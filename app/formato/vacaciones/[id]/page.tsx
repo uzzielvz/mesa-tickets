@@ -1,11 +1,28 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
+import { ShieldCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import ImprimirBoton from '@/components/vacaciones/imprimir-boton'
 import { partesFecha, fechaLarga } from '@/lib/vacaciones/calendario'
 import { EMPRESA, CIUDAD, type Movimiento, type SaldoEmpleado } from '@/lib/vacaciones/tipos'
 
 export const dynamic = 'force-dynamic'
+
+interface DatosFormato {
+  movimiento: Movimiento
+  empleado: SaldoEmpleado
+  tomados_hasta_aqui: number
+  registrado_por: string | null
+  solicitud: {
+    folio: number
+    created_at: string
+    solicitada_por: string | null
+    jefe_at: string | null
+    jefe_por: string | null
+    rh_at: string | null
+    rh_por: string | null
+  } | null
+}
 
 /** Años cumplidos entre dos fechas ISO. */
 function aniosEntre(desde: string, hasta: string): number {
@@ -14,97 +31,59 @@ function aniosEntre(desde: string, hasta: string): number {
   return a2 - a1 - (m2 < m1 || (m2 === m1 && d2 < d1) ? 1 : 0)
 }
 
+const momento = (iso: string) =>
+  new Date(iso).toLocaleString('es-MX', {
+    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/Mexico_City',
+  })
+
 /**
- * Formato GYC-VAC012026 (vacaciones) o GYC-DF012026 (días flotantes),
- * prellenado desde la base. Mismos campos y mismas tres firmas que el papel de
- * Gente y Cultura; lo único que cambia es que ya nadie lo teclea.
+ * Formato GYC-VAC012026 (vacaciones) o GYC-DF012026 (días flotantes).
  *
- * Fase 1: se imprime y se firma a mano. La fase 2 decidirá si la autorización
- * en la plataforma sustituye a las firmas.
+ * Desde el 2026-10-05 la firma en la plataforma reemplaza al papel (VAC-005):
+ *   · Si los días vienen de una solicitud, esto es la CONSTANCIA de tres firmas
+ *     electrónicas. No lleva líneas para firma autógrafa.
+ *   · Si los registró Gente y Cultura a mano, no hubo firmas en la plataforma:
+ *     sale como siempre, para firmar en papel.
+ * Lo pueden abrir Gente y Cultura, la persona y su jefe; lo valida `vac_formato`.
  */
 export default async function FormatoVacacionesPage({ params }: { params: { id: string } }) {
   if (!/^[0-9a-f-]{36}$/i.test(params.id)) notFound()
   const supabase = createClient()
 
-  const { data: mov } = await supabase.from('vac_movimientos').select('*').eq('id', params.id).maybeSingle()
-  const m = mov as Movimiento | null
-  if (!m || m.anulado_at || !m.fecha_inicio) notFound()
+  const { data, error } = await supabase.rpc('vac_formato', { p_movimiento: params.id })
+  if (error?.code === '42501') redirect('/vacaciones/mias')
+  const d = data as unknown as DatosFormato | null
+  if (!d || !d.movimiento.fecha_inicio) notFound()
 
-  const [{ data: saldo }, { data: hermanos }, { data: quien }, { data: solicitud }] = await Promise.all([
-    supabase.rpc('vac_saldos', { p_empleado: m.empleado_id }),
-    supabase
-      .from('vac_movimientos')
-      .select('id, dias, created_at')
-      .eq('empleado_id', m.empleado_id)
-      .eq('tipo', 'vacaciones')
-      .eq('periodo', m.periodo ?? -1)
-      .is('anulado_at', null),
-    m.registrado_por
-      ? supabase.from('profiles').select('nombre_completo').eq('id', m.registrado_por).maybeSingle()
-      : Promise.resolve({ data: null }),
-    m.solicitud_id
-      ? supabase
-          .from('vac_solicitudes')
-          .select('folio, solicitada_por, created_at, jefe_por, jefe_at, rh_por, rh_at')
-          .eq('id', m.solicitud_id)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
-  ])
-
-  // Si los días vienen de una solicitud en la plataforma, las tres firmas ya
-  // ocurrieron ahí: quién y cuándo es el acuse de la firma electrónica simple.
-  const sol = solicitud as {
-    folio: number; solicitada_por: string | null; created_at: string
-    jefe_por: string | null; jefe_at: string | null; rh_por: string | null; rh_at: string | null
-  } | null
-  const firmantes = sol
-    ? await supabase
-        .from('profiles')
-        .select('id, nombre_completo')
-        .in('id', [sol.solicitada_por, sol.jefe_por, sol.rh_por].filter((x): x is string => !!x))
-    : { data: [] as { id: string; nombre_completo: string }[] }
-  const nombreDe = (id: string | null) => (firmantes.data ?? []).find(f => f.id === id)?.nombre_completo ?? null
-  const acuse = (cuando: string | null, porId: string | null) =>
-    cuando
-      ? `Firmado en la plataforma${nombreDe(porId) ? ` por ${nombreDe(porId)}` : ''} · ${new Date(cuando).toLocaleString('es-MX', {
-          day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/Mexico_City',
-        })}`
-      : undefined
-
-  const e = ((saldo as unknown as SaldoEmpleado[] | null) ?? [])[0]
-  if (!e) notFound()
+  const m = d.movimiento
+  const e = d.empleado
+  const sol = d.solicitud
+  const electronico = sol !== null
 
   const esVacaciones = m.tipo === 'vacaciones'
   const periodo = esVacaciones ? e.periodos.find(p => p.periodo === m.periodo) : undefined
-  // "Días pendientes" al momento de ESTE registro, no al día de hoy: el formato
-  // se puede reimprimir semanas después y debe decir lo mismo que el original.
-  const tomadosHastaAqui = (hermanos ?? [])
-    .filter(h => h.created_at <= m.created_at)
-    .reduce((a, h) => a + Number(h.dias), 0)
-  const pendientes = periodo ? periodo.derecho - tomadosHastaAqui : null
+  const pendientes = periodo ? periodo.derecho - Number(d.tomados_hasta_aqui) : null
 
-  const ini = partesFecha(m.fecha_inicio)
-  const fin = partesFecha(m.fecha_fin ?? m.fecha_inicio)
+  const ini = partesFecha(m.fecha_inicio!)
+  const fin = partesFecha(m.fecha_fin ?? m.fecha_inicio!)
   const elaborado = partesFecha(
-    new Date(m.created_at).toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' }),
+    new Date(sol?.rh_at ?? m.created_at).toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' }),
   )
   const titulo = esVacaciones ? 'VACACIONES GYC-VAC012026' : 'DÍAS FLOTANTES GYC-DF012026'
   const rhFirma = esVacaciones ? 'Vo. Bo. Recursos Humanos' : 'Vo. Bo. Coordinador Gente y Cultura'
   const fmt = (n: number) => n.toLocaleString('es-MX', { maximumFractionDigits: 1 })
+  const volver = electronico ? '/vacaciones/mias' : `/vacaciones/${e.id}`
 
   return (
     <div className="max-w-[820px] mx-auto px-4 py-6 print:p-0 print:max-w-none">
       <style>{'@page { size: letter; margin: 14mm; }'}</style>
 
       <div className="flex items-center justify-between mb-4 print:hidden">
-        <Link href={`/vacaciones/${e.id}`} className="text-[13px] text-navy hover:underline font-medium">
-          ← Volver a {e.nombre}
-        </Link>
+        <Link href={volver} className="text-[13px] text-navy hover:underline font-medium">← Volver</Link>
         <ImprimirBoton />
       </div>
 
       <article className="bg-white border border-ink-900 text-[12.5px] text-black leading-snug">
-        {/* ── Encabezado ── */}
         <header className="flex items-center justify-between px-5 py-3 border-b border-ink-900">
           <p className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-orange" />
@@ -113,6 +92,13 @@ export default async function FormatoVacacionesPage({ params }: { params: { id: 
           <p className="text-[14px] font-bold">{titulo}</p>
           <p className="text-[11px] text-ink-500">Folio {m.folio}</p>
         </header>
+
+        {electronico && (
+          <p className="flex items-center gap-2 px-5 py-2 border-b border-ink-900 bg-[#F1F8F2] text-[11.5px] text-[#2E7D32]">
+            <ShieldCheck size={14} className="shrink-0" />
+            Firmado electrónicamente en la plataforma de CrediFlexi (solicitud {sol!.folio}). No requiere firma autógrafa.
+          </p>
+        )}
 
         <section className="px-5 py-4 flex flex-col gap-2.5">
           <Fila>
@@ -125,19 +111,17 @@ export default async function FormatoVacacionesPage({ params }: { params: { id: 
           </Fila>
           <Fila>
             <Campo etiqueta="Fecha de Ingreso" valor={fechaLarga(e.fecha_ingreso)} />
-            <Campo etiqueta="Años de Servicio" valor={`${aniosEntre(e.fecha_ingreso, m.fecha_inicio)} AÑOS`} />
+            <Campo etiqueta="Años de Servicio" valor={`${aniosEntre(e.fecha_ingreso, m.fecha_inicio!)} AÑOS`} />
           </Fila>
           <Fila>
             <Campo etiqueta="Días que corresponden" valor={periodo ? String(periodo.derecho) : null} />
-            <Campo etiqueta="Días a disfrutar" valor={fmt(m.dias)} />
+            <Campo etiqueta="Días a disfrutar" valor={fmt(Number(m.dias))} />
             <Campo etiqueta="Días Pendientes" valor={pendientes !== null ? fmt(pendientes) : null} />
           </Fila>
           <Fila>
             <Campo
               etiqueta="Período a Disfrutar"
-              valor={periodo
-                ? `del año ${periodo.desde.slice(0, 4)} al año ${periodo.hasta.slice(0, 4)}`
-                : `año ${ini.anio}`}
+              valor={periodo ? `del año ${periodo.desde.slice(0, 4)} al año ${periodo.hasta.slice(0, 4)}` : `año ${ini.anio}`}
               ancho
             />
           </Fila>
@@ -171,21 +155,21 @@ export default async function FormatoVacacionesPage({ params }: { params: { id: 
             <strong>{CIUDAD}</strong> a {elaborado.dia} de {elaborado.mes} de {elaborado.anio}
           </p>
 
-          <div className="grid grid-cols-3 gap-6 mt-14 text-center text-[11.5px]">
+          <div className={`grid grid-cols-3 gap-6 text-center text-[11.5px] ${electronico ? 'mt-6' : 'mt-14'}`}>
             <Firma
               nombre={e.nombre}
               rol="Firma de Conformidad del Empleado"
-              acuse={sol ? acuse(sol.created_at, sol.solicitada_por) : undefined}
+              electronica={electronico ? { quien: sol!.solicitada_por, cuando: sol!.created_at } : undefined}
             />
             <Firma
               nombre={e.jefe_nombre}
               rol="Firma de Autorización del Jefe directo"
-              acuse={sol ? acuse(sol.jefe_at, sol.jefe_por) : undefined}
+              electronica={electronico && sol!.jefe_at ? { quien: sol!.jefe_por, cuando: sol!.jefe_at } : undefined}
             />
             <Firma
-              nombre={(sol ? nombreDe(sol.rh_por) : null) ?? (quien as { nombre_completo?: string } | null)?.nombre_completo ?? null}
+              nombre={electronico ? sol!.rh_por : d.registrado_por}
               rol={rhFirma}
-              acuse={sol ? acuse(sol.rh_at, sol.rh_por) : undefined}
+              electronica={electronico && sol!.rh_at ? { quien: sol!.rh_por, cuando: sol!.rh_at } : undefined}
             />
           </div>
         </section>
@@ -193,8 +177,36 @@ export default async function FormatoVacacionesPage({ params }: { params: { id: 
 
       <p className="text-[10.5px] text-ink-400 mt-2">
         Generado en la plataforma de CrediFlexi a partir de la base de Gente y Cultura · Folio {m.folio}
-        {sol && <> · Solicitud {sol.folio}, autorizada en la plataforma</>}
+        {electronico && <> · Solicitud {sol!.folio}</>}
       </p>
+    </div>
+  )
+}
+
+/** Con `electronica`, la firma ocurrió en la plataforma: nombre, rol y fecha, sin línea para firmar. */
+function Firma({
+  nombre, rol, electronica,
+}: {
+  nombre: string | null
+  rol: string
+  electronica?: { quien: string | null; cuando: string }
+}) {
+  if (electronica) {
+    return (
+      <div className="flex flex-col items-center gap-0.5">
+        <p className="flex items-center gap-1 text-[#2E7D32] font-medium">
+          <ShieldCheck size={12} /> Firmado electrónicamente
+        </p>
+        <div className="w-full border-t border-ink-900 pt-1 font-medium">{electronica.quien ?? nombre ?? ''}</div>
+        <p className="font-bold">{rol}</p>
+        <p className="text-[10px] text-ink-500">{momento(electronica.cuando)}</p>
+      </div>
+    )
+  }
+  return (
+    <div>
+      <div className="border-t border-ink-900 pt-1 min-h-[16px] font-medium">{nombre ?? ''}</div>
+      <p className="font-bold mt-0.5">{rol}</p>
     </div>
   )
 }
@@ -209,15 +221,5 @@ function Campo({ etiqueta, valor, ancho }: { etiqueta: string; valor: string | n
       <span className="whitespace-nowrap">{etiqueta}:</span>
       <span className="flex-1 border-b border-ink-900 pb-0.5 min-h-[18px] font-medium">{valor ?? ''}</span>
     </p>
-  )
-}
-
-function Firma({ nombre, rol, acuse }: { nombre: string | null; rol: string; acuse?: string }) {
-  return (
-    <div>
-      <div className="border-t border-ink-900 pt-1 min-h-[16px] font-medium">{nombre ?? ''}</div>
-      <p className="font-bold mt-0.5">{rol}</p>
-      {acuse && <p className="text-[9.5px] text-ink-500 mt-1 leading-snug">✓ {acuse}</p>}
-    </div>
   )
 }

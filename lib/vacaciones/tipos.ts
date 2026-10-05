@@ -82,6 +82,8 @@ export interface MiSolicitud {
   jefe_comentario: string | null
   rh_at: string | null
   rh_comentario: string | null
+  /** Cuando está aprobada: el registro que abre su constancia (VAC-005). */
+  movimiento_id: string | null
 }
 
 export interface MisVacaciones {

@@ -2048,6 +2048,11 @@ export interface Database {
         Args: Record<string, never>
         Returns: string | null
       }
+      // VAC-005: datos del formato o constancia; lo ven RH, la persona y su jefe.
+      vac_formato: {
+        Args: { p_movimiento: string }
+        Returns: unknown
+      }
       vac_mis_vacaciones: {
         Args: Record<string, never>
         Returns: unknown

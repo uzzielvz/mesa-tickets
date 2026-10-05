@@ -1,3 +1,4 @@
+import { ShieldCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import Header from '@/components/layout/header'
 import { Tile, Panel, Vacio } from '@/components/viz'
@@ -97,6 +98,16 @@ export default async function MisVacacionesPage() {
                       {s.rh_comentario && <p className="text-[12px] text-ink-700">Gente y Cultura: “{s.rh_comentario}”</p>}
                       {(s.estado === 'pendiente_jefe' || s.estado === 'pendiente_rh') && (
                         <div><CancelarSolicitud id={s.id} /></div>
+                      )}
+                      {s.estado === 'aprobada' && s.movimiento_id && (
+                        <a
+                          href={`/formato/vacaciones/${s.movimiento_id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-[12px] text-navy font-medium hover:underline"
+                        >
+                          <ShieldCheck size={12} /> Ver constancia firmada
+                        </a>
                       )}
                     </li>
                   ))}
