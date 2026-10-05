@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
-interface Profile { id: string; nombre_completo: string; email: string; rol: string; area_id: string | null; activo: boolean; acceso_tickets: boolean; acceso_score: boolean; acceso_cartera: boolean; acceso_reclutamiento: boolean; acceso_actividades: boolean; acceso_inversiones_carga: boolean; acceso_inversiones_pagos: boolean; acceso_inversiones_desempeno: boolean; acceso_ahorros: boolean; acceso_ahorros_carga: boolean; supervisa_tickets: boolean }
+interface Profile { id: string; nombre_completo: string; email: string; rol: string; area_id: string | null; activo: boolean; acceso_tickets: boolean; acceso_score: boolean; acceso_cartera: boolean; acceso_reclutamiento: boolean; acceso_actividades: boolean; acceso_inversiones_carga: boolean; acceso_inversiones_pagos: boolean; acceso_inversiones_desempeno: boolean; acceso_ahorros: boolean; acceso_ahorros_carga: boolean; acceso_vacaciones_rh: boolean; supervisa_tickets: boolean }
 interface Area { id: string; nombre: string }
 
 const selectClass = 'bg-white border border-[#ECECEC] rounded px-2 py-1 text-[12.5px] text-ink-900 outline-none focus:border-orange transition-all'
@@ -147,6 +147,17 @@ export default function UsuariosAdmin({ profiles, areas }: { profiles: Profile[]
     setSaving(null)
   }
 
+  // Vacaciones (VAC-001): Gente y Cultura ve a todo el personal y sus saldos.
+  async function toggleVacacionesRh(id: string, actual: boolean) {
+    setSaving(id)
+    const supabase = createClient()
+    const { error } = await supabase.from('profiles').update({ acceso_vacaciones_rh: !actual }).eq('id', id)
+    if (error) { toast.error('Error al actualizar acceso.'); setSaving(null); return }
+    toast.success(actual ? 'Acceso a Vacaciones retirado' : 'Acceso a Vacaciones otorgado')
+    router.refresh()
+    setSaving(null)
+  }
+
   // Supervisor de la mesa: ve las colas de TODAS las áreas sin ser admin
   // del sistema (TKT-043). Es ortogonal al rol, por eso va como toggle.
   async function toggleSupervisaTickets(id: string, actual: boolean) {
@@ -160,10 +171,10 @@ export default function UsuariosAdmin({ profiles, areas }: { profiles: Profile[]
   }
 
   return (
-    <div className="border border-[#ECECEC] rounded-md overflow-hidden max-w-5xl">
+    <div className="border border-[#ECECEC] rounded-md overflow-x-auto">
       {/* Headers */}
-      <div className="hidden md:grid grid-cols-[1fr_110px_130px_70px_70px_70px_76px_84px_116px_84px_88px] px-5 py-2 border-b border-[#ECECEC] bg-surface-sidebar">
-        {['Usuario', 'Rol', 'Área', 'Tickets', 'Score', 'Cartera', 'Reclut.', 'Activid.', 'Inversiones', 'Ahorros', 'Supervisa'].map(h => (
+      <div className="hidden md:grid md:min-w-[1240px] grid-cols-[1fr_110px_130px_70px_70px_70px_76px_84px_116px_84px_76px_88px] px-5 py-2 border-b border-[#ECECEC] bg-surface-sidebar">
+        {['Usuario', 'Rol', 'Área', 'Tickets', 'Score', 'Cartera', 'Reclut.', 'Activid.', 'Inversiones', 'Ahorros', 'Vacac.', 'Supervisa'].map(h => (
           <span key={h} className="text-[11px] uppercase tracking-[0.3px] text-ink-400 font-medium">{h}</span>
         ))}
       </div>
@@ -171,7 +182,7 @@ export default function UsuariosAdmin({ profiles, areas }: { profiles: Profile[]
       {profiles.map((profile, i) => (
         <div
           key={profile.id}
-          className={`grid grid-cols-1 md:grid-cols-[1fr_110px_130px_70px_70px_70px_76px_84px_116px_84px_88px] items-center px-5 py-3 gap-2 ${i < profiles.length - 1 ? 'border-b border-[#F5F5F5]' : ''} ${saving === profile.id ? 'opacity-50' : ''}`}
+          className={`grid grid-cols-1 md:min-w-[1240px] md:grid-cols-[1fr_110px_130px_70px_70px_70px_76px_84px_116px_84px_76px_88px] items-center px-5 py-3 gap-2 ${i < profiles.length - 1 ? 'border-b border-[#F5F5F5]' : ''} ${saving === profile.id ? 'opacity-50' : ''}`}
         >
           <div>
             <p className="text-[13px] font-medium text-ink-900">{profile.nombre_completo}</p>
@@ -336,6 +347,25 @@ export default function UsuariosAdmin({ profiles, areas }: { profiles: Profile[]
               )
             })}
           </div>
+
+          {/* Toggle Vacaciones — Gente y Cultura */}
+          <button
+            onClick={() => toggleVacacionesRh(profile.id, profile.acceso_vacaciones_rh)}
+            disabled={saving === profile.id}
+            title={profile.acceso_vacaciones_rh
+              ? 'Quitar acceso a Vacaciones'
+              : 'Dar acceso a Vacaciones (Gente y Cultura: ve nombres, antigüedad y saldos de todo el personal)'}
+            className={`
+              relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent
+              transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed
+              ${profile.acceso_vacaciones_rh ? 'bg-navy' : 'bg-[#DCDCDC]'}
+            `}
+          >
+            <span className={`
+              inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform duration-200
+              ${profile.acceso_vacaciones_rh ? 'translate-x-4' : 'translate-x-0'}
+            `} />
+          </button>
 
           {/* Supervisa toda la mesa: ve las colas de todas las áreas */}
           <button

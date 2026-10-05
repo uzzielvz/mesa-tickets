@@ -9,7 +9,7 @@ import {
   Users, UserPlus, Gauge,
   PieChart, Building2, UserSearch, AlertTriangle, Layers, Upload, KeyRound,
   BarChart3, Briefcase, Kanban, CalendarClock, ClipboardCheck, Settings, Send,
-  Clock4, Activity, Landmark, TrendingUp, FileClock, PiggyBank,
+  Clock4, Activity, Landmark, TrendingUp, FileClock, PiggyBank, Plane,
   type LucideIcon,
 } from 'lucide-react'
 import Wordmark from '@/components/brand/wordmark'
@@ -137,6 +137,9 @@ function NavContent({
   const ahoCarga = profile.acceso_ahorros_carga === true || isAdmin
   const hasAhorrosAccess = profile.acceso_ahorros === true || ahoCarga
 
+  // Vacaciones, fase 1: solo Gente y Cultura.
+  const hasVacacionesAccess = profile.acceso_vacaciones_rh === true || isAdmin
+
   // Secciones que contienen la ruta activa.
   const ticketsActive = pathname.startsWith('/tickets') || pathname.startsWith('/admin/catalogo') || pathname.startsWith('/admin/areas')
   const scoreActive = pathname.startsWith('/score') || pathname.startsWith('/admin/score')
@@ -145,6 +148,7 @@ function NavContent({
   const actividadesActive = pathname.startsWith('/actividades')
   const inversionesActive = pathname.startsWith('/inversiones')
   const ahorrosActive = pathname.startsWith('/ahorros')
+  const vacacionesActive = pathname.startsWith('/vacaciones')
 
   // Auto-abre solo la sección activa según la ruta; las demás arrancan colapsadas.
   const [ticketsOpen, setTicketsOpen] = useState(() => ticketsActive)
@@ -154,6 +158,7 @@ function NavContent({
   const [actividadesOpen, setActividadesOpen] = useState(() => actividadesActive)
   const [inversionesOpen, setInversionesOpen] = useState(() => inversionesActive)
   const [ahorrosOpen, setAhorrosOpen] = useState(() => ahorrosActive)
+  const [vacacionesOpen, setVacacionesOpen] = useState(() => vacacionesActive)
 
   return (
     <div className="flex flex-col gap-3">
@@ -527,6 +532,33 @@ function NavContent({
               />
             </>
           )}
+        </NavSection>
+      )}
+
+      {/* ── Vacaciones ── */}
+      {hasVacacionesAccess && (
+        <NavSection
+          title="Vacaciones"
+          open={vacacionesOpen}
+          hasActive={vacacionesActive}
+          onToggle={() => setVacacionesOpen(v => !v)}
+        >
+          <NavItem
+            href="/vacaciones"
+            label="Personal"
+            icon={Plane}
+            active={pathname === '/vacaciones' || /^\/vacaciones\/[0-9a-f-]{36}/i.test(pathname)}
+            onClick={onNav}
+          />
+          <SectionDivider />
+          <NavItem
+            href="/vacaciones/importar"
+            label="Importar base"
+            icon={Upload}
+            active={pathname.startsWith('/vacaciones/importar')}
+            onClick={onNav}
+            muted
+          />
         </NavSection>
       )}
 
