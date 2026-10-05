@@ -29,7 +29,7 @@
 > **Pendiente de decidir** (junta del 2026-10-05): qué pasa con la cola de tickets de abajo, si Score sale de la pausa, y en qué orden se le da cada herramienta a su usuario. Ninguna de las tres vías nuevas está entregada hasta que su usuario la use.
 >
 > **Cola siguiente (definida por el usuario el 2026-10-05, en este orden):**
-> 1. **Que Felix suba desde Python, sin pantalla.** Una función que reciba su `DataFrame` (ahorros y pagos registrados) y lo mande a la plataforma por los mismos RPCs de carga, autenticada con un token personal revocable. Así su script publica directo y deja de bajar, guardar y subir archivos.
+> 1. ✅ **Que Felix suba desde Python, sin pantalla** (2026-10-05). Repo aparte y privado `github.com/uzzielvz/crediflexi-cargas`: `Cliente().subir_ahorros(df)` y `subir_pagos_registrados(df)`, con las mismas validaciones que la pantalla (idéntico en las 111,472 filas). En la plataforma, `api_001`: tokens personales (solo se guarda el hash), revocables y con alcance; el token actúa como su dueño y respeta sus banderas. **Falta:** crearle el token a Felix (`select api_crear_token(...)` en el SQL editor), darle las banderas de carga y que lo pruebe.
 > 2. **Cerrar Vacaciones y probarlo de punta a punta con personas reales:** completar los datos que faltan (Montellano), dar las banderas, y una solicitud real que recorra empleado → jefe → Vo. Bo. → constancia, con guion de prueba y criterio de listo.
 > 3. **Auditor: en espera** de que Felix apruebe la vista por promotor (si el "Recuperador" del reporte de Yunius es el promotor).
 

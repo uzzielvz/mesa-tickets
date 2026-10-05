@@ -1109,7 +1109,12 @@ Tres decisiones de modelo que conviene no deshacer sin leer esto:
 | 97 | `20261004150200_vac_003_rpcs.sql` | `vac_dias_por_anio`, `vac_saldos` (contra la fecha real de México), `vac_importar_base` (atómico, idempotente; se usó una vez para la carga inicial) |
 | 98 | `20261004180000_aud_001_tablas.sql` | Auditor: banderas `acceso_auditor` / `acceso_auditor_carga`, `aud_cargas` (con `secuencia`), `aud_registros` + RLS |
 | 99 | `20261004180100_aud_002_rpcs.sql` | `aud_cargar` (atómico), `aud_pendientes` (carga vigente, filtro por grupo, resueltos por llave) |
+| 100 | `20261005150000_vac_004_solicitudes.sql` | Vacaciones fase 2: `vac_solicitudes`, `vac_festivos`, `vac_mi_empleado`/`vac_mi_contexto` (el empleado se reconoce por correo), `vac_solicitar`, `vac_resolver_jefe`, `vac_resolver_rh` (reparte días del periodo más viejo), bandejas; `vac_saldos` pasa a envolver `vac_saldos_interno` |
+| 101 | `20261005170000_vac_005_constancia.sql` | La firma en la plataforma reemplaza al papel: `vac_formato` (lo ven RH, la persona y su jefe) y `movimiento_id` en "Mis vacaciones" |
+| 102 | `20261005190000_api_001_tokens.sql` | Tokens personales para scripts (`api_tokens`, solo hash), `api_actuar_como` fija `auth.uid()` en el dueño del token durante la transacción; `api_aho_*` y `api_aud_cargar` reutilizan las cargas originales; `api_crear_token`/`api_revocar_token` |
 
+> **Estado 2026-10-05:** **102** migraciones locales, todas aplicadas a remoto (las 100–102 se probaron antes en transacción con rollback).
+>
 > **Estado 2026-10-04:** **99** migraciones locales, **todas con par remoto** según `migration list` después de reparar la 91 (§15.3). Este inventario estaba desfasado desde el 2026-08-18: le faltaban las 22 migraciones de Actividades, Inversiones, REC-024 y los tres módulos del 2026-10-04.
 >
 > **Estado 2026-08-18 (histórico):** **77** migraciones locales. Las 69 primeras tenían par remoto al 2026-08-10; **las 8 de tickets del 11-12 de agosto no se verificaron contra remoto** — correr `npm run db:status` antes de asumir nada. Importa especialmente la **73**: si `pg_cron` no está en el plan, esa migración falla sola por diseño y el autocierre queda escrito pero nunca corre.
