@@ -1245,7 +1245,10 @@ Con esta decisión, `RESEARCH §14.6` punto 1 queda **cerrado**.
 | 1 | Bandera a Montellano (tiene que entrar una vez para tener cuenta) | Plataforma |
 | 2 | Confirmar: ¿Vo. Bo. de RH y del Coordinador son dos personas? ¿Cuántos flotantes por año? ¿Vencen los días? | Montellano |
 | 3 | Fechas de ingreso de las 4 personas faltantes y estatus de las 17 que no vienen | Montellano |
-| 4 | **Fase 2:** el empleado solicita, el jefe autoriza, RH da el Vo. Bo., recordatorios al jefe. **Depende de que el envío de correos funcione** (pendiente #1 de tickets) | Plataforma |
+| 4 | ✅ **Fase 2 (2026-10-05, VAC-004/005):** el empleado solicita en `/vacaciones/mias` (entra con su correo, sin bandera), el jefe autoriza en `/vacaciones/equipo`, RH da el Vo. Bo. arriba de `/vacaciones`. La base valida días hábiles, saldo, empalmes y que solo el jefe asignado autorice | Plataforma |
+| 5 | **Recordatorios por correo al jefe que no autoriza** (la "alarma"). Depende de que el envío de correos funcione (pendiente #1 de tickets). Mientras, RH ve en su bandeja cuántos días lleva esperando cada solicitud | Plataforma |
+
+**Decisión (2026-10-05): la firma en la plataforma reemplaza al papel.** Cuando los días vienen de una solicitud, el formato GYC es una **constancia de tres firmas electrónicas** (quién y cuándo solicitó, autorizó y dio el Vo. Bo.), sin líneas para firma autógrafa, y la pueden abrir la persona, su jefe y Gente y Cultura (`vac_formato`). Los días que RH registra a mano no pasaron por esas firmas: su formato sigue saliendo para firmar en papel.
 
 ## 12. Auditor de depósitos *(AUD-001..002 — desplegado 2026-10-04)*
 
