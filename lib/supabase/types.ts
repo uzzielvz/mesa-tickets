@@ -562,6 +562,10 @@ export interface Database {
           acceso_inversiones_pagos: boolean
           /** Ve el Tablero Ejecutivo de Cartera — Dirección (INV-001). */
           acceso_inversiones_desempeno: boolean
+          /** Consulta ahorros por grupo + ciclo y descarga el Excel (AHO-001). */
+          acceso_ahorros: boolean
+          /** Sube el CSV de ahorros ya cuadrado — Data Science (AHO-001). */
+          acceso_ahorros_carga: boolean
           /** Ve las colas de TODAS las áreas en la mesa (TKT-043). */
           supervisa_tickets: boolean
           created_at: string
@@ -581,6 +585,8 @@ export interface Database {
           acceso_inversiones_carga?: boolean
           acceso_inversiones_pagos?: boolean
           acceso_inversiones_desempeno?: boolean
+          acceso_ahorros?: boolean
+          acceso_ahorros_carga?: boolean
           supervisa_tickets?: boolean
         }
         Update: {
@@ -598,6 +604,8 @@ export interface Database {
           acceso_inversiones_carga?: boolean
           acceso_inversiones_pagos?: boolean
           acceso_inversiones_desempeno?: boolean
+          acceso_ahorros?: boolean
+          acceso_ahorros_carga?: boolean
           supervisa_tickets?: boolean
         }
         Relationships: []
@@ -1603,6 +1611,85 @@ export interface Database {
         Update: never
         Relationships: []
       }
+      /**
+       * AHO-001 — bitácora de cargas del CSV de ahorros. Se escribe solo por RPC
+       * (`aho_iniciar_carga` → `aho_cargar_lote` → `aho_cerrar_carga`).
+       */
+      aho_cargas: {
+        Row: {
+          id: string
+          nombre_archivo: string
+          filas_archivo: number
+          rechazadas: number
+          /** KEY_Grupo que trae el archivo (`000439_C01`). */
+          grupos: string[]
+          insertadas: number
+          actualizadas: number
+          avisos: string[]
+          /** 'en_curso' que nunca se cerró = la pestaña se cerró a medias. */
+          estado: 'en_curso' | 'completa'
+          subido_por: string | null
+          created_at: string
+          cerrada_at: string | null
+        }
+        Insert: never
+        Update: never
+        Relationships: []
+      }
+      /**
+       * AHO-001 — ahorros por cliente × semana. Temporal (regla 3): la pantalla
+       * lee por `aho_buscar`, no de estas columnas. Los numéricos llegan como
+       * string desde PostgREST cuando traen más precisión de la que cabe en JS.
+       */
+      aho_pagos: {
+        Row: {
+          pago_id: string
+          key_grupo: string
+          grupo_id: string
+          ciclo: string
+          cliente_id: string
+          key_cliente: string
+          semana: number
+          pago: number | null
+          garantia: number | null
+          confirmada: boolean | null
+          usuario_captura: string | null
+          pago_semanal: number | null
+          cantidad_prestada: number | null
+          inicio_ciclo: string | null
+          garantia_min: number | null
+          base_ahorro: number | null
+          fecha_pago: string | null
+          falta_pago: boolean
+          falta_ahorro: boolean
+          tasa: number | null
+          rend_10: number
+          rend_11: number
+          rend_12: number
+          rend_13: number
+          rend_14: number
+          rend_15: number
+          rend_16: number
+          carga_id: string
+          actualizado_at: string
+        }
+        Insert: never
+        Update: never
+        Relationships: []
+      }
+      /** AHO-001 — consultas y descargas. Solo lo lee quien carga. */
+      aho_eventos: {
+        Row: {
+          id: number
+          tipo: 'consulta' | 'descarga'
+          key_grupo: string
+          usuario: string | null
+          created_at: string
+        }
+        Insert: never
+        Update: never
+        Relationships: []
+      }
     }
     Views: {
       // rec_candidatos + requisitos derivados (REC-068). Solo lectura.
@@ -1721,6 +1808,45 @@ export interface Database {
       inv_cumplimiento_serie: {
         Args: { p_corte?: string | null }
         Returns: unknown
+      }
+      // AHO-003: visor de ahorros. Contrato de `aho_buscar` en lib/ahorros/tipos.ts.
+      aho_iniciar_carga: {
+        Args: {
+          p_nombre: string
+          p_filas: number
+          p_rechazadas: number
+          p_grupos: string[]
+          p_avisos: string[]
+        }
+        Returns: string
+      }
+      aho_cargar_lote: {
+        Args: { p_carga: string; p_filas: unknown }
+        Returns: unknown
+      }
+      aho_cerrar_carga: {
+        Args: { p_carga: string }
+        Returns: unknown
+      }
+      aho_buscar: {
+        Args: { p_grupo: string; p_ciclo: string }
+        Returns: unknown
+      }
+      aho_registrar_evento: {
+        Args: { p_tipo: 'consulta' | 'descarga'; p_key_grupo: string }
+        Returns: undefined
+      }
+      aho_resumen: {
+        Args: Record<string, never>
+        Returns: unknown
+      }
+      has_ahorros_access: {
+        Args: Record<string, never>
+        Returns: boolean
+      }
+      has_ahorros_carga: {
+        Args: Record<string, never>
+        Returns: boolean
       }
       has_inversiones_pagos: {
         Args: Record<string, never>
