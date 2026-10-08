@@ -1,7 +1,7 @@
 # RESEARCH CONSOLIDADO — mea-tickets (CrediFlexi Operaciones)
 
 > Documento vivo. Single source of truth del estado real del repo.
-> Última actualización: 2026-10-04 (§15 nueva: **medición de uso** en producción y tres módulos entregados el mismo día — **Ahorros, Vacaciones fase 1 y Auditor**. §11 al día: 99 migraciones. §14: Inversiones I1–I5 implementados).
+> Última actualización: 2026-10-08 (§15.4bis: identidad por correo y firma electrónica en Vacaciones, tokens para scripts, lectura de Excel grande en el navegador y el Auditor basado en depósitos · §11 al 104). Antes: 2026-10-04 (§15 nueva: **medición de uso** en producción y tres módulos entregados el mismo día — **Ahorros, Vacaciones fase 1 y Auditor**. §11 al día: 99 migraciones. §14: Inversiones I1–I5 implementados).
 > Para el plan de trabajo activo ver `PLAN.md`.
 
 ---
@@ -1113,6 +1113,8 @@ Tres decisiones de modelo que conviene no deshacer sin leer esto:
 | 101 | `20261005170000_vac_005_constancia.sql` | La firma en la plataforma reemplaza al papel: `vac_formato` (lo ven RH, la persona y su jefe) y `movimiento_id` en "Mis vacaciones" |
 | 102 | `20261005190000_api_001_tokens.sql` | Tokens personales para scripts (`api_tokens`, solo hash), `api_actuar_como` fija `auth.uid()` en el dueño del token durante la transacción; `api_aho_*` y `api_aud_cargar` reutilizan las cargas originales; `api_crear_token`/`api_revocar_token` |
 
+> **Estado 2026-10-08 (cierre):** **104** migraciones, todas aplicadas a remoto. La 104 es `20261008130000_aud_003_depositos.sql`: `aud_dep_cargas` y `aud_depositos` (reporte de depósitos de Yunius, por lotes; vigente = la completa de mayor secuencia), `aud_dep_*` para cargar y `aud_conciliacion` (depósitos No Conciliado contra registros, por grupo + ciclo + fecha exacta).
+>
 > **Estado 2026-10-08:** **103** migraciones locales, todas aplicadas a remoto. La 103 es `20261008120000_vac_006_controles.sql`: `vac_resolver_rh` rechaza el Vo. Bo. a la propia solicitud, y el trigger `trg_vac_movimiento_anulado` cancela una solicitud aprobada cuando se anulan todos sus días.
 >
 > **Estado 2026-10-05:** **102** migraciones locales, todas aplicadas a remoto (las 100–102 se probaron antes en transacción con rollback).
@@ -1553,6 +1555,15 @@ Consulta de **solo lectura** (`begin transaction read only` contra el pooler) pa
 - **Historial de migraciones desalineado.** `inv_009` se había aplicado a remoto como `20260915210215` (fuera del CLI), y la local `20260915140000` aparecía pendiente. Se comparó el contenido: era idéntico salvo comentarios. Se reparó con `migration repair` (revertida la remota, aplicada la local) antes de empujar.
 - **Una copia vieja de este documento casi se commitea encima.** El working copy de `RESEARCH-CONSOLIDADO.md` traía un diff de 852 líneas que parecía reacomodo de tablas de un editor, pero **borraba 51 líneas de §14** (la versión era anterior a los commits del 29 de agosto). Se restauró desde git; la copia quedó respaldada fuera del repo. Lección: un diff grande de "formato" en un documento vivo se revisa ignorando espacios (`git diff --ignore-all-space`) antes de commitearlo.
 - **Vacaciones arrancó vacía en producción.** Todas las pruebas corrieron con `rollback`, y el módulo terminó pidiéndole a RH que importara el Excel. El usuario lo corrigió: **la carga inicial es parte de la entrega**, no un paso del flujo. La base se cargó una vez y se quitaron la pantalla y la ruta de importación.
+
+### 15.4bis Lo que se agregó del 5 al 8 de octubre
+
+- **Identidad por correo (Vacaciones fase 2).** El empleado no necesita bandera: su cuenta se cruza por correo con `vac_empleados.email` (`vac_mi_empleado`). Quién autoriza se valida en la base (solo el jefe asignado), y **nadie da el Vo. Bo. de RH a su propia solicitud** (`vac_006`).
+- **La firma en la plataforma reemplaza al papel** (decisión del 2026-10-05). Las tres acciones (solicitar, autorizar, Vo. Bo.) guardan quién y cuándo; la constancia (`vac_formato`) la ven la persona, su jefe y RH.
+- **Cargas desde scripts sin login de Google (`api_001`).** Tokens personales con solo el hash guardado. `api_actuar_como` fija `auth.uid()` en el dueño del token **dentro de la transacción** (`set_config(..., true)`) y llama a las mismas funciones de carga, así que el token nunca tiene más permisos que su dueño. El paquete vive aparte: `github.com/uzzielvz/crediflexi-cargas` (privado).
+- **pandas mueve el último decimal al leer CSV.** Su lector rápido no redondea exacto: ~40% de los rendimientos del CSV de ahorros cambian en el decimal 17. Con `dtype=str` o `float_precision="round_trip"` la paridad con la plataforma es total (111,472 de 111,472 filas).
+- **Excel de más de 4.5 MB desde el navegador (AUD-003).** `exceljs` tiene versión para navegador (`"browser"` en su package.json) y se importa de forma dinámica, para que solo lo descargue la página de carga. El reporte de depósitos (18,945 filas) se lee en ~3 s y entra en lotes de 2,000.
+- **El Auditor parte de los depósitos, no de los registros.** La `N` del archivo de registros y el "No Conciliado" del reporte de Yunius no coincidían (4 de 23). Felix definió que manda el reporte de depósitos y que el cruce es por grupo + ciclo + fecha **exacta**.
 
 ### 15.4 Riesgos y datos fuera del repo
 

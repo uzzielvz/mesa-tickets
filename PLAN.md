@@ -3,7 +3,8 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-10-04 (**medición de uso** en producción y tres vías nuevas entregadas: **Ahorros** §10, **Vacaciones fase 1** §11, **Auditor** §12 — enmienda en §0).
+> Última actualización: 2026-10-08 (**Auditor AUD-003**: la base son los depósitos del banco, §12 · **Vacaciones** fase 2, firma electrónica y guía del piloto, §11 · **script de Felix** `crediflexi-cargas` + tokens API, §0).
+> Anterior: 2026-10-04 (**medición de uso** en producción y tres vías nuevas entregadas: **Ahorros** §10, **Vacaciones fase 1** §11, **Auditor** §12 — enmienda en §0).
 > Anterior: 2026-09-15 (**Inversiones I5 entregado** §9.3 — el v1 queda completo salvo la entrega. I1 e I3 **verificados en navegador**; se les cae el pendiente).
 
 ---
@@ -31,7 +32,7 @@
 > **Cola siguiente (definida por el usuario el 2026-10-05, en este orden):**
 > 1. ✅ **Que Felix suba desde Python, sin pantalla** (2026-10-05). Repo aparte y privado `github.com/uzzielvz/crediflexi-cargas`: `Cliente().subir_ahorros(df)` y `subir_pagos_registrados(df)`, con las mismas validaciones que la pantalla (idéntico en las 111,472 filas). En la plataforma, `api_001`: tokens personales (solo se guarda el hash), revocables y con alcance; el token actúa como su dueño y respeta sus banderas. **Falta:** crearle el token a Felix (`select api_crear_token(...)` en el SQL editor), darle las banderas de carga y que lo pruebe.
 > 2. **Cerrar Vacaciones y probarlo de punta a punta con personas reales.** Guía lista (2026-10-08): `docs/vacaciones/piloto-de-punta-a-punta.md`, con Montellano → Héctor → Uzziel y Wanda → Yesenia → Montellano, y criterio de listo. Antes se cerraron dos huecos (`vac_006`): nadie da el Vo. Bo. a su propia solicitud, y anular los días de una aprobada la cancela. Lo que pedía este punto: completar los datos que faltan (Montellano), dar las banderas, y una solicitud real que recorra empleado → jefe → Vo. Bo. → constancia, con guion de prueba y criterio de listo.
-> 3. **Auditor: en espera** de que Felix apruebe la vista por promotor (si el "Recuperador" del reporte de Yunius es el promotor).
+> 3. ✅ **Auditor rediseñado a pedido de Felix (2026-10-08, AUD-003):** la base son los depósitos del banco (reporte de Yunius), comparados por grupo, ciclo y fecha contra lo que registró el promotor (§12). Sigue pendiente de su aprobación la vista por promotor (el reporte ya trae al "Recuperador").
 
 ### Vía activa — Mesa de Tickets
 
