@@ -1836,6 +1836,49 @@ export interface Database {
         Update: never
         Relationships: []
       }
+      /** AUD-003 — cargas del reporte de depósitos; la vigente es la completa de mayor `secuencia`. */
+      aud_dep_cargas: {
+        Row: {
+          id: string
+          secuencia: number
+          nombre_archivo: string
+          filas_archivo: number
+          rechazadas: number
+          insertadas: number
+          no_conciliados: number
+          fecha_min: string | null
+          fecha_max: string | null
+          avisos: string[]
+          estado: 'en_curso' | 'completa'
+          subido_por: string | null
+          created_at: string
+          cerrada_at: string | null
+        }
+        Insert: never
+        Update: never
+        Relationships: []
+      }
+      /** AUD-003 — un movimiento del reporte de depósitos de Yunius (todas las filas). */
+      aud_depositos: {
+        Row: {
+          id: number
+          carga_id: string
+          fila: number
+          fecha_deposito: string
+          grupo_id: string
+          nombre_grupo: string | null
+          ciclo: string
+          periodo: number | null
+          monto: number
+          conciliado: boolean
+          estatus: string
+          cod_recuperador: string | null
+          recuperador: string | null
+        }
+        Insert: never
+        Update: never
+        Relationships: []
+      }
       /** AUD-001 — un depósito registrado en Yunius. Se escribe solo por `aud_cargar`. */
       aud_registros: {
         Row: {
@@ -2087,6 +2130,23 @@ export interface Database {
         Returns: unknown
       }
       aud_pendientes: {
+        Args: { p_grupo?: string | null }
+        Returns: unknown
+      }
+      // AUD-003: depósitos del banco contra registros. Contrato en lib/auditor/tipos.ts.
+      aud_dep_iniciar_carga: {
+        Args: { p_nombre: string; p_filas: number; p_rechazadas: number; p_avisos: string[] }
+        Returns: string
+      }
+      aud_dep_cargar_lote: {
+        Args: { p_carga: string; p_filas: unknown }
+        Returns: unknown
+      }
+      aud_dep_cerrar_carga: {
+        Args: { p_carga: string }
+        Returns: unknown
+      }
+      aud_conciliacion: {
         Args: { p_grupo?: string | null }
         Returns: unknown
       }
