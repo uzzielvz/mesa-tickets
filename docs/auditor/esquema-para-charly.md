@@ -2,16 +2,73 @@
 
 > Para Charly. Acordamos que tú escribes las consultas SQL y la plataforma pone la pantalla. Este documento
 > dice qué tablas hay, qué significa cada columna y cómo se entrega una consulta para que se vuelva vista.
-> Base: Postgres (Supabase). Fecha: 4 de octubre de 2026.
+> Base: Postgres (Supabase). Creado el 4 de octubre de 2026; actualizado el 8 de octubre (AUD-003).
 
-## Qué hay hoy
+## Qué hay hoy (desde el 8 de octubre, AUD-003)
 
-La plataforma ya recibe el archivo que manda Felix desde Yunius (`pagos_registrados_MMAAAA.xlsx`) y enseña la
-lista de depósitos con `CONCILIADO = N`. Está en **/auditor** para quien tenga el permiso.
+**La base son los depósitos del banco**, no los registros. Pedido de Felix: *"un join en código, ciclo, fecha"*.
 
-Con el archivo de septiembre: **1,090 depósitos, 45 sin conciliar por $333,651.39 en 44 grupos**.
+1. Del **reporte de depósitos de Yunius** (`Grup_Depósito_Garantía …xlsx`) se toman los depósitos cuya columna
+   `Conciliado` dice **"No Conciliado"** ("Distribuido" = conciliado). Ese estado manda; el C/N del archivo de
+   registros ya no se usa para decidir qué está pendiente.
+2. Se agrupan por **grupo, ciclo y fecha del depósito**: monto depositado y cuántos depósitos.
+3. **LEFT JOIN** contra **todos** los registros del promotor (C y N) de la carga vigente, por esa misma llave
+   **exacta**, agrupados igual: monto registrado y cuántos registros.
+4. Estado, en este orden:
 
-## Tablas
+| Estado | Cuándo | Leyenda en pantalla |
+|---|---|---|
+| `sin_registro` | No hay ningún registro ese grupo, ciclo y día | Sin registro |
+| `diferencia` | Los montos no cuadran | "Registró $X de más" o "Faltan $X por registrar" |
+| `un_registro` | Montos iguales, pero en más de un registro | Debe ser un solo registro |
+| `listo` | Montos iguales y un solo registro | Listo para conciliar (falta que Tesorería concilie) |
+
+La fecha es **exacta a propósito**: un depósito del 2 de octubre que se registró el 1 sale "Sin registro".
+
+Con los archivos del 5 de octubre: **23 depósitos sin conciliar por $131,493**, en 20 grupo-ciclo-día:
+10 listos para conciliar, 8 sin registro, 2 con diferencia y 0 que deban ser un solo registro.
+
+La pantalla lee todo de la función `aud_conciliacion(p_grupo)`.
+
+## Tablas de depósitos (AUD-003)
+
+### `aud_dep_cargas` — cada reporte de depósitos que se sube
+
+Cada carga es una foto completa. **La vigente es la de mayor `secuencia` con `estado = 'completa'`**: el reporte
+entra por lotes desde el navegador, y una carga que se cortó a medias no se vuelve la vigente.
+
+| Columna | Tipo | Qué es |
+|---|---|---|
+| `id`, `secuencia` | uuid, bigint | Identificador y consecutivo |
+| `nombre_archivo` | text | Nombre del archivo subido |
+| `filas_archivo`, `insertadas` | int | Lo que se iba a mandar y lo que entró; solo se cierra si coinciden |
+| `no_conciliados` | int | Movimientos con "No Conciliado" |
+| `fecha_min`, `fecha_max` | date | Rango de "Fecha del depósito" |
+| `estado` | text | `en_curso` o `completa` |
+
+### `aud_depositos` — un movimiento del reporte por fila (se guardan todas)
+
+| Columna | Tipo | Columna del reporte |
+|---|---|---|
+| `carga_id` | uuid | — |
+| `fecha_deposito` | date | Fecha del depósito |
+| `grupo_id` | text | Código (6 dígitos con ceros) |
+| `nombre_grupo` | text | Grupo solidario |
+| `ciclo` | text | Ciclo ('04') |
+| `periodo` | smallint | Periodo (semana) |
+| `monto` | numeric | Cantidad |
+| `conciliado` | boolean | `false` solo si Conciliado = "No Conciliado" |
+| `estatus` | text | Conciliado, tal como viene |
+| `cod_recuperador`, `recuperador` | text | Cód. Recuperador, Recuperador (no se muestran; servirán para la vista por promotor) |
+
+```sql
+-- Depósitos sin conciliar de la foto vigente
+select * from aud_depositos
+where carga_id = (select id from aud_dep_cargas where estado = 'completa' order by secuencia desc limit 1)
+  and not conciliado;
+```
+
+## Tablas de registros (AUD-001)
 
 ### `aud_cargas` — cada archivo que se sube
 

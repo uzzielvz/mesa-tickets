@@ -1255,19 +1255,27 @@ Con esta decisión, `RESEARCH §14.6` punto 1 queda **cerrado**.
 
 **Decisión (2026-10-05): la firma en la plataforma reemplaza al papel.** Cuando los días vienen de una solicitud, el formato GYC es una **constancia de tres firmas electrónicas** (quién y cuándo solicitó, autorizó y dio el Vo. Bo.), sin líneas para firma autógrafa, y la pueden abrir la persona, su jefe y Gente y Cultura (`vac_formato`). Los días que RH registra a mano no pasaron por esas firmas: su formato sigue saliendo para firmar en papel.
 
-## 12. Auditor de depósitos *(AUD-001..002 — desplegado 2026-10-04)*
+## 12. Auditor de depósitos *(AUD-001..003 — la base son los depósitos desde 2026-10-08)*
 
 **El pedido.** Charly (junta del 18 de septiembre) contacta a cada promotor uno por uno para explicarle sus depósitos sin conciliar. Modelo acordado: **Charly escribe las consultas SQL y la plataforma pone la interfaz**.
 
-**Lo que hay.** `/auditor`: los depósitos con `CONCILIADO = N` de la carga vigente, totales, filtro por grupo y cuántos se resolvieron desde la carga anterior. `/auditor/cargar`: el archivo de Yunius (`pagos_registrados_*.xlsx`); cada carga es una foto completa y la vigente es la de mayor `secuencia`. Banderas `acceso_auditor` (V) y `acceso_auditor_carga` (C). El esquema para Charly está en `docs/auditor/esquema-para-charly.md`.
+**Cambio del 2026-10-08 (AUD-003, pedido de Felix): la base son los DEPÓSITOS del banco.** Antes la lista salía de los registros con `CONCILIADO = N`. Ahora parte del reporte de depósitos de Yunius (`Grup_Depósito_Garantía …xlsx`, ~19 mil movimientos, 4.7 MB), cuya columna `Conciliado` ("Distribuido" / "No Conciliado") decide qué está pendiente. Los depósitos No Conciliado se agrupan por grupo, ciclo y fecha, y se cruzan —llave exacta— contra **todos** los registros del promotor de la carga vigente. Estado, en este orden: **Sin registro** → **diferencia** ("Registró $X de más" / "Faltan $X por registrar", sin signos) → **Debe ser un solo registro** → **Listo para conciliar** (falta que Tesorería concilie).
 
-**Datos en producción:** la foto de septiembre: **1,090 depósitos, 45 sin conciliar por $333,651.39 en 44 grupos**.
+**Lo que hay.**
+- `/auditor`: indicadores (depósitos sin conciliar y los cuatro estados), filtro por grupo y la tabla Fecha · Grupo · Nombre · Ciclo · Semana · Depositado · Registrado · Estado, **sin gerente ni promotor**. Si un día hubo varios depósitos, la fila se despliega.
+- `/auditor/cargar`:
+  - El reporte de depósitos se **lee en el navegador** (rebasa el límite de 4.5 MB de Vercel) y entra por lotes. Solo se vuelve la vigente si entró completo.
+  - Los pagos registrados se suben como antes, o desde Python.
+- Funciones: `aud_dep_*` (carga) y `aud_conciliacion` (la comparación).
+- Esquema para Charly: `docs/auditor/esquema-para-charly.md`.
+
+**Datos (2026-10-05):** 23 depósitos sin conciliar por $131,493 en 20 grupo-ciclo-día. Por estado: 10 listos para conciliar, 8 sin registro, 2 con diferencia y 0 que deban ser un solo registro. Caso para revisar con Felix: MS 000265 c04 depositó el 2 de octubre y registró el 1 → "Sin registro", porque la fecha es exacta a propósito.
 
 | # | Qué sigue | Quién |
 |---|---|---|
-| 1 | Mandarle el esquema a Charly y darle bandera (parece ser `carlos.mejia`) | Plataforma |
-| 2 | Agregar la columna `PROMOTOR` (correo de la plataforma) al archivo | Felix |
-| 3 | Con el promotor: cada promotor ve solo lo suyo. Requiere que tengan cuenta | Plataforma |
+| 1 | Revisar con Felix los 5 casos y el de MS (¿la fecha debe ser exacta?) | Felix |
+| 2 | Banderas: Felix (C), Charly (V, parece ser `carlos.mejia`) | Plataforma |
+| 3 | Vista por promotor: el reporte ya trae `Recuperador` por grupo (guardado, no se muestra). Requiere que los promotores tengan cuenta | Felix aprueba |
 | 4 | Las consultas de Charly entran como RPC `security definer`, nunca SQL suelto | Charly + Plataforma |
 
 ---
