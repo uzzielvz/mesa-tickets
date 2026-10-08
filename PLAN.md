@@ -1270,6 +1270,15 @@ Con esta decisión, `RESEARCH §14.6` punto 1 queda **cerrado**.
 - Funciones: `aud_dep_*` (carga) y `aud_conciliacion` (la comparación).
 - Esquema para Charly: `docs/auditor/esquema-para-charly.md`.
 
+**Datos (2026-10-08):** archivos del 8 de octubre (reporte de depósitos hasta el 7, con 19,224 movimientos; 7,694 registros). Quedan 12 depósitos sin conciliar por $99,487.95, en 12 grupo-ciclo-día:
+
+- 3 listos para conciliar.
+- 2 sin registro.
+- 7 con diferencia. Dos son de $1 y $4.
+- 0 que deban ser un solo registro.
+
+Los 20 grupo-ciclo-día del 5 de octubre ya salen conciliados en el reporte nuevo, entre ellos los 5 casos y el de MS.
+
 **Datos (2026-10-05):** 23 depósitos sin conciliar por $131,493 en 20 grupo-ciclo-día. Por estado: 10 listos para conciliar, 8 sin registro, 2 con diferencia y 0 que deban ser un solo registro. Caso para revisar con Felix: MS 000265 c04 depositó el 2 de octubre y registró el 1 → "Sin registro", porque la fecha es exacta a propósito.
 
 | # | Qué sigue | Quién |
