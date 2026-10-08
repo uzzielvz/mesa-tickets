@@ -1113,6 +1113,8 @@ Tres decisiones de modelo que conviene no deshacer sin leer esto:
 | 101 | `20261005170000_vac_005_constancia.sql` | La firma en la plataforma reemplaza al papel: `vac_formato` (lo ven RH, la persona y su jefe) y `movimiento_id` en "Mis vacaciones" |
 | 102 | `20261005190000_api_001_tokens.sql` | Tokens personales para scripts (`api_tokens`, solo hash), `api_actuar_como` fija `auth.uid()` en el dueño del token durante la transacción; `api_aho_*` y `api_aud_cargar` reutilizan las cargas originales; `api_crear_token`/`api_revocar_token` |
 
+> **Estado 2026-10-08:** **103** migraciones locales, todas aplicadas a remoto. La 103 es `20261008120000_vac_006_controles.sql`: `vac_resolver_rh` rechaza el Vo. Bo. a la propia solicitud, y el trigger `trg_vac_movimiento_anulado` cancela una solicitud aprobada cuando se anulan todos sus días.
+>
 > **Estado 2026-10-05:** **102** migraciones locales, todas aplicadas a remoto (las 100–102 se probaron antes en transacción con rollback).
 >
 > **Estado 2026-10-04:** **99** migraciones locales, **todas con par remoto** según `migration list` después de reparar la 91 (§15.3). Este inventario estaba desfasado desde el 2026-08-18: le faltaban las 22 migraciones de Actividades, Inversiones, REC-024 y los tres módulos del 2026-10-04.
