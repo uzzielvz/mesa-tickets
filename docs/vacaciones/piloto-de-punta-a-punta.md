@@ -24,13 +24,14 @@
 
 ## Criterio de listo
 
-El módulo se abre a todo el personal cuando se cumplan **las cinco**:
+El módulo se abre a todo el personal cuando se cumplan **las seis**:
 
 - [ ] La solicitud de Montellano llegó a **Aprobada** pasando por Héctor y por Gente y Cultura, y su saldo bajó en los días correctos.
 - [ ] La solicitud de Wanda se **rechazó con motivo**, Wanda leyó el motivo, y una segunda solicitud llegó a **Aprobada**.
 - [ ] Las dos **constancias** muestran las tres firmas con nombre, fecha y hora, y las pueden abrir la persona y su jefe.
 - [ ] **Montellano no pudo darse el Vo. Bo. a sí mismo**, y Wanda **no pudo abrir** la constancia de Montellano.
 - [ ] Cancelar una solicitud pendiente y anular los días de una aprobada **devuelven el saldo** y dejan la solicitud como **Cancelada**.
+- [ ] Cada paso **avisó a quien le tocaba**: en la campana, y por correo cuando había que actuar o llegaba el resultado.
 
 Cualquier otro hallazgo se anota en la tabla del final. Lo que esté **rojo** se arregla antes de abrir el módulo.
 
@@ -63,13 +64,13 @@ Cualquier otro hallazgo se anota en la tabla del final. Lo que esté **rojo** se
 | 1.4 | Montellano | Cambiar a **13 al 17 de noviembre** y escribir una nota | Vista previa: **2 días hábiles · regresas el 18 de noviembre**, y "No cuentan: 16 nov (Día de la Revolución)" | ☐ |
 | 1.5 | Montellano | **Solicitar** | Aviso "Solicitud enviada a RAMIREZ RAMOS AGILEO HECTOR". En Mis solicitudes: **Espera a tu jefe**. Arriba: "Te quedan N−2 · 2 en trámite" | ☐ |
 | 1.6 | Montellano | Intentar pedir **otra vez el 17 de noviembre** | Error: "Ya tienes días solicitados o registrados en esas fechas" | ☐ |
-| 1.7 | Héctor | Entrar | En el menú, **Vacaciones → Mi equipo** con un **1**. En el Inicio, tarjeta "Por autorizar: 1" | ☐ |
+| 1.7 | Héctor | Entrar | Le llegó el correo **"… pidió 2 días de vacaciones"**. La campana marca **1**. En el menú, **Vacaciones → Mi equipo** con un **1**. En el Inicio, tarjeta "Por autorizar: 1" | ☐ |
 | 1.8 | Héctor | **Mi equipo** | La solicitud de Montellano: 2 días, fechas, cuántos días le quedan y su nota. Abajo, su equipo con saldos | ☐ |
 | 1.9 | Héctor | **Autorizar** | Aviso "Autorizada: pasa a Gente y Cultura". Desaparece de "Por autorizar" y aparece en "Resueltas recientemente" | ☐ |
-| 1.10 | Montellano | Mis solicitudes | Estado **Espera Vo. Bo. de RH** | ☐ |
+| 1.10 | Montellano | Mis solicitudes | Estado **Espera Vo. Bo. de RH**. En la campana: **"… autorizó tu solicitud"** (sin correo: no tiene que hacer nada) | ☐ |
 | 1.11 | Montellano | En `/vacaciones` (Personal), sección **Esperan tu Vo. Bo.** → **Dar Vo. Bo.** a su propia solicitud | Error: "No puedes dar el Vo. Bo. a tu propia solicitud". **Sigue pendiente** | ☐ |
-| 1.12 | Uzziel | `/vacaciones` → **Dar Vo. Bo.** | Aviso "Aprobada: los días ya cuentan". Sale de la bandeja | ☐ |
-| 1.13 | Montellano | Mis vacaciones | Estado **Aprobada**. "Te quedan N−2" y ya **sin días en trámite**. En "Días tomados" aparece el registro del 13 al 17 de noviembre | ☐ |
+| 1.12 | Uzziel | `/vacaciones` → **Dar Vo. Bo.** | Aviso "Aprobada: los días ya cuentan". Sale de la bandeja. (A Uzziel no le llega "Espera tu Vo. Bo.": es admin, no tiene la bandera de Vacaciones) | ☐ |
+| 1.13 | Montellano | Mis vacaciones | Le llegó el correo **"Aprobada: 2 días de vacaciones del 13 al 17 de noviembre"**. Estado **Aprobada**. "Te quedan N−2" y ya **sin días en trámite**. En "Días tomados" aparece el registro del 13 al 17 de noviembre. A Héctor le aparece en la campana "Gente y Cultura aprobó la solicitud de …" | ☐ |
 | 1.14 | Montellano | **Ver constancia firmada** | Formato GYC-VAC012026 con el aviso verde "Firmado electrónicamente… No requiere firma autógrafa". Tres firmas: Montellano (conformidad), Héctor (autorización) y Uzziel (Vo. Bo.), cada una con fecha y hora. Días a disfrutar: **2**. Regreso: **18 de noviembre de 2026** | ☐ |
 | 1.15 | Héctor | Abrir la misma constancia (Montellano le pasa el enlace) | La ve completa | ☐ |
 
@@ -83,10 +84,10 @@ Cualquier otro hallazgo se anota en la tabla del final. Lo que esté **rojo** se
 | 2.2 | Wanda | Día flotante el **27 de noviembre** → Solicitar | "Solicitud enviada a RENDON DIAZ YESENIA". Estado **Espera a tu jefe** | ☐ |
 | 2.3 | Yesenia | **Mi equipo** → **Rechazar** sin escribir motivo | No deja: pide el motivo | ☐ |
 | 2.4 | Yesenia | Rechazar con el motivo *"Prueba piloto: ese día hay cierre"* | Aviso "Rechazada" | ☐ |
-| 2.5 | Wanda | Mis solicitudes | Estado **Rechazada** y debajo: Tu jefe: "Prueba piloto: ese día hay cierre" | ☐ |
+| 2.5 | Wanda | Mis solicitudes | Le llegó el correo **"… rechazó tu solicitud"** con el motivo. Estado **Rechazada** y debajo: Tu jefe: "Prueba piloto: ese día hay cierre" | ☐ |
 | 2.6 | Wanda | Pedir otra vez el **27 de noviembre** | Se puede (la rechazada ya no ocupa la fecha). Estado **Espera a tu jefe** | ☐ |
 | 2.7 | Yesenia | **Autorizar** | Pasa a Gente y Cultura | ☐ |
-| 2.8 | Montellano | `/vacaciones` → **Dar Vo. Bo.** a la solicitud de Wanda | Aviso "Aprobada" | ☐ |
+| 2.8 | Montellano | `/vacaciones` → **Dar Vo. Bo.** a la solicitud de Wanda | Antes, le llegó el correo **"Espera tu Vo. Bo.: … 1 día flotante"**. Después: aviso "Aprobada" | ☐ |
 | 2.9 | Wanda | **Ver constancia firmada** | Formato **DÍAS FLOTANTES GYC-DF012026**; firmas de Wanda, Yesenia y Montellano ("Vo. Bo. Coordinador Gente y Cultura") | ☐ |
 | 2.10 | Wanda | Pegar en el navegador el enlace de la constancia de **Montellano** (de 1.14) | **No la ve**: la regresa a Mis vacaciones | ☐ |
 
@@ -122,7 +123,7 @@ Cualquier otro hallazgo se anota en la tabla del final. Lo que esté **rojo** se
 
 ## Límites conocidos (no son fallas del piloto)
 
-- **No llegan correos.** Ni al jefe cuando le piden algo, ni al empleado cuando lo aprueban. Cada quien lo ve al entrar a la plataforma. Los recordatorios por correo dependen de verificar el envío de la plataforma.
+- **Avisos (desde el 2026-10-09).** Cada paso deja un aviso en la campana y, cuando alguien tiene que actuar o le llega el resultado, un correo con el remitente de la plataforma. Los de "Gente y Cultura" van a quien tiene la bandera de Vacaciones, no a los admin. El **recordatorio diario** al jefe que lleva 2 días hábiles sin contestar ya aparece en la campana; por correo sale cuando esté configurado `CRON_SECRET` en Vercel.
 - **Los días flotantes no tienen saldo.** Se cuentan los usados en el año, pero falta saber cuántos corresponden por año.
 - **17 personas de la base no tienen correo** y 4 personas con correo no están en la base (incluido Uzziel): hasta que Gente y Cultura complete esos datos, esas personas no pueden pedir en línea.
 - **Días hábiles = lunes a viernes**, sin los festivos de ley. Un caso que no encaje (alguien que trabaja sábados) lo registra Gente y Cultura a mano desde la ficha, con los días corregidos.
