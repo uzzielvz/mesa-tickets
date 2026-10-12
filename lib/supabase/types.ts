@@ -1817,6 +1817,33 @@ export interface Database {
         Update: never
         Relationships: []
       }
+      /**
+       * NTF-001 — avisos de la plataforma (la campana). Dirigidos a un correo,
+       * no a una cuenta. Los crean las funciones de cada módulo; cada quien lee
+       * los suyos (RLS) y los marca leídos con `ntf_marcar_leidas`.
+       */
+      notificaciones: {
+        Row: {
+          id: string
+          para_email: string
+          modulo: 'vacaciones'
+          tipo: string
+          titulo: string
+          cuerpo: string | null
+          liga: string | null
+          ref_id: string | null
+          creada_por: string | null
+          created_at: string
+          leida_at: string | null
+          correo: boolean
+          correo_enviado_at: string | null
+          correo_intentos: number
+          correo_error: string | null
+        }
+        Insert: never
+        Update: never
+        Relationships: []
+      }
       /** AUD-001 — cada carga es una foto completa; la vigente es la de mayor `secuencia`. */
       aud_cargas: {
         Row: {
@@ -2123,6 +2150,27 @@ export interface Database {
       vac_resolver_rh: {
         Args: { p_id: string; p_aprueba: boolean; p_comentario?: string | null }
         Returns: unknown
+      }
+      // NTF-001: avisos (la campana) y sus correos. Contrato en lib/notificaciones/tipos.ts.
+      ntf_marcar_leidas: {
+        Args: { p_ids?: string[] | null }
+        Returns: number
+      }
+      ntf_correos_por_enviar: {
+        Args: Record<string, never>
+        Returns: unknown
+      }
+      ntf_correo_resultado: {
+        Args: { p_resultados: unknown }
+        Returns: number
+      }
+      ntf_correos_sistema: {
+        Args: { p_secreto: string }
+        Returns: unknown
+      }
+      ntf_resultado_sistema: {
+        Args: { p_secreto: string; p_resultados: unknown }
+        Returns: number
       }
       // AUD-002: auditor de depósitos. Contrato en lib/auditor/tipos.ts.
       aud_cargar: {

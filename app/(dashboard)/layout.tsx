@@ -50,7 +50,7 @@ export default async function DashboardLayout({
 
   // Contadores para el sidebar. El de la cola cuenta solo lo que NADIE ha
   // tomado: es la cifra que exige acción del área, no el total del área.
-  const [{ count: miosCount }, { count: asignadosCount }, { count: colaCount }] =
+  const [{ count: miosCount }, { count: asignadosCount }, { count: colaCount }, { count: avisosCount }] =
     await Promise.all([
       supabase
         .from('tickets')
@@ -70,6 +70,11 @@ export default async function DashboardLayout({
             .is('responsable_id', null)
             .is('closed_at', null)
         : Promise.resolve({ count: 0 }),
+      // Avisos sin leer (NTF-001): la RLS solo cuenta los de esta persona.
+      supabase
+        .from('notificaciones')
+        .select('*', { count: 'exact', head: true })
+        .is('leida_at', null),
     ])
 
   return (
@@ -82,6 +87,7 @@ export default async function DashboardLayout({
           cola: colaCount ?? 0,
         }}
         vac={vac}
+        avisos={avisosCount ?? 0}
       />
       <main className="flex-1 min-w-0 w-full max-w-[1100px]">
         {children}

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Check, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { dispararCorreosDeAvisos } from '@/lib/notificaciones/disparar'
 
 /**
  * Autorizar o rechazar una solicitud. El jefe autoriza (pasa a RH) y RH da el
@@ -34,6 +35,7 @@ export default function ResolverSolicitud({ id, modo }: { id: string; modo: 'jef
       return
     }
     toast.success(aprueba ? (modo === 'jefe' ? 'Autorizada: pasa a Gente y Cultura' : 'Aprobada: los días ya cuentan') : 'Rechazada')
+    dispararCorreosDeAvisos()
     setRechazando(false)
     setMotivo('')
     router.refresh()

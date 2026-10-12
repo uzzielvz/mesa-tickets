@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
+import { dispararCorreosDeAvisos } from '@/lib/notificaciones/disparar'
 
 /**
  * Anular, no borrar: el registro queda en el historial tachado y deja de
@@ -25,6 +26,8 @@ export default function AnularMovimiento({ id }: { id: string }) {
     setTrabajando(false)
     if (error) { toast.error(`No se pudo anular: ${error.message}`); return }
     toast.success('Registro anulado')
+    // Si con esto se cancela una solicitud aprobada, la persona recibe aviso y correo.
+    dispararCorreosDeAvisos()
     router.refresh()
   }
 

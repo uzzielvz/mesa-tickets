@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
+import { dispararCorreosDeAvisos } from '@/lib/notificaciones/disparar'
 
 /** Cancelar una solicitud que todavía nadie resolvió. Dos clics, sin diálogo del navegador. */
 export default function CancelarSolicitud({ id }: { id: string }) {
@@ -18,6 +19,7 @@ export default function CancelarSolicitud({ id }: { id: string }) {
     setTrabajando(false)
     if (error) { toast.error(error.message); return }
     toast.success('Solicitud cancelada')
+    dispararCorreosDeAvisos()
     router.refresh()
   }
 

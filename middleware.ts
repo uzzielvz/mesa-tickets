@@ -33,6 +33,12 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse
   }
 
+  // Cron de avisos (Vercel): sin sesión. Lo protege CRON_SECRET, que validan
+  // la ruta y la base.
+  if (pathname.startsWith('/api/notificaciones/cron')) {
+    return supabaseResponse
+  }
+
   // Rutas públicas
   if (pathname.startsWith('/login') || pathname.startsWith('/auth')) {
     if (user) {

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Send } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { dispararCorreosDeAvisos } from '@/lib/notificaciones/disparar'
 import { diasHabiles, fechaRegreso, festivosEntre, fechaCorta, fechaLarga } from '@/lib/vacaciones/calendario'
 
 const campo =
@@ -58,6 +59,7 @@ export default function SolicitarVacaciones({
       return
     }
     toast.success(jefe ? `Solicitud enviada a ${jefe}` : 'Solicitud enviada a Gente y Cultura')
+    dispararCorreosDeAvisos()
     setInicio(''); setFin(''); setNota('')
     router.refresh()
   }

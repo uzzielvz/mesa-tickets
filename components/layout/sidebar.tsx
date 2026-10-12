@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import Wordmark from '@/components/brand/wordmark'
 import UserMenu from '@/components/layout/user-menu'
+import Campana, { useAvisosSinLeer } from '@/components/notificaciones/campana'
 import type { Database } from '@/lib/supabase/types'
 import type { MiContexto } from '@/lib/vacaciones/tipos'
 
@@ -24,6 +25,8 @@ interface SidebarProps {
   counts?: { mios: number; asignados: number; cola: number }
   /** Vacaciones fase 2: si la persona está en la base y si tiene equipo. */
   vac?: MiContexto
+  /** Avisos sin leer al cargar la página (NTF-001); la campana los vuelve a contar sola. */
+  avisos?: number
 }
 
 interface NavItemProps {
@@ -652,18 +655,22 @@ function NavContent({
   )
 }
 
-export default function Sidebar({ profile, counts, vac }: SidebarProps) {
+export default function Sidebar({ profile, counts, vac, avisos }: SidebarProps) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
+  const { sinLeer, actualizar } = useAvisosSinLeer(avisos ?? 0)
 
   return (
     <>
       {/* ── Mobile top bar ── */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-surface-sidebar border-b border-border flex items-center justify-between px-4 h-12">
         <Wordmark />
-        <button onClick={() => setOpen(v => !v)} className="text-ink-500 p-1">
-          {open ? <X size={18} /> : <Menu size={18} />}
-        </button>
+        <div className="flex items-center gap-1">
+          <Campana sinLeer={sinLeer} alCambiar={actualizar} variante="icono" />
+          <button onClick={() => setOpen(v => !v)} className="text-ink-500 p-1">
+            {open ? <X size={18} /> : <Menu size={18} />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile drawer */}
@@ -690,6 +697,10 @@ export default function Sidebar({ profile, counts, vac }: SidebarProps) {
         <div className="flex-1 px-[14px] py-5">
           <div className="mb-6">
             <Wordmark />
+          </div>
+          {/* La campana va fuera de NavContent: en móvil vive en la barra superior. */}
+          <div className="mb-0.5">
+            <Campana sinLeer={sinLeer} alCambiar={actualizar} variante="fila" />
           </div>
           <NavContent pathname={pathname} profile={profile} counts={counts} vac={vac} />
         </div>
