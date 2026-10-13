@@ -3,9 +3,9 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-10-08 (**Auditor AUD-003**: la base son los depósitos del banco, §12 · **Vacaciones** fase 2, firma electrónica y guía del piloto, §11 · **script de Felix** `crediflexi-cargas` + tokens API, §0).
+> Última actualización: 2026-10-12 (**Vacaciones**: avisos con campana y correo, constancia en PDF con QR y reportes de seguimiento, VAC-007..009 y NTF-001, §11 · **junta con Felix**: el jueves 15 se presentan Auditor y Vacaciones, §0 · los correos de la plataforma **sí salen**, §0).
+> Anterior: 2026-10-08 (**Auditor AUD-003**: la base son los depósitos del banco, §12 · **Vacaciones** fase 2, firma electrónica y guía del piloto, §11 · **script de Felix** `crediflexi-cargas` + tokens API, §0).
 > Anterior: 2026-10-04 (**medición de uso** en producción y tres vías nuevas entregadas: **Ahorros** §10, **Vacaciones fase 1** §11, **Auditor** §12 — enmienda en §0).
-> Anterior: 2026-09-15 (**Inversiones I5 entregado** §9.3 — el v1 queda completo salvo la entrega. I1 e I3 **verificados en navegador**; se les cae el pendiente).
 
 ---
 
@@ -33,6 +33,15 @@
 > 1. ✅ **Que Felix suba desde Python, sin pantalla** (2026-10-05). Repo aparte y privado `github.com/uzzielvz/crediflexi-cargas`: `Cliente().subir_ahorros(df)` y `subir_pagos_registrados(df)`, con las mismas validaciones que la pantalla (idéntico en las 111,472 filas). En la plataforma, `api_001`: tokens personales (solo se guarda el hash), revocables y con alcance; el token actúa como su dueño y respeta sus banderas. **Falta:** crearle el token a Felix (`select api_crear_token(...)` en el SQL editor), darle las banderas de carga y que lo pruebe.
 > 2. **Cerrar Vacaciones y probarlo de punta a punta con personas reales.** Guía lista (2026-10-08): `docs/vacaciones/piloto-de-punta-a-punta.md`, con Montellano → Héctor → Uzziel y Wanda → Yesenia → Montellano, y criterio de listo. Antes se cerraron dos huecos (`vac_006`): nadie da el Vo. Bo. a su propia solicitud, y anular los días de una aprobada la cancela. Lo que pedía este punto: completar los datos que faltan (Montellano), dar las banderas, y una solicitud real que recorra empleado → jefe → Vo. Bo. → constancia, con guion de prueba y criterio de listo.
 > 3. ✅ **Auditor rediseñado a pedido de Felix (2026-10-08, AUD-003):** la base son los depósitos del banco (reporte de Yunius), comparados por grupo, ciclo y fecha contra lo que registró el promotor (§12). Sigue pendiente de su aprobación la vista por promotor (el reporte ya trae al "Recuperador").
+>
+> **Avance del punto 2 (2026-10-12):** demo real con Felix. La solicitud de Uzziel le llegó por correo 2 s después y la autorizó en 2 min; queda esperando el Vo. Bo., porque Montellano todavía no tiene cuenta. Además se entregaron:
+> - los **avisos** con campana y correo en cada paso, y la alarma diaria (NTF-001, VAC-007);
+> - la **constancia en PDF** con firmas, hora y QR de verificación pública (VAC-008);
+> - los **reportes**: Excel de la base y por rango, calendario de ausencias, aniversarios, tiempos de respuesta e informe ejecutivo en PDF (VAC-008/009). Detalle en §11.
+>
+> **Junta con Felix (2026-10-12): el jueves 15 de octubre se presentan Auditor y Vacaciones.**
+> - **Auditor:** falta que el usuario pase el **reporte de antigüedad grupal**, para cruzar cada promotor con sus grupos. Cada promotor ve solo lo suyo y solo algunos usuarios ven todo (§12).
+> - **Vacaciones:** afinar detalles con Jesús Montellano (§11).
 
 ### Vía activa — Mesa de Tickets
 
@@ -48,7 +57,7 @@
 
 | # | Qué | Por qué primero |
 |---|---|---|
-| 1 | **Los correos no salen — pendiente #1** | El remitente ya es de la plataforma (`TICKETS_GOOGLE_REFRESH_TOKEN` + `TICKETS_SENDER_EMAIL`, fuera de la BD para que ningún usuario lo cambie — TKT-047/048), pero **al 2026-08-12 no se había visto llegar ningún correo**. Diagnóstico listo: `GET /api/tickets/probar-correo` (solo admin) revisa variables → token → cuenta real → envío de prueba, y dice cuál de los cuatro falla. El token se regenera con `scripts/google-token-plataforma.mjs`, que imprime las dos variables listas para pegar. Ojo: las variables nuevas **exigen redespliegue** en Vercel. |
+| 1 | ~~**Los correos no salen**~~ → ✅ **sí salen (2026-10-12)** | En producción, el aviso de vacaciones a Felix salió 2 s después de la solicitud con este mismo remitente (`notificaciones.correo_enviado_at`); el usuario ya lo había visto en pruebas. Queda abajo el diagnóstico original, por si vuelve a fallar. |
 | 2 | ~~Confirmar que las 8 migraciones del 11-12 están en remoto~~ → **comprobar que el autocierre *corre*** | ✅ **2026-08-18**: las 8 están aplicadas, incluida la de `pg_cron`. Lo que queda es verificar que el job dispare de verdad (forzar con `tkt_cerrar_resueltos_vencidos(0)` o revisar `cron.job_run_details`). Si no corriera, el plan B sigue siendo un cron externo. ⚠️ **`npm run db:status` / `db:push` están rotos**: `bin/supabase.exe` es un shim que busca un binario `supabase-go` que no está en `bin/`. Salida: `npx supabase@2.115.0 <cmd>`. |
 | 3 | **Smoke end-to-end con clicks** | Guion listo en `docs/mocktest-mesa-tickets.md` (7 bloques, ~35 min, contra producción, dos cuentas). Nada de lo entregado el 10-12 de agosto se probó contra datos reales; sus tres cubetas de hallazgos siguen vacías. |
 | 4 | **Revisar `area_id` y `supervisa_tickets` en `/admin/usuarios`** | La RLS deja que **todo el que tenga un área vea todos los tickets de esa área**, y desde TKT-043 quien tenga el flag de supervisión **ve todas las colas**. Correcto para una mesa, pero exige la lista limpia. |
@@ -1234,7 +1243,7 @@ Con esta decisión, `RESEARCH §14.6` punto 1 queda **cerrado**.
 | 3 | La semana de renovación por grupo, y quién debe ver qué grupos | Felix |
 | 4 | Banderas V a asesores y gerentes, y medir con `aho_eventos` | Plataforma |
 
-## 11. Vacaciones *(VAC-001..003, fase 1 — desplegada 2026-10-04)*
+## 11. Vacaciones *(VAC-001..009 — fases 1 y 2, avisos, constancia con QR y reportes, desplegados al 2026-10-12)*
 
 **El pedido.** Junta del 17 de agosto, levantado con **Jesús Montellano** (Gente y Cultura) el 21 de septiembre. Hoy: formato en papel con tres firmas (empleado, jefe directo, Vo. Bo. de RH) y una base de Excel mantenida a mano.
 
@@ -1252,7 +1261,12 @@ Con esta decisión, `RESEARCH §14.6` punto 1 queda **cerrado**.
 | 2 | Confirmar: ¿Vo. Bo. de RH y del Coordinador son dos personas? ¿Cuántos flotantes por año? ¿Vencen los días? | Montellano |
 | 3 | Fechas de ingreso de las 4 personas faltantes y estatus de las 17 que no vienen | Montellano |
 | 4 | ✅ **Fase 2 (2026-10-05, VAC-004/005):** el empleado solicita en `/vacaciones/mias` (entra con su correo, sin bandera), el jefe autoriza en `/vacaciones/equipo`, RH da el Vo. Bo. arriba de `/vacaciones`. La base valida días hábiles, saldo, empalmes y que solo el jefe asignado autorice | Plataforma |
-| 5 | **Recordatorios por correo al jefe que no autoriza** (la "alarma"). Depende de que el envío de correos funcione (pendiente #1 de tickets). Mientras, RH ve en su bandeja cuántos días lleva esperando cada solicitud | Plataforma |
+| 5 | ✅ **Avisos (2026-10-12, NTF-001/VAC-007):** cada paso deja un aviso en la campana ("Avisos" en el menú, `/notificaciones`) y, cuando alguien tiene que actuar o le llega el resultado, un correo. Alarma diaria al jefe con 2+ días hábiles sin contestar: en la campana ya; **por correo falta `CRON_SECRET`** en Vercel y su hash en `ntf_ajustes` | Plataforma |
+| 6 | ✅ **Constancia y reportes (2026-10-12, VAC-008):** PDF del formato GYC con el logo real, firmas trazadas con fecha y hora, y QR a `/verificar/<código>` (pública, dice si se anuló). Excel de la base al día y de solicitudes por rango | Plataforma |
+| 7 | ✅ **Seguimiento (2026-10-12, VAC-009):** `/vacaciones/reportes` con calendario de ausencias (por jefe o área), personas fuera por semana, aniversarios de 60 días y tiempos de respuesta; informe ejecutivo en PDF y Excel de seguimiento. En "Mi equipo", cada jefe ve el calendario de su equipo | Plataforma |
+| 8 | **Afinar detalles con Montellano antes de la presentación del jueves 15** (junta con Felix del 2026-10-12): su cuenta y bandera, las preguntas del punto 2 y lo que pida del formato o los reportes | Montellano + Plataforma |
+| 9 | **Pantalla de alta de personal** y poder corregir nombre y fecha de ingreso (hoy solo por SQL; Uzziel se dio de alta así el 2026-10-09) | Plataforma |
+| 10 | **Arreglos de la revisión de avisos:** correos duplicados con acciones seguidas (M1), que un aviso fallido no tumbe la acción (M2), formato de correo validado en la base (M3), y que el recordatorio pare cuando las fechas ya pasaron | Plataforma |
 
 **Decisión (2026-10-05): la firma en la plataforma reemplaza al papel.** Cuando los días vienen de una solicitud, el formato GYC es una **constancia de tres firmas electrónicas** (quién y cuándo solicitó, autorizó y dio el Vo. Bo.), sin líneas para firma autógrafa, y la pueden abrir la persona, su jefe y Gente y Cultura (`vac_formato`). Los días que RH registra a mano no pasaron por esas firmas: su formato sigue saliendo para firmar en papel.
 
@@ -1285,7 +1299,7 @@ Los 20 grupo-ciclo-día del 5 de octubre ya salen conciliados en el reporte nuev
 |---|---|---|
 | 1 | Revisar con Felix los 5 casos y el de MS (¿la fecha debe ser exacta?) | Felix |
 | 2 | Banderas: Felix (C), Charly (V, parece ser `carlos.mejia`) | Plataforma |
-| 3 | Vista por promotor: el reporte ya trae `Recuperador` por grupo (guardado, no se muestra). Requiere que los promotores tengan cuenta | Felix aprueba |
+| 3 | **Vista por promotor, aprobada en la junta del 2026-10-12, para presentar el jueves 15.** Falta el **reporte de antigüedad grupal**, que pasa el usuario, para cruzar cada promotor con sus grupos. Cada promotor ve solo lo suyo y solo algunos usuarios ven todo. El reporte de depósitos ya trae `Recuperador` por grupo (guardado, no se muestra). Requiere que los promotores tengan cuenta | Usuario (reporte) + Plataforma |
 | 4 | Las consultas de Charly entran como RPC `security definer`, nunca SQL suelto | Charly + Plataforma |
 
 ---

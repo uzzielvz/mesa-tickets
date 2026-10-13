@@ -1,7 +1,7 @@
 # RESEARCH CONSOLIDADO — mea-tickets (CrediFlexi Operaciones)
 
 > Documento vivo. Single source of truth del estado real del repo.
-> Última actualización: 2026-10-08 (§15.4bis: identidad por correo y firma electrónica en Vacaciones, tokens para scripts, lectura de Excel grande en el navegador y el Auditor basado en depósitos · §11 al 104). Antes: 2026-10-04 (§15 nueva: **medición de uso** en producción y tres módulos entregados el mismo día — **Ahorros, Vacaciones fase 1 y Auditor**. §11 al día: 99 migraciones. §14: Inversiones I1–I5 implementados).
+> Última actualización: 2026-10-12 (§15.4ter: avisos con campana y correo, constancia en PDF con QR de verificación pública, reportes de seguimiento y una prueba visual nueva · §15.4 riesgos al día: los correos ya se verificaron · §11 al 108). Antes: 2026-10-08 (§15.4bis: identidad por correo y firma electrónica en Vacaciones, tokens para scripts, lectura de Excel grande en el navegador y el Auditor basado en depósitos · §11 al 104). Antes: 2026-10-04 (§15 nueva: **medición de uso** en producción y tres módulos entregados el mismo día — **Ahorros, Vacaciones fase 1 y Auditor**. §11 al día: 99 migraciones. §14: Inversiones I1–I5 implementados).
 > Para el plan de trabajo activo ver `PLAN.md`.
 
 ---
@@ -1114,6 +1114,10 @@ Tres decisiones de modelo que conviene no deshacer sin leer esto:
 | 102 | `20261005190000_api_001_tokens.sql` | Tokens personales para scripts (`api_tokens`, solo hash), `api_actuar_como` fija `auth.uid()` en el dueño del token durante la transacción; `api_aho_*` y `api_aud_cargar` reutilizan las cargas originales; `api_crear_token`/`api_revocar_token` |
 | 103 | `20261008120000_vac_006_controles.sql` | `vac_resolver_rh` rechaza el Vo. Bo. a la propia solicitud; trigger `trg_vac_movimiento_anulado` cancela la solicitud cuando se anulan todos sus días |
 | 104 | `20261008130000_aud_003_depositos.sql` | Auditor por depósitos: `aud_dep_cargas` (por lotes, `estado` en_curso/completa) y `aud_depositos`, `aud_dep_iniciar_carga`/`aud_dep_cargar_lote`/`aud_dep_cerrar_carga`, `aud_conciliacion` (No Conciliado contra todos los registros por grupo + ciclo + fecha exacta) e índice `idx_aud_reg_llave` |
+| 105 | `20261009190000_ntf_001_avisos.sql` | Avisos de la plataforma: `notificaciones` dirigida a un **correo** (RLS: cada quien lee los suyos), `ntf_crear` (solo interna; nadie se avisa a sí mismo), `ntf_marcar_leidas`, `ntf_correos_por_enviar`/`ntf_correo_resultado` (solo los que provocó quien llama) y, para el cron, `ntf_correos_sistema`/`ntf_resultado_sistema` con secreto cuyo sha256 vive en `ntf_ajustes` |
+| 106 | `20261009190100_vac_007_avisos.sql` | `vac_avisar` centraliza los textos de cada paso; `vac_solicitar`, `vac_cancelar_solicitud`, `vac_resolver_jefe`, `vac_resolver_rh` y el trigger de anulación se redefinen iguales más el aviso; `vac_recordatorios` + pg_cron `0 15 * * 1-5` (9:00 CDMX, días hábiles) |
+| 107 | `20261012190000_vac_008_constancia_qr_reportes.sql` | `vac_solicitudes.codigo_verificacion` (32 hex aleatorios); `vac_formato` devuelve código y estado; `vac_verificar` (anon, solo solicitudes con Vo. Bo.); `vac_reporte_periodo` (RH) |
+| 108 | `20261012210000_vac_009_seguimiento.sql` | `vac_calendario` (RH ve todo; un jefe, solo a su equipo directo; junta los registros de una solicitud partida) y `vac_tiempos` (horas por paso y días hábiles de espera de lo pendiente) |
 
 > **Estado 2026-10-08 (cierre):** **104** migraciones, todas aplicadas a remoto. La 104 es `20261008130000_aud_003_depositos.sql`: `aud_dep_cargas` y `aud_depositos` (reporte de depósitos de Yunius, por lotes; vigente = la completa de mayor secuencia), `aud_dep_*` para cargar y `aud_conciliacion` (depósitos No Conciliado contra registros, por grupo + ciclo + fecha exacta).
 >
@@ -1567,12 +1571,25 @@ Consulta de **solo lectura** (`begin transaction read only` contra el pooler) pa
 - **Excel de más de 4.5 MB desde el navegador (AUD-003).** `exceljs` tiene versión para navegador (`"browser"` en su package.json) y se importa de forma dinámica, para que solo lo descargue la página de carga. El reporte de depósitos (18,945 filas) se lee en ~3 s y entra en lotes de 2,000.
 - **El Auditor parte de los depósitos, no de los registros.** La `N` del archivo de registros y el "No Conciliado" del reporte de Yunius no coincidían (4 de 23). Felix definió que manda el reporte de depósitos y que el cruce es por grupo + ciclo + fecha **exacta**.
 
+### 15.4ter Lo que se agregó del 9 al 12 de octubre
+
+- **Avisos dirigidos a un correo, no a una cuenta (NTF-001).** De 22 jefes en la base de vacaciones, solo 3 tenían cuenta. El aviso existe aunque la persona nunca haya entrado, y lo ve en cuanto entra con ese correo. Los crean las funciones del módulo **en la misma transacción** que la acción: nunca queda una sin la otra. El costo: si el aviso falla, la acción se revierte (hallazgo M2 de la revisión).
+- **Correo inmediato sin server action.** Tras cada acción, el navegador hace `fetch('/api/notificaciones/enviar', { keepalive: true })`. Una server action entra a la cola del router de Next y retrasa la navegación mientras Gmail responde; `keepalive` deja terminar la petición aunque la persona cambie de página.
+- **Cron sin llave de servicio.** El cron diario de Vercel (`vercel.json`) entra con la llave pública y el mismo `CRON_SECRET` con que Vercel lo firma. La base solo guarda su sha256 y sin él no entrega nada. El middleware deja pasar `/api/notificaciones/cron` y `/verificar/` sin sesión.
+- **PDF en una función de Vercel (VAC-008).** Se usa `pdf-lib` + `@pdf-lib/fontkit` porque son JS puro, sin navegador. El logo (sacado del PDF de Gente y Cultura) y la fuente de firma (Herr Von Muellerhoff, OFL) viajan en base64 dentro de un módulo TS: no hay archivos sueltos que empaquetar. Helvetica solo codifica WinAnsi, así que `ansi()` cambia lo que no cabe en vez de tumbar la descarga. El QR (`qrcode`) se probó decodificándolo con OpenCV.
+- **Verificación pública acotada.** `/verificar/<código>` responde sin sesión, pero solo por solicitudes que pasaron por el Vo. Bo. (las únicas con constancia), enseña lo mismo que el papel y dice si se anularon. No se indexa (`robots: noindex`).
+- **Una sola carga para tres salidas (VAC-009).** La página de reportes, el Excel de seguimiento y el informe ejecutivo leen de `cargarSeguimiento`, así que dicen lo mismo. Los colores de ausencias se validaron con el validador del skill dataviz (3 categorías, todos los pares; el aqua queda bajo 3:1, por eso siempre va con leyenda y lista).
+- **Prueba visual sin sesión.** Las páginas de servidor se renderizan con `sucrase` y stubs (patrón de §15.2) y el HTML se envuelve con el CSS compilado de `.next/static/css`. Chrome headless (`--screenshot`) da una captura fiel, lo que antes faltaba para revisar la maqueta sin login.
+- **Revisión de los avisos (2026-10-09): GO con reservas.** Sin hallazgos críticos ni fugas de permisos (grants verificados en prod). Quedan pendientes: duplicados por envíos concurrentes (M1), aviso que tumba la acción (M2), inyección en `To:` desde `vac_empleados.email`, que no tiene check de formato (M3, requiere rol RH), destinatarios de RH vacíos (M4) y siembra del secreto sin runbook (M5).
+
 ### 15.4 Riesgos y datos fuera del repo
 
 - **Datos cargados por script, no reproducibles desde el repo.** La base de Vacaciones (86 personas, 43 registros), el cruce del archivo "Información para Sistemas" (69 correos y puestos, 68 jefes), el grupo 439 C01 de Ahorros y la foto de septiembre del Auditor se cargaron con scripts locales que no se subieron, porque manejan datos personales. El esquema y los RPCs sí están en el repo.
 - **PII del personal** en `vac_empleados` (ver §1). Los correos genéricos `asesor.<sucursal>N` son cuentas por puesto, no por persona, y dos escriben "ixtapluca" en vez de "ixtapaluca"; están sin verificar.
 - **Ahorros solo tiene un grupo cuadrado.** El CSV completo no se cargó: trae garantías negativas, pagos atípicos y 152 grupo-ciclo sin datos del crédito, y lo que entra no se borra desde la pantalla. Regla de Data Science: solo entra lo cuadrado.
-- **Vacaciones fase 2 depende de los correos.** La solicitud del empleado y los recordatorios al jefe necesitan que el envío de correos de la plataforma funcione, y eso sigue sin verificarse (`PLAN §0`, pendiente #1 de tickets).
+- ~~**Vacaciones fase 2 depende de los correos.**~~ → **Resuelto (2026-10-12):** el aviso a Felix salió 2 s después de la solicitud, con el remitente de la plataforma (`notificaciones.correo_enviado_at`).
+- **La alarma diaria por correo no sale todavía.** Falta `CRON_SECRET` en Vercel y su sha256 en `ntf_ajustes.cron_secreto_hash`. Sin eso la ruta responde 503 (o 500 si hay secreto sin hash) y los recordatorios solo llegan a la campana.
+- **Nadie tiene la bandera de Vacaciones.** Los avisos de "espera tu Vo. Bo." no le llegan a nadie y la solicitud real de Uzziel (folio 16) espera el Vo. Bo. hasta que Montellano entre.
 
 ---
 
