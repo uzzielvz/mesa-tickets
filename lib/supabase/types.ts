@@ -1812,6 +1812,8 @@ export interface Database {
           rh_por: string | null
           rh_comentario: string | null
           cancelada_at: string | null
+          /** VAC-008: código del QR de la constancia (/verificar/<código>). */
+          codigo_verificacion: string
         }
         Insert: never
         Update: never
@@ -2149,6 +2151,15 @@ export interface Database {
       }
       vac_resolver_rh: {
         Args: { p_id: string; p_aprueba: boolean; p_comentario?: string | null }
+        Returns: unknown
+      }
+      // VAC-008: verificación pública del QR y reporte por rango (Gente y Cultura).
+      vac_verificar: {
+        Args: { p_codigo: string }
+        Returns: unknown
+      }
+      vac_reporte_periodo: {
+        Args: { p_desde: string; p_hasta: string }
         Returns: unknown
       }
       // NTF-001: avisos (la campana) y sus correos. Contrato en lib/notificaciones/tipos.ts.

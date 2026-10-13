@@ -33,6 +33,12 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse
   }
 
+  // Verificación de constancias (el QR del PDF): pública, quien recibe el
+  // papel puede no tener cuenta. Responde `vac_verificar` (security definer).
+  if (pathname.startsWith('/verificar/')) {
+    return supabaseResponse
+  }
+
   // Cron de avisos (Vercel): sin sesión. Lo protege CRON_SECRET, que validan
   // la ruta y la base.
   if (pathname.startsWith('/api/notificaciones/cron')) {

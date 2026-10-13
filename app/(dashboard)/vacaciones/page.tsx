@@ -1,12 +1,13 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Search, AlertTriangle, ArrowRight } from 'lucide-react'
+import { Search, AlertTriangle, ArrowRight, Download } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import Header from '@/components/layout/header'
 import { Tile, Panel, Vacio, BannerError } from '@/components/viz'
 import ResolverSolicitud from '@/components/vacaciones/resolver-solicitud'
-import { antiguedad, fechaCorta, hoyMexico, nombreClave, sumarDias } from '@/lib/vacaciones/calendario'
-import type { BandejaRh, SaldoEmpleado } from '@/lib/vacaciones/tipos'
+import { antiguedad, fechaCorta, hoyMexico, sumarDias } from '@/lib/vacaciones/calendario'
+import { filtrarPersonal } from '@/lib/vacaciones/filtro'
+import { leerVer, type BandejaRh, type SaldoEmpleado } from '@/lib/vacaciones/tipos'
 
 export const dynamic = 'force-dynamic'
 
@@ -45,11 +46,11 @@ export default async function VacacionesPage({
   const hoy = hoyMexico()
 
   const activos = todos.filter(e => e.activo)
-  const q = nombreClave(searchParams.q ?? '')
-  const ver = searchParams.ver === 'inactivos' ? 'inactivos' : searchParams.ver === 'pendientes' ? 'pendientes' : 'todos'
-  const lista = (ver === 'inactivos' ? todos.filter(e => !e.activo) : activos)
-    .filter(e => ver !== 'pendientes' || e.restantes_total > 0)
-    .filter(e => !q || nombreClave(e.nombre).includes(q) || nombreClave(e.puesto ?? '').includes(q))
+  const ver = leerVer(searchParams.ver)
+  // El mismo filtro que el Excel: lo que se ve es lo que se descarga.
+  const lista = filtrarPersonal(todos, ver, searchParams.q ?? '')
+  const excelBase = `/api/vacaciones/reporte?tipo=base&ver=${ver}${searchParams.q ? `&q=${encodeURIComponent(searchParams.q)}` : ''}`
+  const anio = hoy.slice(0, 4)
 
   // ── Hallazgos de la base ──
   const conDerecho = activos.filter(e => e.anios >= 1)
@@ -170,6 +171,12 @@ export default async function VacacionesPage({
                   {t}
                 </Link>
               ))}
+              <a
+                href={excelBase}
+                className="ml-auto inline-flex items-center gap-1.5 text-[12px] font-medium rounded px-2.5 py-[5px] border border-[#ECECEC] text-navy hover:bg-surface-hover"
+              >
+                <Download size={13} /> Descargar Excel
+              </a>
             </form>
 
             <Panel titulo="Personal" nota={`${lista.length} ${lista.length === 1 ? 'persona' : 'personas'}`}>
@@ -232,6 +239,36 @@ export default async function VacacionesPage({
               &ldquo;Periodo actual&rdquo; es el último año de servicio cumplido: días tomados de los que da la ley.
               &ldquo;Por tomar&rdquo; suma todos los periodos. Calculado al {fechaCorta(hoy)}.
             </p>
+
+            <Panel titulo="Reporte de solicitudes y días tomados">
+              <form action="/api/vacaciones/reporte" method="get" className="px-5 py-4 flex flex-wrap items-end gap-3">
+                <input type="hidden" name="tipo" value="periodo" />
+                <label className="flex flex-col gap-1">
+                  <span className="text-[11px] uppercase tracking-[0.3px] text-ink-400 font-medium">Del</span>
+                  <input
+                    type="date" name="desde" defaultValue={`${anio}-01-01`} required
+                    className="bg-white border border-[#ECECEC] rounded px-2.5 py-1.5 text-[12.5px] text-ink-900 outline-none focus:border-orange"
+                  />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="text-[11px] uppercase tracking-[0.3px] text-ink-400 font-medium">Al</span>
+                  <input
+                    type="date" name="hasta" defaultValue={`${anio}-12-31`} required
+                    className="bg-white border border-[#ECECEC] rounded px-2.5 py-1.5 text-[12.5px] text-ink-900 outline-none focus:border-orange"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-1.5 text-[13px] font-medium text-white bg-navy hover:bg-navy/90 rounded px-3.5 py-1.5"
+                >
+                  <Download size={13} /> Descargar Excel
+                </button>
+                <p className="w-full text-[11.5px] text-ink-400">
+                  Las solicitudes en cualquier estado y los días tomados que caen, aunque sea en parte, dentro del rango,
+                  con quién autorizó y a qué hora. Rango máximo: dos años.
+                </p>
+              </form>
+            </Panel>
           </>
         )}
       </div>

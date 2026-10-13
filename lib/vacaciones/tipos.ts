@@ -201,3 +201,91 @@ export const CIUDAD = 'TOLUCA'
 export function periodoSugerido(periodos: PeriodoVacaciones[]): number | null {
   return periodos.find(p => p.restantes > 0)?.periodo ?? periodos[periodos.length - 1]?.periodo ?? null
 }
+
+// ── Constancia, verificación y reportes (VAC-008) ───────────────────────────
+
+/** Lo que regresa `vac_formato`: los datos del formato GYC o de su constancia. */
+export interface DatosFormato {
+  movimiento: Movimiento
+  empleado: SaldoEmpleado
+  tomados_hasta_aqui: number
+  registrado_por: string | null
+  /** Si los días vienen de una solicitud: las tres firmas electrónicas y el código del QR. */
+  solicitud: {
+    folio: number
+    estado: EstadoSolicitud
+    codigo_verificacion: string
+    created_at: string
+    solicitada_por: string | null
+    jefe_at: string | null
+    jefe_por: string | null
+    rh_at: string | null
+    rh_por: string | null
+  } | null
+}
+
+/** Lo que regresa `vac_verificar`: lo que confirma la página pública del QR. */
+export interface Verificacion {
+  folio: number
+  tipo: 'vacaciones' | 'flotante'
+  empleado: string
+  puesto: string | null
+  fecha_inicio: string
+  fecha_fin: string
+  dias: number
+  fecha_regreso: string | null
+  estado: 'aprobada' | 'cancelada'
+  cancelada_at: string | null
+  firmas: { rol: string; nombre: string | null; at: string | null }[]
+}
+
+/** Lo que regresa `vac_reporte_periodo`. */
+export interface ReportePeriodo {
+  solicitudes: {
+    folio: number
+    tipo: 'vacaciones' | 'flotante'
+    empleado: string
+    puesto: string | null
+    area: string | null
+    jefe: string | null
+    fecha_inicio: string
+    fecha_fin: string
+    dias: number
+    fecha_regreso: string | null
+    estado: EstadoSolicitud
+    observaciones: string | null
+    created_at: string
+    jefe_at: string | null
+    jefe_por: string | null
+    jefe_comentario: string | null
+    rh_at: string | null
+    rh_por: string | null
+    rh_comentario: string | null
+    cancelada_at: string | null
+  }[]
+  dias_tomados: {
+    folio: number
+    tipo: 'vacaciones' | 'flotante'
+    empleado: string
+    puesto: string | null
+    area: string | null
+    periodo: number | null
+    dias: number
+    fecha_inicio: string
+    fecha_fin: string | null
+    fecha_regreso: string | null
+    origen: 'importado' | 'registro_rh' | 'solicitud'
+    observaciones: string | null
+    created_at: string
+    registrado_por: string | null
+    folio_solicitud: number | null
+  }[]
+  importados_sin_fecha: number
+}
+
+/** El filtro de la lista de personal, igual en la pantalla y en el Excel. */
+export type VerPersonal = 'todos' | 'pendientes' | 'inactivos'
+
+export function leerVer(v: string | undefined | null): VerPersonal {
+  return v === 'inactivos' ? 'inactivos' : v === 'pendientes' ? 'pendientes' : 'todos'
+}
