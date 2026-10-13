@@ -2162,6 +2162,15 @@ export interface Database {
         Args: { p_desde: string; p_hasta: string }
         Returns: unknown
       }
+      // VAC-009: calendario de ausencias (RH todo; un jefe, su equipo) y tiempos de respuesta.
+      vac_calendario: {
+        Args: { p_desde: string; p_hasta: string }
+        Returns: unknown
+      }
+      vac_tiempos: {
+        Args: { p_desde: string; p_hasta: string }
+        Returns: unknown
+      }
       // NTF-001: avisos (la campana) y sus correos. Contrato en lib/notificaciones/tipos.ts.
       ntf_marcar_leidas: {
         Args: { p_ids?: string[] | null }

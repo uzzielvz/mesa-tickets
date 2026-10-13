@@ -2,7 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import Header from '@/components/layout/header'
 import { Panel, Vacio } from '@/components/viz'
 import ResolverSolicitud from '@/components/vacaciones/resolver-solicitud'
+import CalendarioAusencias from '@/components/vacaciones/calendario-ausencias'
 import { fechaCorta, hoyMexico } from '@/lib/vacaciones/calendario'
+import { agruparAusencias, semanasDesde, type Calendario } from '@/lib/vacaciones/seguimiento'
 import { ETIQUETA_ESTADO, TONO_ESTADO, type BandejaJefe } from '@/lib/vacaciones/tipos'
 
 export const dynamic = 'force-dynamic'
@@ -19,6 +21,13 @@ export default async function MiEquipoPage() {
   const { data } = await supabase.rpc('vac_bandeja_jefe', {})
   const b = (data as unknown as BandejaJefe | null) ?? { es_jefe: false, pendientes: [], resueltas: [], equipo: [] }
   const hoy = hoyMexico()
+
+  // Quién de su equipo estará fuera: `vac_calendario` solo le da a su gente directa.
+  const semanas = semanasDesde(hoy, 8)
+  const { data: calData } = b.es_jefe
+    ? await supabase.rpc('vac_calendario', { p_desde: semanas[0].inicio, p_hasta: semanas[semanas.length - 1].fin })
+    : { data: null }
+  const calendario = (calData as unknown as Calendario | null) ?? { ausencias: [], festivos: [] }
 
   if (!b.es_jefe) {
     return (
@@ -71,6 +80,16 @@ export default async function MiEquipoPage() {
               })}
             </ul>
           )}
+        </Panel>
+
+        <Panel titulo="Ausencias de tu equipo" nota="próximas 8 semanas · aprobadas y en trámite">
+          <CalendarioAusencias
+            grupos={agruparAusencias(calendario.ausencias, 'ninguno')}
+            semanas={semanas}
+            festivos={calendario.festivos}
+            hoy={hoy}
+            mostrarGrupos={false}
+          />
         </Panel>
 
         <div className="grid lg:grid-cols-2 gap-4 items-start">

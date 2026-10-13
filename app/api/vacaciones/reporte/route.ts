@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { hoyMexico } from '@/lib/vacaciones/calendario'
 import { describirFiltro, filtrarPersonal } from '@/lib/vacaciones/filtro'
-import { MIME_XLSX, libroBase, libroPeriodo, type DiaTomado } from '@/lib/vacaciones/reportes'
+import { MIME_XLSX, libroBase, libroPeriodo, libroSeguimiento, type DiaTomado } from '@/lib/vacaciones/reportes'
+import { cargarSeguimiento } from '@/lib/vacaciones/seguimiento-carga'
 import { leerVer, type ReportePeriodo, type SaldoEmpleado } from '@/lib/vacaciones/tipos'
 
 // exceljs es Node puro: no corre en el runtime edge.
@@ -15,6 +16,7 @@ const FECHA_ISO = /^\d{4}-\d{2}-\d{2}$/
  * Reportes de Gente y Cultura en Excel (VAC-008).
  *   ?tipo=base&ver=&q=          la base al día, con el filtro de la pantalla
  *   ?tipo=periodo&desde=&hasta= solicitudes y días tomados en un rango
+ *   ?tipo=seguimiento&semanas=  calendario de ausencias, aniversarios y tiempos (VAC-009)
  * Los RPCs vuelven a validar la bandera; esta revisión solo da un 403 claro.
  */
 export async function GET(request: Request) {
@@ -64,6 +66,12 @@ export async function GET(request: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: error.code === '42501' ? 403 : 400 })
     libro = libroPeriodo(data as unknown as ReportePeriodo, desde, hasta, meta)
     nombre = `vacaciones_${desde}_a_${hasta}.xlsx`
+  } else if (tipo === 'seguimiento') {
+    const semanas = Number(url.searchParams.get('semanas'))
+    const d = await cargarSeguimiento(supabase, hoyMexico(), [4, 8, 12].includes(semanas) ? semanas : 8)
+    if (d.error) return NextResponse.json({ error: d.error.message }, { status: 500 })
+    libro = libroSeguimiento(d, meta)
+    nombre = `vacaciones_seguimiento_${hoyMexico()}.xlsx`
   } else {
     return NextResponse.json({ error: 'Reporte desconocido' }, { status: 400 })
   }

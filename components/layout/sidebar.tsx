@@ -591,6 +591,13 @@ function NavContent({
                 active={pathname === '/vacaciones' || /^\/vacaciones\/[0-9a-f-]{36}/i.test(pathname)}
                 onClick={onNav}
               />
+              <NavItem
+                href="/vacaciones/reportes"
+                label="Reportes"
+                icon={BarChart3}
+                active={pathname.startsWith('/vacaciones/reportes')}
+                onClick={onNav}
+              />
             </>
           )}
         </NavSection>

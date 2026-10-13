@@ -11,6 +11,10 @@ import ExcelJS from 'exceljs'
 import { antiguedad, fechaCorta, fechaLarga, hoyMexico } from './calendario'
 import { momentoFirma } from './formato'
 import type { EstadoSolicitud, ReportePeriodo, SaldoEmpleado } from './tipos'
+import {
+  COLOR_AUSENCIA, ausenciaEnDia, claseDe, type Ausencia, type ClaseAusencia,
+} from './seguimiento'
+import { DIAS_ANIVERSARIO, DIAS_TIEMPOS, type Seguimiento } from './seguimiento-carga'
 
 const NAVY = 'FF0F1B3D'
 const GRIS = 'FF6B6B6B'
@@ -326,6 +330,182 @@ export function libroPeriodo(r: ReportePeriodo, desde: string, hasta: string, me
     'Total', null, null, null, null, null, null, null, r.dias_tomados.reduce((a, t) => a + Number(t.dias), 0),
   ])
   cerrarHoja(hojaDias, filaDias, colDias.length, r.dias_tomados.length)
+
+  return libro
+}
+
+// ── Seguimiento: calendario, aniversarios y tiempos (VAC-009) ───────────────
+
+const ESTADO_AUSENCIA: Record<Ausencia['estado'], string> = {
+  aprobada: 'Aprobada',
+  pendiente_jefe: 'Espera al jefe',
+  pendiente_rh: 'Espera Vo. Bo. de RH',
+}
+
+/** En la cuadrícula del Excel cada celda lleva su letra: el color nunca va solo. */
+const LETRA: Record<ClaseAusencia, string> = { vacaciones: 'V', flotante: 'F', tramite: 'T' }
+const argb = (hex: string) => `FF${hex.replace('#', '').toUpperCase()}`
+const DIA_SEMANA = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom']
+
+export function libroSeguimiento(d: Seguimiento, meta: MetaReporte): ExcelJS.Workbook {
+  const libro = new ExcelJS.Workbook()
+  libro.creator = 'Plataforma CrediFlexi'
+  libro.created = meta.generado
+  const generado = `Generado por ${meta.generadoPor} el ${momentoFirma(meta.generado.toISOString())} h.`
+  const ventana = `Del ${fechaLarga(d.semanas[0].inicio)} al ${fechaLarga(d.semanas[d.semanas.length - 1].fin)} (${d.semanas.length} semanas).`
+  const festivoDe = new Map(d.calendario.festivos.map(f => [f.fecha, f.nombre]))
+
+  // ── Ausencias (lista) ──
+  const colAus = [
+    { titulo: 'Persona', ancho: 34 },
+    { titulo: 'Puesto', ancho: 28 },
+    { titulo: 'Área', ancho: 14 },
+    { titulo: 'Jefe directo', ancho: 32 },
+    { titulo: 'Tipo', ancho: 13 },
+    { titulo: 'Del', ancho: 12, formato: FECHA },
+    { titulo: 'Al', ancho: 12, formato: FECHA },
+    { titulo: 'Días', ancho: 7 },
+    { titulo: 'Estado', ancho: 20 },
+  ]
+  const aus = libro.addWorksheet('Ausencias')
+  const filaAus = prepararHoja(aus, 'Calendario de ausencias', [ventana, generado], colAus)
+  for (const a of d.calendario.ausencias) {
+    aus.addRow([
+      a.nombre, a.puesto, a.area, a.jefe, a.tipo === 'vacaciones' ? 'Vacaciones' : 'Día flotante',
+      dia(a.fecha_inicio), dia(a.fecha_fin), Number(a.dias), ESTADO_AUSENCIA[a.estado],
+    ])
+  }
+  cerrarHoja(aus, filaAus, colAus.length, d.calendario.ausencias.length)
+
+  // ── Calendario (cuadrícula) ──
+  const dias = d.semanas.flatMap(s => s.dias)
+  const colCal = [
+    { titulo: 'Persona', ancho: 34 },
+    { titulo: 'Jefe directo', ancho: 30 },
+    ...dias.map(x => ({
+      titulo: `${DIA_SEMANA[(new Date(`${x}T12:00:00Z`).getUTCDay() + 6) % 7]} ${x.slice(8)}/${x.slice(5, 7)}`,
+      ancho: 6,
+    })),
+  ]
+  const cal = libro.addWorksheet('Calendario')
+  const filaCal = prepararHoja(cal, 'Calendario por día hábil', [
+    `${ventana} V = vacaciones aprobadas · F = día flotante aprobado · T = en trámite · gris = festivo.`,
+    generado,
+  ], colCal)
+  cal.views = [{ state: 'frozen', ySplit: filaCal, xSplit: 2 }]
+  let personasCal = 0
+  for (const g of d.grupos) {
+    for (const p of g.personas) {
+      const fila = cal.addRow([p.nombre, g.grupo || null])
+      dias.forEach((x, i) => {
+        const celda = fila.getCell(i + 3)
+        celda.alignment = { horizontal: 'center' }
+        if (festivoDe.has(x)) {
+          celda.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0EFEC' } }
+          return
+        }
+        const a = ausenciaEnDia(p, x)
+        if (!a) return
+        celda.value = LETRA[claseDe(a)]
+        celda.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: argb(COLOR_AUSENCIA[claseDe(a)]) } }
+        celda.font = { bold: true, color: { argb: 'FFFFFFFF' } }
+      })
+      personasCal++
+    }
+  }
+  cerrarHoja(cal, filaCal, 2, personasCal)
+
+  // ── Personas fuera por semana ──
+  const colSem = [
+    { titulo: 'Semana', ancho: 18 },
+    { titulo: 'Del', ancho: 12, formato: FECHA },
+    { titulo: 'Al', ancho: 12, formato: FECHA },
+    { titulo: 'Con días aprobados', ancho: 12 },
+    { titulo: 'Solo en trámite', ancho: 12 },
+    { titulo: 'Personas fuera', ancho: 11 },
+    { titulo: 'Días-persona hábiles', ancho: 12 },
+  ]
+  const sem = libro.addWorksheet('Por semana')
+  const filaSem = prepararHoja(sem, 'Personas fuera por semana', [
+    'Una persona cuenta si tiene al menos un día hábil fuera esa semana. Los festivos no cuentan.', generado,
+  ], colSem)
+  for (const w of d.porSemana) {
+    sem.addRow([w.semana.etiqueta, dia(w.semana.inicio), dia(w.semana.fin), w.aprobadas, w.tramite, w.aprobadas + w.tramite, w.dias])
+  }
+  cerrarHoja(sem, filaSem, colSem.length, d.porSemana.length)
+
+  // ── Aniversarios ──
+  const colAni = [
+    { titulo: 'Persona', ancho: 34 },
+    { titulo: 'Puesto', ancho: 28 },
+    { titulo: 'Jefe directo', ancho: 32 },
+    { titulo: 'Aniversario', ancho: 12, formato: FECHA },
+    { titulo: 'Faltan (días)', ancho: 9 },
+    { titulo: 'Cumple (años)', ancho: 9 },
+    { titulo: 'Gana (días)', ancho: 9 },
+    { titulo: 'Hoy tiene por tomar', ancho: 11 },
+  ]
+  const ani = libro.addWorksheet('Aniversarios')
+  const filaAni = prepararHoja(ani, 'Aniversarios próximos', [
+    `Quién cumple años de servicio en los próximos ${DIAS_ANIVERSARIO} días.`, generado,
+  ], colAni)
+  for (const a of d.aniversarios) {
+    ani.addRow([a.nombre, a.puesto, a.jefe, dia(a.fecha), a.faltan, a.cumple, a.gana, a.porTomar])
+  }
+  cerrarHoja(ani, filaAni, colAni.length, d.aniversarios.length)
+
+  // ── Tiempos por solicitud ──
+  const colTie = [
+    { titulo: 'Folio', ancho: 7 },
+    { titulo: 'Persona', ancho: 34 },
+    { titulo: 'Jefe directo', ancho: 32 },
+    { titulo: 'Estado', ancho: 20 },
+    { titulo: 'Sale el', ancho: 12, formato: FECHA },
+    { titulo: 'Solicitada', ancho: 16, formato: FECHA_HORA },
+    { titulo: 'Respuesta del jefe', ancho: 16, formato: FECHA_HORA },
+    { titulo: 'Resultado del jefe', ancho: 12 },
+    { titulo: 'Horas del jefe', ancho: 9 },
+    { titulo: 'Vo. Bo.', ancho: 16, formato: FECHA_HORA },
+    { titulo: 'Horas de RH', ancho: 9 },
+    { titulo: 'Paso pendiente', ancho: 16 },
+    { titulo: 'Días hábiles esperando', ancho: 11 },
+  ]
+  const tie = libro.addWorksheet('Tiempos')
+  const filaTie = prepararHoja(tie, 'Tiempos de respuesta', [
+    `Solicitudes de los últimos ${DIAS_TIEMPOS} días y todo lo pendiente. Horas de reloj entre un paso y el siguiente.`,
+    generado,
+  ], colTie)
+  for (const t of d.tiempos) {
+    tie.addRow([
+      t.folio, t.empleado, t.jefe, ESTADO_REPORTE[t.estado], dia(t.fecha_inicio), fechaHoraMx(t.created_at),
+      fechaHoraMx(t.jefe_at),
+      t.jefe_resultado === 'rechazada' ? 'Rechazó' : t.jefe_resultado === 'autorizada' ? 'Autorizó' : null,
+      t.horas_jefe === null ? null : Number(t.horas_jefe), fechaHoraMx(t.rh_at),
+      t.horas_rh === null ? null : Number(t.horas_rh),
+      t.paso === 'jefe' ? 'Jefe' : t.paso === 'rh' ? 'Gente y Cultura' : null, t.espera_habil,
+    ])
+  }
+  cerrarHoja(tie, filaTie, colTie.length, d.tiempos.length)
+
+  // ── Por jefe ──
+  const colJefe = [
+    { titulo: 'Jefe', ancho: 34 },
+    { titulo: 'Solicitudes', ancho: 11 },
+    { titulo: 'Respondidas', ancho: 11 },
+    { titulo: 'Rechazadas', ancho: 11 },
+    { titulo: 'Mediana (horas)', ancho: 11 },
+    { titulo: 'La más lenta (horas)', ancho: 12 },
+    { titulo: 'Pendientes', ancho: 11 },
+    { titulo: 'Espera máxima (días hábiles)', ancho: 13 },
+  ]
+  const jef = libro.addWorksheet('Por jefe')
+  const filaJefe = prepararHoja(jef, 'Tiempo de respuesta por jefe', [
+    'Mediana: la mitad de sus respuestas fue más rápida que esto. Mide el proceso, no a la persona.', generado,
+  ], colJefe)
+  for (const j of d.resumen.porJefe) {
+    jef.addRow([j.jefe, j.solicitudes, j.respondidas, j.rechazadas, j.mediana, j.maxima, j.pendientes, j.esperaMaxima])
+  }
+  cerrarHoja(jef, filaJefe, colJefe.length, d.resumen.porJefe.length)
 
   return libro
 }
