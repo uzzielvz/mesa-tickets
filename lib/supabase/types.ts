@@ -1927,6 +1927,18 @@ export interface Database {
         Update: never
         Relationships: []
       }
+      /** AUD-006 — el interruptor de los avisos del Auditor (una sola fila). */
+      aud_ajustes: {
+        Row: {
+          id: boolean
+          avisos_activos: boolean
+          actualizado_por: string | null
+          updated_at: string
+        }
+        Insert: never
+        Update: never
+        Relationships: []
+      }
       /** AUD-004 — cargas del reporte de antigüedad grupal; la vigente es la de mayor `secuencia`. */
       aud_ant_cargas: {
         Row: {
@@ -2266,6 +2278,11 @@ export interface Database {
       }
       aud_personas_vigentes: {
         Args: Record<string, never>
+        Returns: unknown
+      }
+      // AUD-006: encender avisa en ese momento; regresa lo mismo que el acuse de una carga.
+      aud_avisos_encender: {
+        Args: { p_activos: boolean }
         Returns: unknown
       }
       has_auditor_access: {

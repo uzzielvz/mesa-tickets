@@ -73,6 +73,11 @@ Las marcas en pantalla: **sin cuenta** (no tiene correo asignado, no puede entra
 Cada que se termina de cargar cualquiera de los tres archivos, la plataforma avisa a cada promotor de lo
 suyo y a cada gerente de lo de su equipo. Los avisos llegan a la campana y, cuando hace falta, al correo.
 
+**Interruptor (AUD-006).** Los avisos **arrancaron apagados** el 13 de octubre, para que no salieran correos
+antes de presentar el Auditor. Mientras estén apagados, ninguna carga avisa a nadie y el acuse lo dice. Se
+encienden arriba de `/auditor/cargar` con **"Encender y avisar ahora"**, que en ese momento avisa con lo que
+haya pendiente. "Apagar" solo deja de avisar.
+
 - **Qué dice:** "Tienes 3 depósitos sin conciliar ($6,435). Por corregir: 3 con diferencia de monto." Al
   gerente le llega además el desglose por promotor. El aviso lleva a `/auditor`.
 - **Correo solo si tiene algo que hacer.** Si todo lo suyo está "Listo para conciliar", eso le toca a
@@ -102,12 +107,12 @@ se suben desde Python no hay navegador: el aviso llega a la campana al momento y
 
 | Pieza | Dónde |
 |---|---|
-| Migraciones | `supabase/migrations/*_aud_001` … `*_aud_005` |
+| Migraciones | `supabase/migrations/*_aud_001` … `*_aud_006` |
 | Estado de cada grupo, ciclo y día | `aud_estado_vigente()` (interna; la usan la pantalla y los avisos) |
 | Pantalla | `aud_conciliacion(p_grupo, p_promotor)` y `aud_mi_papel()` |
 | Cargas | `aud_dep_iniciar_carga` / `aud_dep_cargar_lote` / `aud_dep_cerrar_carga`, `aud_cargar`, `aud_ant_cargar` |
 | Cuentas | `aud_personas`, `aud_buscar_correo`, `aud_asignar_correo`, `aud_personas_vigentes` |
-| Avisos | `aud_avisar()` sobre `ntf_crear` (NTF-001); el acuse los trae en `notificaciones` |
+| Avisos | `aud_avisar()` (revisa el interruptor `aud_ajustes`) → `aud_avisar_ahora()` sobre `ntf_crear` (NTF-001); el acuse los trae en `notificaciones`. Interruptor: `aud_avisos_encender(p_activos)` |
 | Lectores de Excel | `lib/auditor/depositos.ts`, `lib/auditor/excel.ts`, `lib/auditor/antiguedad.ts` |
 | Contrato de tipos | `lib/auditor/tipos.ts` |
 | Componentes | `components/auditor/` |

@@ -80,7 +80,7 @@ export interface ResultadoAvisos {
   avisados: number
   sin_cambios?: number
   sin_correo?: number
-  motivo: null | 'faltan_archivos' | 'registros_atrasados' | 'error'
+  motivo: null | 'apagados' | 'faltan_archivos' | 'registros_atrasados' | 'error'
   registros_hasta?: string
   depositos_hasta?: string
   detalle?: string
@@ -93,6 +93,8 @@ const diaMes = (iso?: string) =>
 export function textoAvisos(r: ResultadoAvisos | null | undefined): { texto: string; alerta: boolean } | null {
   if (!r) return null
   switch (r.motivo) {
+    case 'apagados':
+      return { texto: 'Los avisos a promotores y gerentes están apagados: no se avisó a nadie.', alerta: false }
     case 'faltan_archivos':
       return { texto: 'Todavía no se avisa a los promotores: faltan los depósitos, los registros o la antigüedad grupal.', alerta: true }
     case 'registros_atrasados':

@@ -7,6 +7,7 @@ import CargaAuditor from '@/components/auditor/carga-form'
 import CargaDepositos from '@/components/auditor/carga-depositos'
 import CargaAntiguedad from '@/components/auditor/carga-antiguedad'
 import CuentasPromotores from '@/components/auditor/cuentas-promotores'
+import InterruptorAvisos from '@/components/auditor/interruptor-avisos'
 import type { PersonasVigentes } from '@/lib/auditor/tipos'
 
 export const dynamic = 'force-dynamic'
@@ -35,7 +36,7 @@ export default async function CargarAuditorPage() {
   const p = profile as Record<string, unknown> | null
   if (!(p?.rol === 'admin' || p?.acceso_auditor_carga === true)) redirect('/auditor')
 
-  const [{ data: dep }, { data: reg }, { data: ant }, { data: per }] = await Promise.all([
+  const [{ data: dep }, { data: reg }, { data: ant }, { data: per }, { data: ajustes }] = await Promise.all([
     supabase
       .from('aud_dep_cargas')
       .select('id, secuencia, nombre_archivo, insertadas, no_conciliados, fecha_min, fecha_max, estado, created_at')
@@ -52,6 +53,7 @@ export default async function CargarAuditorPage() {
       .order('secuencia', { ascending: false })
       .limit(10),
     supabase.rpc('aud_personas_vigentes', {}),
+    supabase.from('aud_ajustes').select('avisos_activos, updated_at').maybeSingle(),
   ])
   const cargasDep = dep ?? []
   const cargasReg = reg ?? []
@@ -67,6 +69,8 @@ export default async function CargarAuditorPage() {
         action={<Link href="/auditor" className="text-[13px] text-navy hover:underline font-medium">Volver</Link>}
       />
       <div className="px-5 md:px-9 pb-12 flex flex-col gap-8">
+        <InterruptorAvisos activos={ajustes?.avisos_activos === true} desde={ajustes?.avisos_activos ? ajustes.updated_at : null} />
+
         <section className="flex flex-col gap-3">
           <div>
             <h2 className="text-[15px] font-semibold text-navy">1. Depósitos del banco</h2>
