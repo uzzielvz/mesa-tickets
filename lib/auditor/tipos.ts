@@ -73,6 +73,44 @@ export interface Conciliacion {
   filas: FilaConciliacion[]
 }
 
+// ── AUD-005: avisos al cargar ───────────────────────────────────────────────
+
+/** Lo que regresa `aud_avisar` dentro del acuse de cada carga. */
+export interface ResultadoAvisos {
+  avisados: number
+  sin_cambios?: number
+  sin_correo?: number
+  motivo: null | 'faltan_archivos' | 'registros_atrasados' | 'error'
+  registros_hasta?: string
+  depositos_hasta?: string
+  detalle?: string
+}
+
+const diaMes = (iso?: string) =>
+  iso ? new Date(`${iso.slice(0, 10)}T12:00:00Z`).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', timeZone: 'UTC' }) : '—'
+
+/** El renglón del acuse que dice a quién se avisó, o por qué no. */
+export function textoAvisos(r: ResultadoAvisos | null | undefined): { texto: string; alerta: boolean } | null {
+  if (!r) return null
+  switch (r.motivo) {
+    case 'faltan_archivos':
+      return { texto: 'Todavía no se avisa a los promotores: faltan los depósitos, los registros o la antigüedad grupal.', alerta: true }
+    case 'registros_atrasados':
+      return {
+        texto: `No se avisó a los promotores: los registros llegan hasta el ${diaMes(r.registros_hasta)} y los depósitos hasta el ${diaMes(r.depositos_hasta)}, así que lo reciente saldría "sin registro" por falta del archivo. Se avisará al cargar los registros al día.`,
+        alerta: true,
+      }
+    case 'error':
+      return { texto: `La carga quedó guardada, pero no se pudo avisar a los promotores: ${r.detalle ?? 'sin detalle'}.`, alerta: true }
+  }
+  const partes: string[] = []
+  if (r.avisados > 0) partes.push(`Se avisó a ${r.avisados} ${r.avisados === 1 ? 'persona' : 'personas'} (promotores y gerentes) de lo que les falta conciliar.`)
+  else partes.push(r.sin_cambios ? 'Nadie tiene pendientes nuevos: no se mandaron avisos.' : 'Nadie tiene depósitos pendientes: no se mandaron avisos.')
+  if (r.avisados > 0 && r.sin_cambios) partes.push(`${r.sin_cambios} ya tenían ese mismo aviso.`)
+  if (r.sin_correo) partes.push(`${r.sin_correo} sin cuenta no se pudieron avisar.`)
+  return { texto: partes.join(' '), alerta: !!r.sin_correo }
+}
+
 /** Una persona del reporte de antigüedad vigente y su cuenta (`aud_personas_vigentes`). */
 export interface PersonaReporte {
   clave: string

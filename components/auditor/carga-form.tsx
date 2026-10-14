@@ -3,6 +3,9 @@
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { UploadCloud, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react'
+import type { ResultadoAvisos } from '@/lib/auditor/tipos'
+import { dispararTandaDeCorreos } from '@/lib/notificaciones/disparar'
+import AcuseAvisos from '@/components/auditor/acuse-avisos'
 
 interface Resultado {
   registros: number
@@ -10,6 +13,7 @@ interface Resultado {
   monto_sin_conciliar: number
   fecha_min: string | null
   fecha_max: string | null
+  notificaciones?: ResultadoAvisos
 }
 
 const pesos = (n: number) => n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
@@ -34,6 +38,7 @@ export default function CargaAuditor() {
       const json = await res.json()
       if (!res.ok) { setError({ mensaje: json.error ?? 'No se pudo cargar', detalles: json.errores ?? [] }); return }
       setExito(json)
+      if ((json.resultado?.notificaciones?.avisados ?? 0) > 0) dispararTandaDeCorreos()
       router.refresh()
     } catch {
       setError({ mensaje: 'Se perdió la conexión durante la carga', detalles: [] })
@@ -95,6 +100,7 @@ export default function CargaAuditor() {
               ))}
             </ul>
           )}
+          <AcuseAvisos resultado={exito.resultado.notificaciones} />
           <a href="/auditor" className="text-[12.5px] text-navy hover:underline font-medium mt-1">Ver lo que falta conciliar →</a>
         </div>
       )}

@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation'
 import { UploadCloud, FileSpreadsheet, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { leerReporteAntiguedad, type GrupoAntiguedad } from '@/lib/auditor/antiguedad'
+import type { ResultadoAvisos } from '@/lib/auditor/tipos'
+import { dispararTandaDeCorreos } from '@/lib/notificaciones/disparar'
+import AcuseAvisos from '@/components/auditor/acuse-avisos'
 
 interface Revision {
   nombre: string
@@ -20,6 +23,7 @@ interface Acuse {
   promotores: number
   gerentes: number
   sin_correo: string[]
+  notificaciones?: ResultadoAvisos
 }
 
 const fmt = (n: number) => n.toLocaleString('es-MX')
@@ -78,7 +82,9 @@ export default function CargaAntiguedad() {
     })
     setCargando(false)
     if (e) { setError({ mensaje: 'No se pudo cargar el reporte', detalles: [e.message] }); return }
-    setAcuse(data as unknown as Acuse)
+    const a = data as unknown as Acuse
+    setAcuse(a)
+    if ((a.notificaciones?.avisados ?? 0) > 0) dispararTandaDeCorreos()
     setRevision(null)
     router.refresh()
   }
@@ -169,6 +175,7 @@ export default function CargaAntiguedad() {
               No se encontró la cuenta de {acuse.sin_correo.length === 1 ? 'una persona' : `${acuse.sin_correo.length} personas`}: {acuse.sin_correo.join(', ')}. Asígnala abajo para que vea lo suyo.
             </p>
           )}
+          <AcuseAvisos resultado={acuse.notificaciones} />
         </div>
       )}
 

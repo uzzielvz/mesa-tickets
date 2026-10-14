@@ -3,7 +3,8 @@
 > Para Charly. Acordamos que tú escribes las consultas SQL y la plataforma pone la pantalla. Este documento
 > dice qué tablas hay, qué significa cada columna y cómo se entrega una consulta para que se vuelva vista.
 > Base: Postgres (Supabase). Creado el 4 de octubre de 2026; actualizado el 8 de octubre (AUD-003) y el
-> 13 de octubre (AUD-004: cada promotor ve solo lo suyo).
+> 13 de octubre (AUD-004: cada promotor ve solo lo suyo; AUD-005: avisos). Cómo se usa el módulo:
+> [`README.md`](./README.md).
 
 ## Qué hay hoy (desde el 8 de octubre, AUD-003)
 

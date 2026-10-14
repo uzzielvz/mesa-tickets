@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation'
 import { UploadCloud, FileSpreadsheet, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { leerReporteDepositos, type DepositoFila } from '@/lib/auditor/depositos'
-import { pesos } from '@/lib/auditor/tipos'
+import { pesos, type ResultadoAvisos } from '@/lib/auditor/tipos'
+import { dispararTandaDeCorreos } from '@/lib/notificaciones/disparar'
+import AcuseAvisos from '@/components/auditor/acuse-avisos'
 
 const LOTE = 2000 // ~480 KB por petición
 
@@ -25,6 +27,7 @@ interface Acuse {
   no_conciliados: number
   fecha_min: string | null
   fecha_max: string | null
+  notificaciones?: ResultadoAvisos
 }
 
 const fmt = (n: number) => n.toLocaleString('es-MX')
@@ -108,7 +111,9 @@ export default function CargaDepositos() {
     const { data: cierre, error: e3 } = await supabase.rpc('aud_dep_cerrar_carga', { p_carga: id })
     setProgreso(null)
     if (e3) { setError({ mensaje: 'No se pudo cerrar la carga', detalles: [e3.message] }); return }
-    setAcuse(cierre as unknown as Acuse)
+    const a = cierre as unknown as Acuse
+    setAcuse(a)
+    if ((a.notificaciones?.avisados ?? 0) > 0) dispararTandaDeCorreos()
     setRevision(null)
     router.refresh()
   }
@@ -205,6 +210,7 @@ export default function CargaDepositos() {
           <p className="text-[12.5px] text-ink-700">
             {fmt(acuse.filas)} movimientos del {fecha(acuse.fecha_min)} al {fecha(acuse.fecha_max)} · {acuse.no_conciliados} no conciliados.
           </p>
+          <AcuseAvisos resultado={acuse.notificaciones} />
           <a href="/auditor" className="text-[12.5px] text-navy hover:underline font-medium">Ver la conciliación →</a>
         </div>
       )}

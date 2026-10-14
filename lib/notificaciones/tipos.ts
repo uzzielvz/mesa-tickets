@@ -3,7 +3,7 @@
  * correo. Sin 'use client': lo usan la campana, la página y las rutas.
  */
 
-export type ModuloAviso = 'vacaciones'
+export type ModuloAviso = 'vacaciones' | 'auditor'
 
 export interface Aviso {
   id: string
@@ -22,6 +22,7 @@ export const COLUMNAS_AVISO = 'id, modulo, tipo, titulo, cuerpo, liga, created_a
 
 export const ETIQUETA_MODULO: Record<ModuloAviso, string> = {
   vacaciones: 'Vacaciones',
+  auditor: 'Auditor',
 }
 
 /** Lo que regresan `ntf_correos_por_enviar` y `ntf_correos_sistema`. */
