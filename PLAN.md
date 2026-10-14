@@ -3,7 +3,8 @@
 > Documento vivo. Plan de trabajo activo organizado por módulo.
 > Se actualiza tras cada sesión.
 > Para el contexto completo del repo ver `RESEARCH-CONSOLIDADO.md`.
-> Última actualización: 2026-10-12 (**Vacaciones**: avisos con campana y correo, constancia en PDF con QR y reportes de seguimiento, VAC-007..009 y NTF-001, §11 · **junta con Felix**: el jueves 15 se presentan Auditor y Vacaciones, §0 · los correos de la plataforma **sí salen**, §0).
+> Última actualización: 2026-10-13 (**Auditor**: cada promotor ve solo lo suyo con la antigüedad grupal, avisos al cargar —apagados hasta el jueves 15—, AUD-004..006, §12).
+> Anterior: 2026-10-12 (**Vacaciones**: avisos con campana y correo, constancia en PDF con QR y reportes de seguimiento, VAC-007..009 y NTF-001, §11 · **junta con Felix**: el jueves 15 se presentan Auditor y Vacaciones, §0 · los correos de la plataforma **sí salen**, §0).
 > Anterior: 2026-10-08 (**Auditor AUD-003**: la base son los depósitos del banco, §12 · **Vacaciones** fase 2, firma electrónica y guía del piloto, §11 · **script de Felix** `crediflexi-cargas` + tokens API, §0).
 > Anterior: 2026-10-04 (**medición de uso** en producción y tres vías nuevas entregadas: **Ahorros** §10, **Vacaciones fase 1** §11, **Auditor** §12 — enmienda en §0).
 
@@ -40,7 +41,7 @@
 > - los **reportes**: Excel de la base y por rango, calendario de ausencias, aniversarios, tiempos de respuesta e informe ejecutivo en PDF (VAC-008/009). Detalle en §11.
 >
 > **Junta con Felix (2026-10-12): el jueves 15 de octubre se presentan Auditor y Vacaciones.**
-> - **Auditor:** falta que el usuario pase el **reporte de antigüedad grupal**, para cruzar cada promotor con sus grupos. Cada promotor ve solo lo suyo y solo algunos usuarios ven todo (§12).
+> - **Auditor:** ✅ vista por promotor (AUD-004) y avisos al cargar (AUD-005/006, apagados hasta presentar), 2026-10-13. Faltan los correos de 5 promotores y que entren (§12).
 > - **Vacaciones:** afinar detalles con Jesús Montellano (§11).
 
 ### Vía activa — Mesa de Tickets
@@ -1299,7 +1300,7 @@ Los 20 grupo-ciclo-día del 5 de octubre ya salen conciliados en el reporte nuev
 |---|---|---|
 | 1 | Revisar con Felix los 5 casos y el de MS (¿la fecha debe ser exacta?) | Felix |
 | 2 | Banderas: Felix (C), Charly (V, parece ser `carlos.mejia`) | Plataforma |
-| 3 | **Vista por promotor, aprobada en la junta del 2026-10-12, para presentar el jueves 15.** Falta el **reporte de antigüedad grupal**, que pasa el usuario, para cruzar cada promotor con sus grupos. Cada promotor ve solo lo suyo y solo algunos usuarios ven todo. El reporte de depósitos ya trae `Recuperador` por grupo (guardado, no se muestra). Requiere que los promotores tengan cuenta | Usuario (reporte) + Plataforma |
+| 3 | ✅ **2026-10-13 — AUD-004..006.** Cruce por grupo con la antigüedad grupal (`aud_ant_*`, `aud_personas`); promotor y gerente ven lo suyo sin bandera; avisos por campana y correo en cada carga, **apagados** hasta presentar (interruptor en `/auditor/cargar`). Guía: `docs/auditor/README.md`. Falta: correos de 5 promotores y que entren | Plataforma |
 | 4 | Las consultas de Charly entran como RPC `security definer`, nunca SQL suelto | Charly + Plataforma |
 
 ---
