@@ -2,7 +2,8 @@
 
 > Para Charly. Acordamos que tú escribes las consultas SQL y la plataforma pone la pantalla. Este documento
 > dice qué tablas hay, qué significa cada columna y cómo se entrega una consulta para que se vuelva vista.
-> Base: Postgres (Supabase). Creado el 4 de octubre de 2026; actualizado el 8 de octubre (AUD-003).
+> Base: Postgres (Supabase). Creado el 4 de octubre de 2026; actualizado el 8 de octubre (AUD-003) y el
+> 13 de octubre (AUD-004: cada promotor ve solo lo suyo).
 
 ## Qué hay hoy (desde el 8 de octubre, AUD-003)
 
@@ -28,7 +29,8 @@ La fecha es **exacta a propósito**: un depósito del 2 de octubre que se regist
 Con los archivos del 5 de octubre: **23 depósitos sin conciliar por $131,493**, en 20 grupo-ciclo-día:
 10 listos para conciliar, 8 sin registro, 2 con diferencia y 0 que deban ser un solo registro.
 
-La pantalla lee todo de la función `aud_conciliacion(p_grupo)`.
+La pantalla lee todo de la función `aud_conciliacion(p_grupo, p_promotor)`. Desde AUD-004 esa función decide
+también **qué ve cada quien**: ver "De quién es cada grupo" abajo.
 
 ## Tablas de depósitos (AUD-003)
 
@@ -124,12 +126,54 @@ order by monto desc;
 2. Yo la envuelvo como función de la base (con el control de permisos) y la pantalla la lee de ahí. Así tu
    consulta queda igual y no tienes que tocar TypeScript.
 
-## Lo que falta para la versión de promotores
+## De quién es cada grupo (AUD-004, 13 de octubre)
 
-1. **De quién es cada grupo.** El archivo no trae al promotor. Basta con agregar una columna `PROMOTOR` con el
-   **correo con el que el promotor entra a la plataforma**. En cuanto venga, cada promotor ve solo lo suyo.
-2. **Los depósitos del banco.** Para comparar "lo que entró" contra "lo que se registró" dentro de la
-   plataforma hace falta el reporte de depósitos. Si la conciliación ya viene calculada en `CONCILIADO`, con
-   este archivo alcanza.
-3. **Que los promotores tengan cuenta.** Hoy la plataforma tiene pocos usuarios; cada promotor necesitaría
-   entrar con su correo de CrediFlexi.
+Ningún archivo de depósitos trae al promotor. El cruce sale del **reporte de antigüedad grupal** de Yunius
+(`AntigüedadGrupal_DDMMAA.xlsm`, hoja `CARTERA`): una fila por grupo, con su ciclo actual, su promotor y su
+gerente. Se cruza **por grupo**, no por grupo y ciclo, porque el reporte solo trae el ciclo actual.
+
+| Quién | Qué ve | Cómo entra |
+|---|---|---|
+| Admin, bandera `acceso_auditor` o `acceso_auditor_carga` | Toda la cartera, con filtro por promotor | Bandera |
+| Gerente del reporte | Los grupos de sus promotores | Sin bandera: su correo está asignado a su nombre |
+| Promotor del reporte | Solo sus grupos | Sin bandera: su correo está asignado a su nombre |
+
+Quien no ve todo **no puede leer las tablas** (la RLS solo deja a quien tiene bandera): lee únicamente por
+`aud_conciliacion`, que filtra adentro. Si escribes una consulta nueva para promotores, se envuelve igual.
+
+### `aud_ant_cargas` — cada reporte de antigüedad que se sube
+
+La vigente es la de mayor `secuencia`. Columnas: `nombre_archivo`, `fecha_corte` (del título de la hoja),
+`grupos`, `avisos`, `subido_por`, `created_at`.
+
+### `aud_ant_grupos` — un grupo por fila
+
+| Columna | Tipo | Del reporte |
+|---|---|---|
+| `carga_id` | uuid | La carga a la que pertenece |
+| `grupo_id` | text | `ID de grupo`, 6 dígitos con ceros |
+| `nombre_grupo`, `ciclo`, `estatus` | text | `Nombre de grupo`, `Ciclo` (el actual), `Estatus` |
+| `promotor`, `gerente` | text | `Nombre promotor`, `Nombre del gerente` (Yunius corta este a 30 letras) |
+| `promotor_clave`, `gerente_clave` | text | `aud_clave(nombre)`: las palabras sin acentos ni signos, en orden alfabético |
+
+### `aud_personas` — de qué cuenta es cada nombre del reporte
+
+`clave` → `email`. Al cargar el reporte la base la busca sola: mismo nombre (sin importar orden, acentos ni
+puntos) en perfiles, presets de alta y la base de Vacaciones; si el nombre viene cortado, basta con el
+principio de la última palabra. `origen` = `auto` o `manual`. Lo que se asigna a mano en `/auditor/cargar`
+no se pierde con la carga siguiente.
+
+```sql
+-- Lo pendiente por promotor, con la antigüedad vigente
+with ant as (select * from aud_ant_grupos where carga_id = (select id from aud_ant_cargas order by secuencia desc limit 1))
+select ant.promotor, count(*) as depositos, sum(d.monto) as monto
+from aud_depositos d
+join ant using (grupo_id)
+where d.carga_id = (select id from aud_dep_cargas where estado = 'completa' order by secuencia desc limit 1)
+  and not d.conciliado
+group by ant.promotor
+order by monto desc;
+```
+
+**Lo que sigue:** asignar el correo a los promotores que no tienen (en la carga del 12 de octubre: 5, todos
+de ingreso reciente) y que cada promotor entre una vez con su correo de CrediFlexi.

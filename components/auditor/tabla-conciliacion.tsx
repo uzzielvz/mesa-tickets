@@ -18,10 +18,11 @@ const TONO: Record<EstadoConciliacion, string> = {
 
 /**
  * Una fila por grupo, ciclo y fecha de depósito. Si ese día hubo más de un
- * depósito, la fila se despliega para ver cada uno y la suma. Sin gerente ni
- * promotor: "al promotor no le interesa ni su gerente ni su promotor" (Felix).
+ * depósito, la fila se despliega para ver cada uno y la suma. El promotor no
+ * ve la columna de promotor: "al promotor no le interesa ni su gerente ni su
+ * promotor" (Felix). Quien ve a varios promotores sí (AUD-004).
  */
-export default function TablaConciliacion({ filas }: { filas: FilaConciliacion[] }) {
+export default function TablaConciliacion({ filas, mostrarPromotor = false }: { filas: FilaConciliacion[]; mostrarPromotor?: boolean }) {
   const [abiertas, setAbiertas] = useState<Set<string>>(new Set())
   const alternar = (k: string) =>
     setAbiertas(prev => {
@@ -38,6 +39,7 @@ export default function TablaConciliacion({ filas }: { filas: FilaConciliacion[]
             <th className="pl-5 pr-3 py-2 font-medium">Fecha</th>
             <th className="px-3 py-2 font-medium">Grupo</th>
             <th className="px-3 py-2 font-medium">Nombre</th>
+            {mostrarPromotor && <th className="px-3 py-2 font-medium">Promotor</th>}
             <th className="px-3 py-2 font-medium">Ciclo</th>
             <th className="px-3 py-2 font-medium">Semana</th>
             <th className="px-3 py-2 font-medium text-right">Depositado</th>
@@ -74,6 +76,7 @@ export default function TablaConciliacion({ filas }: { filas: FilaConciliacion[]
                   </td>
                   <td className="px-3 py-2.5 text-ink-900 font-medium tabular-nums">{sinCeros(f.grupo_id)}</td>
                   <td className="px-3 py-2.5 text-ink-700">{f.nombre_grupo ?? '—'}</td>
+                  {mostrarPromotor && <td className="px-3 py-2.5 text-ink-700">{f.promotor ?? <span className="text-[#8A6100]">sin promotor</span>}</td>}
                   <td className="px-3 py-2.5 text-ink-700 tabular-nums">{sinCeros(f.ciclo)}</td>
                   <td className="px-3 py-2.5 text-ink-700 tabular-nums">{f.semanas.length ? f.semanas.join(', ') : '—'}</td>
                   <td className="px-3 py-2.5 text-right tabular-nums text-ink-900 font-medium whitespace-nowrap">
@@ -92,7 +95,7 @@ export default function TablaConciliacion({ filas }: { filas: FilaConciliacion[]
                 </tr>
                 {varios && abierta && (
                   <tr className="border-b border-[#F5F5F5] bg-surface-sidebar">
-                    <td colSpan={8} className="pl-12 pr-5 py-2.5">
+                    <td colSpan={mostrarPromotor ? 9 : 8} className="pl-12 pr-5 py-2.5">
                       <ul className="flex flex-col gap-1 max-w-sm">
                         {f.depositos.map((d, i) => (
                           <li key={i} className="flex items-baseline justify-between gap-4 text-[12px] text-ink-700 tabular-nums">

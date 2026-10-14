@@ -17,6 +17,7 @@ import UserMenu from '@/components/layout/user-menu'
 import Campana, { useAvisosSinLeer } from '@/components/notificaciones/campana'
 import type { Database } from '@/lib/supabase/types'
 import type { MiContexto } from '@/lib/vacaciones/tipos'
+import type { PapelAuditor } from '@/lib/auditor/tipos'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 
@@ -25,6 +26,8 @@ interface SidebarProps {
   counts?: { mios: number; asignados: number; cola: number }
   /** Vacaciones fase 2: si la persona está en la base y si tiene equipo. */
   vac?: MiContexto
+  /** Auditor (AUD-004): 'todo' por bandera, o 'promotor' / 'gerente' por el reporte de antigüedad. */
+  papelAuditor?: PapelAuditor | null
   /** Avisos sin leer al cargar la página (NTF-001); la campana los vuelve a contar sola. */
   avisos?: number
 }
@@ -112,12 +115,14 @@ function NavContent({
   profile,
   counts,
   vac,
+  papelAuditor,
   onNav,
 }: {
   pathname: string
   profile: Profile
   counts?: SidebarProps['counts']
   vac?: MiContexto
+  papelAuditor?: PapelAuditor | null
   onNav?: () => void
 }) {
   const isAdmin = profile.rol === 'admin'
@@ -153,9 +158,10 @@ function NavContent({
   const vacJefe = vac?.es_jefe === true
   const hasVacacionesAccess = vacRh || vacEmpleado
 
-  // Auditor de depósitos: quien carga (Felix / Charly) también consulta.
+  // Auditor de depósitos: quien carga (Felix / Charly) también consulta. El
+  // promotor y el gerente entran sin bandera a ver lo de sus grupos.
   const audCarga = profile.acceso_auditor_carga === true || isAdmin
-  const hasAuditorAccess = profile.acceso_auditor === true || audCarga
+  const hasAuditorAccess = profile.acceso_auditor === true || audCarga || !!papelAuditor
 
   // Secciones que contienen la ruta activa.
   const ticketsActive = pathname.startsWith('/tickets') || pathname.startsWith('/admin/catalogo') || pathname.startsWith('/admin/areas')
@@ -662,7 +668,7 @@ function NavContent({
   )
 }
 
-export default function Sidebar({ profile, counts, vac, avisos }: SidebarProps) {
+export default function Sidebar({ profile, counts, vac, papelAuditor, avisos }: SidebarProps) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
   const { sinLeer, actualizar } = useAvisosSinLeer(avisos ?? 0)
@@ -691,7 +697,7 @@ export default function Sidebar({ profile, counts, vac, avisos }: SidebarProps) 
           onClick={e => e.stopPropagation()}
         >
           <div className="flex-1 px-[14px] py-5 overflow-y-auto">
-            <NavContent pathname={pathname} profile={profile} counts={counts} vac={vac} onNav={() => setOpen(false)} />
+            <NavContent pathname={pathname} profile={profile} counts={counts} vac={vac} papelAuditor={papelAuditor} onNav={() => setOpen(false)} />
           </div>
           <div className="border-t border-border px-[14px] py-4">
             <UserMenu profile={profile} />
@@ -709,7 +715,7 @@ export default function Sidebar({ profile, counts, vac, avisos }: SidebarProps) 
           <div className="mb-0.5">
             <Campana sinLeer={sinLeer} alCambiar={actualizar} variante="fila" />
           </div>
-          <NavContent pathname={pathname} profile={profile} counts={counts} vac={vac} />
+          <NavContent pathname={pathname} profile={profile} counts={counts} vac={vac} papelAuditor={papelAuditor} />
         </div>
         <div className="border-t border-border border-t-[0.5px] px-[14px] py-4">
           <UserMenu profile={profile} />

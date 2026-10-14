@@ -1,4 +1,4 @@
-/** Contrato de `aud_conciliacion` (AUD-003) y `aud_pendientes` (AUD-002). Sin 'use client'. */
+/** Contrato de `aud_conciliacion` (AUD-003/004) y `aud_pendientes` (AUD-002). Sin 'use client'. */
 
 // ── AUD-003: depósitos del banco contra lo que registró el promotor ─────────
 
@@ -24,6 +24,8 @@ export interface FilaConciliacion {
   /** depositado − registrado. Negativo = se registró de más. */
   diferencia: number
   depositos: DepositoDetalle[]
+  /** Del reporte de antigüedad (AUD-004); null si el grupo no viene ahí. */
+  promotor: string | null
 }
 
 interface CargaResumen {
@@ -34,13 +36,63 @@ interface CargaResumen {
   fecha_max: string | null
 }
 
+// ── AUD-004: cada promotor ve solo lo suyo ──────────────────────────────────
+
+/** Qué le toca ver a quien consulta (`aud_mi_papel`). */
+export type PapelAuditor = 'todo' | 'gerente' | 'promotor'
+
+/** activa = ya entró a la plataforma · sin_entrar = tiene correo pero no ha entrado. */
+export type CuentaPromotor = 'activa' | 'sin_entrar' | 'sin_correo'
+
+export interface PromotorPendiente {
+  clave: string
+  nombre: string
+  gerente: string | null
+  filas: number
+  depositos: number
+  monto: number
+  /** null cuando consulta el propio promotor. */
+  cuenta: CuentaPromotor | null
+}
+
 export interface Conciliacion {
+  papel: PapelAuditor
   dep_carga: CargaResumen | null
   reg_carga: CargaResumen | null
+  ant_carga: (Omit<CargaResumen, 'fecha_min' | 'fecha_max'> & { fecha_corte: string | null }) | null
+  /** El promotor del filtro, si hay. */
+  promotor: { clave: string; nombre: string } | null
   depositos_no_conciliados: number
   monto_no_conciliado: number
+  /** Del alcance de quien consulta y del promotor elegido; el filtro de grupo no los toca. */
   conteo: Record<EstadoConciliacion, number>
+  /** Lo pendiente de cada promotor dentro del alcance, sin el filtro de promotor. */
+  promotores: PromotorPendiente[]
+  /** Filas cuyo grupo no viene en el reporte de antigüedad. */
+  sin_promotor: number
   filas: FilaConciliacion[]
+}
+
+/** Una persona del reporte de antigüedad vigente y su cuenta (`aud_personas_vigentes`). */
+export interface PersonaReporte {
+  clave: string
+  nombre: string
+  papel: 'promotor' | 'gerente'
+  grupos: number
+  email: string | null
+  origen: 'auto' | 'manual'
+  /** Ya existe un perfil con ese correo. */
+  entro: boolean
+}
+
+export interface CandidatoCuenta {
+  email: string
+  nombre: string
+}
+
+export interface PersonasVigentes {
+  personas: PersonaReporte[]
+  candidatos: CandidatoCuenta[]
 }
 
 /** "$4,217" o "$2,555.50": decimales solo cuando el monto los trae. */

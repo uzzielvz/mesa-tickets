@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import Header from '@/components/layout/header'
 import { formatName } from '@/lib/utils/format'
 import type { MiContexto, MisVacaciones } from '@/lib/vacaciones/tipos'
+import type { Conciliacion } from '@/lib/auditor/tipos'
 
 interface StatCardProps {
   label: string
@@ -27,13 +28,22 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: profile }, { data: rawMios }, { data: rawAsignados }, { data: vacData }, { data: ctxData }] = await Promise.all([
+  const [{ data: profile }, { data: rawMios }, { data: rawAsignados }, { data: vacData }, { data: ctxData }, { data: papelAuditor }] = await Promise.all([
     supabase.from('profiles').select('rol, nombre_completo, acceso_score, acceso_tickets').eq('id', user.id).single(),
     supabase.from('tickets_with_status').select('status').eq('levantado_por_id', user.id),
     supabase.from('tickets_with_status').select('status').eq('responsable_id', user.id),
     supabase.rpc('vac_mis_vacaciones', {}),
     supabase.rpc('vac_mi_contexto', {}),
+    supabase.rpc('aud_mi_papel', {}),
   ])
+
+  // Auditor (AUD-004): al promotor y al gerente se les dice de entrada cuántos
+  // depósitos de sus grupos siguen sin conciliar.
+  let audPropio: Conciliacion | null = null
+  if (papelAuditor === 'promotor' || papelAuditor === 'gerente') {
+    const { data } = await supabase.rpc('aud_conciliacion', {})
+    audPropio = data as unknown as Conciliacion | null
+  }
 
   // Vacaciones (VAC-004): lo primero que pidió Gente y Cultura es que la página
   // diga de entrada cuántos días te quedan.
@@ -110,6 +120,26 @@ export default async function DashboardPage() {
                   description="solicitudes de tu equipo"
                 />
               )}
+            </div>
+          </div>
+        )}
+
+        {audPropio?.dep_carga && (
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.4px] text-ink-400 font-medium mb-3">Depósitos</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <StatCard
+                label="Sin conciliar"
+                value={Number(audPropio.depositos_no_conciliados)}
+                href="/auditor"
+                description={papelAuditor === 'gerente' ? 'en los grupos de tu equipo' : 'en tus grupos'}
+              />
+              <StatCard
+                label="Sin registro"
+                value={audPropio.conteo.sin_registro}
+                href="/auditor"
+                description="nadie registró ese depósito"
+              />
             </div>
           </div>
         )}

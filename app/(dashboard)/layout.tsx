@@ -24,13 +24,19 @@ export default async function DashboardLayout({
   // Vacaciones (VAC-004): cualquiera cuyo correo esté en la base de Gente y
   // Cultura entra a "Mis vacaciones" sin bandera, y quien tiene equipo ve sus
   // solicitudes por autorizar. Es lo único que un empleado sin accesos ve.
-  const { data: ctxData } = await supabase.rpc('vac_mi_contexto', {})
+  // Auditor (AUD-004): igual, el promotor o gerente del reporte de antigüedad
+  // entra a ver los depósitos de sus grupos sin bandera.
+  const [{ data: ctxData }, { data: papelAuditor }] = await Promise.all([
+    supabase.rpc('vac_mi_contexto', {}),
+    supabase.rpc('aud_mi_papel', {}),
+  ])
   const vac = (ctxData as unknown as MiContexto | null) ?? { empleado_id: null, es_jefe: false, pendientes_jefe: 0 }
 
   // Sin ningún acceso otorgado → sala de espera corporativa.
   // El área y los accesos los asigna un admin desde /admin/usuarios.
   const tieneAlgunAcceso =
     vac.empleado_id !== null ||
+    papelAuditor !== null ||
     profile.rol === 'admin' ||
     profile.acceso_tickets === true ||
     profile.acceso_score === true ||
@@ -87,6 +93,7 @@ export default async function DashboardLayout({
           cola: colaCount ?? 0,
         }}
         vac={vac}
+        papelAuditor={papelAuditor ?? null}
         avisos={avisosCount ?? 0}
       />
       <main className="flex-1 min-w-0 w-full max-w-[1100px]">

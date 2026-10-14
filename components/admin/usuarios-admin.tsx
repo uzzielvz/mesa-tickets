@@ -374,7 +374,7 @@ export default function UsuariosAdmin({ profiles, areas }: { profiles: Profile[]
           <div className="flex items-center gap-1.5">
             {([
               ['aud_ver', 'acceso_auditor', 'V', 'Ver los depósitos sin conciliar de toda la cartera', 'Acceso al auditor'],
-              ['aud_carga', 'acceso_auditor_carga', 'C', 'Subir el archivo de pagos registrados de Yunius (también consulta)', 'Acceso de carga del auditor'],
+              ['aud_carga', 'acceso_auditor_carga', 'C', 'Subir los archivos del Auditor y asignar la cuenta de cada promotor (también consulta)', 'Acceso de carga del auditor'],
             ] as const).map(([clave, campo, letra, ayuda, etiqueta]) => {
               const activo = profile[campo] === true
               return (

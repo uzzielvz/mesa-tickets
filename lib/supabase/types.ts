@@ -1927,6 +1927,39 @@ export interface Database {
         Update: never
         Relationships: []
       }
+      /** AUD-004 — cargas del reporte de antigüedad grupal; la vigente es la de mayor `secuencia`. */
+      aud_ant_cargas: {
+        Row: {
+          id: string
+          secuencia: number
+          nombre_archivo: string
+          fecha_corte: string | null
+          grupos: number
+          avisos: string[]
+          subido_por: string | null
+          created_at: string
+        }
+        Insert: never
+        Update: never
+        Relationships: []
+      }
+      /** AUD-004 — de quién es cada grupo (promotor y gerente). */
+      aud_ant_grupos: {
+        Row: {
+          carga_id: string
+          grupo_id: string
+          nombre_grupo: string | null
+          ciclo: string | null
+          estatus: string | null
+          promotor: string | null
+          promotor_clave: string | null
+          gerente: string | null
+          gerente_clave: string | null
+        }
+        Insert: never
+        Update: never
+        Relationships: []
+      }
       /** AHO-001 — consultas y descargas. Solo lo lee quien carga. */
       aho_eventos: {
         Row: {
@@ -2215,7 +2248,24 @@ export interface Database {
         Returns: unknown
       }
       aud_conciliacion: {
-        Args: { p_grupo?: string | null }
+        Args: { p_grupo?: string | null; p_promotor?: string | null }
+        Returns: unknown
+      }
+      // AUD-004: cada promotor ve solo lo suyo. Contrato en lib/auditor/tipos.ts.
+      aud_mi_papel: {
+        Args: Record<string, never>
+        Returns: 'todo' | 'gerente' | 'promotor' | null
+      }
+      aud_ant_cargar: {
+        Args: { p_nombre: string; p_fecha_corte: string | null; p_grupos: unknown; p_avisos: string[] }
+        Returns: unknown
+      }
+      aud_asignar_correo: {
+        Args: { p_clave: string; p_email: string | null }
+        Returns: unknown
+      }
+      aud_personas_vigentes: {
+        Args: Record<string, never>
         Returns: unknown
       }
       has_auditor_access: {
