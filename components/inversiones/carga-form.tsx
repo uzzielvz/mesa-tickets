@@ -5,6 +5,8 @@ import { useRef, useState } from 'react'
 import { UploadCloud, FileSpreadsheet, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react'
 import { etiquetaPeriodo } from '@/lib/inversiones/periodo'
 import type { TipoReporte } from '@/lib/inversiones/excel'
+import type { ResumenCalendario } from '@/lib/inversiones/calendario'
+import type { ResumenTablero } from '@/lib/inversiones/tablero'
 
 interface Exito {
   tipo: TipoReporte
@@ -17,14 +19,11 @@ interface Exito {
   avisos: string[]
   procesado: boolean
   erroresProceso: string[]
-  resumen: {
-    filas: number
-    total: number
-    capitalizado: number
-    salidas: number
-    revisar: number
-  } | null
+  /** Depende del tipo: el del Calendario trae montos; el del Tablero, filas por hoja. */
+  resumen: ResumenCalendario | ResumenTablero | null
 }
+
+const esCalendario = (r: Exito['resumen']): r is ResumenCalendario => !!r && 'total' in r
 
 const pesos = (n: number) =>
   n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
@@ -136,7 +135,17 @@ export default function CargaInversiones() {
           {/* Las cifras del propio archivo. Es lo que deja verificar de un
               vistazo que se subió el mes correcto: si el total no se parece al
               del Excel, algo va mal y se nota aquí, no en tres semanas. */}
-          {exito.resumen && (
+          {exito.resumen && !esCalendario(exito.resumen) && (
+            <dl className="border-t border-[#C8E6C9] pt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[12.5px]">
+              <dt className="text-ink-500">Movimientos</dt>
+              <dd className="text-ink-900 text-right font-medium">{exito.resumen.movimientos.toLocaleString('es-MX')}</dd>
+              <dt className="text-ink-500">Posiciones vigentes</dt>
+              <dd className="text-ink-900 text-right font-medium">{exito.resumen.posiciones.toLocaleString('es-MX')}</dd>
+              <dt className="text-ink-500">Renglones del ranking</dt>
+              <dd className="text-ink-900 text-right font-medium">{exito.resumen.ranking.toLocaleString('es-MX')}</dd>
+            </dl>
+          )}
+          {esCalendario(exito.resumen) && (
             <dl className="border-t border-[#C8E6C9] pt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[12.5px]">
               <dt className="text-ink-500">Pagos programados</dt>
               <dd className="text-ink-900 text-right font-medium">

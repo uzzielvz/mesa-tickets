@@ -31,13 +31,16 @@ export default function ReprocesarBoton({ cargaId }: { cargaId: string }) {
         return
       }
 
+      // El resumen depende del tipo: el Calendario trae montos y el Tablero no.
       const r = cuerpo.resumen
       toast.success(
-        r
+        r && typeof r.total === 'number'
           ? `${r.filas} pagos leídos · ${r.total.toLocaleString('es-MX', {
               style: 'currency', currency: 'MXN',
             })}`
-          : 'Carga reprocesada',
+          : r && typeof r.movimientos === 'number'
+            ? `${r.movimientos.toLocaleString('es-MX')} movimientos leídos`
+            : 'Carga reprocesada',
       )
       router.refresh()
     } catch {
