@@ -617,8 +617,8 @@ export function leerTablero(wb: ExcelJS.Workbook): LecturaTablero {
       leidos++
       for (const f of filasDeBloque(ws, b, RANKING)) {
         // `orden` y `fila` no van a esta tabla: la posición ya viene en el dato.
-        const { orden: _orden, ...resto } = f
-        void _orden
+        const { orden: _orden, fila: _fila, ...resto } = f
+        void _orden; void _fila
         ranking.push({ ...resto, con_meta: conMeta, nivel })
       }
     }
