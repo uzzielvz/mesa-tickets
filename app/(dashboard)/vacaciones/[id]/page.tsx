@@ -47,6 +47,7 @@ export default async function EmpleadoVacacionesPage({ params }: { params: { id:
   if (!e) notFound()
 
   const movimientos = (movs ?? []) as Movimiento[]
+  const conVence = e.periodos.some(p => p.vence)
   const hoy = hoyMexico()
 
   return (
@@ -72,7 +73,11 @@ export default async function EmpleadoVacacionesPage({ params }: { params: { id:
           <Tile etiqueta="Días por tomar" valor={fmt(e.restantes_total)} apoyo={e.anios >= 1 ? 'suma de todos los periodos' : 'aún no cumple un año'} acento />
           <Tile etiqueta="Años de servicio" valor={String(e.anios)} apoyo={`${fmt(e.dias_trabajados)} días trabajados`} />
           <Tile etiqueta="Próximo aniversario" valor={fechaCorta(e.proximo_aniversario)} apoyo={`gana ${e.dias_proximo} días`} />
-          <Tile etiqueta="Días flotantes" valor={fmt(e.flotantes_anio)} apoyo={`tomados en ${hoy.slice(0, 4)}`} />
+          <Tile
+            etiqueta="Días flotantes"
+            valor={fmt(e.flotantes_anio)}
+            apoyo={e.flotantes_limite !== null ? `de ${e.flotantes_limite} en ${hoy.slice(0, 4)}` : `tomados en ${hoy.slice(0, 4)}`}
+          />
         </div>
 
         <div className="grid lg:grid-cols-[minmax(0,1fr)_320px] gap-4 items-start">
@@ -88,6 +93,7 @@ export default async function EmpleadoVacacionesPage({ params }: { params: { id:
                       <th className="px-3 py-2 font-medium">Periodo</th>
                       <th className="px-3 py-2 font-medium text-right">Derecho</th>
                       <th className="px-3 py-2 font-medium text-right">Tomados</th>
+                      {conVence && <th className="px-3 py-2 font-medium">Vence</th>}
                       <th className="px-5 py-2 font-medium text-right">Restantes</th>
                     </tr>
                   </thead>
@@ -98,6 +104,13 @@ export default async function EmpleadoVacacionesPage({ params }: { params: { id:
                         <td className="px-3 py-2.5 text-ink-500 whitespace-nowrap">{fechaCorta(p.desde)} – {fechaCorta(p.hasta)}</td>
                         <td className="px-3 py-2.5 text-right tabular-nums text-ink-700">{p.derecho}</td>
                         <td className="px-3 py-2.5 text-right tabular-nums text-ink-700">{fmt(p.tomados)}</td>
+                        {conVence && (
+                          <td className={`px-3 py-2.5 whitespace-nowrap ${p.vencido ? 'text-ink-400' : 'text-ink-700'}`}>
+                            {p.vencido
+                              ? <>Venció {fechaCorta(p.vence)}{Number(p.vencidos) > 0 && <span className="text-[#C62828]"> · perdió {fmt(p.vencidos)}</span>}</>
+                              : fechaCorta(p.vence)}
+                          </td>
+                        )}
                         <td className={`px-5 py-2.5 text-right tabular-nums font-medium ${p.restantes < 0 ? 'text-[#C62828]' : p.restantes > 0 ? 'text-ink-900' : 'text-ink-400'}`}>
                           {fmt(p.restantes)}
                         </td>

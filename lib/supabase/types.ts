@@ -1927,6 +1927,20 @@ export interface Database {
         Update: never
         Relationships: []
       }
+      /** VAC-010 — reglas de Gente y Cultura (una sola fila). Vacías = nada vence, flotantes sin tope. */
+      vac_ajustes: {
+        Row: {
+          id: boolean
+          meses_vigencia: number | null
+          vigencia_desde: string | null
+          flotantes_por_anio: number | null
+          actualizado_por: string | null
+          updated_at: string
+        }
+        Insert: never
+        Update: never
+        Relationships: []
+      }
       /** AUD-006 — el interruptor de los avisos del Auditor (una sola fila). */
       aud_ajustes: {
         Row: {
@@ -2215,6 +2229,11 @@ export interface Database {
       vac_tiempos: {
         Args: { p_desde: string; p_hasta: string }
         Returns: unknown
+      }
+      // VAC-010: vencimiento de vacaciones y tope de flotantes.
+      vac_guardar_reglas: {
+        Args: { p_meses_vigencia: number | null; p_vigencia_desde: string | null; p_flotantes_por_anio: number | null }
+        Returns: undefined
       }
       // NTF-001: avisos (la campana) y sus correos. Contrato en lib/notificaciones/tipos.ts.
       ntf_marcar_leidas: {

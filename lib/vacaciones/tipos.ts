@@ -11,7 +11,13 @@ export interface PeriodoVacaciones {
   hasta: string
   derecho: number
   tomados: number
+  /** Lo que queda por tomar. Un periodo vencido ya no cuenta lo que no se tomó (VAC-010). */
   restantes: number
+  /** Último día para tomar estos días; null si las vacaciones no vencen. */
+  vence: string | null
+  vencido: boolean
+  /** Días que se perdieron porque el periodo venció sin tomarlos. */
+  vencidos: number
 }
 
 export interface SaldoEmpleado {
@@ -34,9 +40,23 @@ export interface SaldoEmpleado {
   dias_proximo: number
   periodos: PeriodoVacaciones[]
   restantes_total: number
+  /** VAC-010: días que vencieron sin tomarse, y el siguiente vencimiento con saldo. */
+  dias_vencidos: number
+  proximo_vencimiento: string | null
+  dias_por_vencer: number
   flotantes_anio: number
+  /** Flotantes del año en solicitudes sin resolver, y el tope (null = sin tope). */
+  flotantes_en_tramite: number
+  flotantes_limite: number | null
   /** Días de vacaciones en solicitudes que todavía no se resuelven (VAC-004). */
   dias_en_tramite: number
+}
+
+/** Reglas de Gente y Cultura (VAC-010). Vacías = nada vence y los flotantes no tienen tope. */
+export interface ReglasVacaciones {
+  meses_vigencia: number | null
+  vigencia_desde: string | null
+  flotantes_por_anio: number | null
 }
 
 // ── Fase 2: solicitudes (VAC-004) ────────────────────────────────────────────

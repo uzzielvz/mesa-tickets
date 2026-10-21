@@ -5,9 +5,10 @@ import { createClient } from '@/lib/supabase/server'
 import Header from '@/components/layout/header'
 import { Tile, Panel, Vacio, BannerError } from '@/components/viz'
 import ResolverSolicitud from '@/components/vacaciones/resolver-solicitud'
+import ReglasVacacionesForm from '@/components/vacaciones/reglas-form'
 import { antiguedad, fechaCorta, hoyMexico, sumarDias } from '@/lib/vacaciones/calendario'
 import { filtrarPersonal } from '@/lib/vacaciones/filtro'
-import { leerVer, type BandejaRh, type SaldoEmpleado } from '@/lib/vacaciones/tipos'
+import { leerVer, type BandejaRh, type ReglasVacaciones, type SaldoEmpleado } from '@/lib/vacaciones/tipos'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,12 +38,14 @@ export default async function VacacionesPage({
   // Quien no es de Gente y Cultura entra al módulo por "Mis vacaciones".
   if (!(p?.rol === 'admin' || p?.acceso_vacaciones_rh === true)) redirect('/vacaciones/mias')
 
-  const [{ data, error }, { data: bandejaData }] = await Promise.all([
+  const [{ data, error }, { data: bandejaData }, { data: reglasData }] = await Promise.all([
     supabase.rpc('vac_saldos', {}),
     supabase.rpc('vac_bandeja_rh', {}),
+    supabase.from('vac_ajustes').select('meses_vigencia, vigencia_desde, flotantes_por_anio').maybeSingle(),
   ])
   const todos = (data as unknown as SaldoEmpleado[] | null) ?? []
   const bandeja = (bandejaData as unknown as BandejaRh | null) ?? { por_vobo: [], esperando_jefe: [] }
+  const reglas = (reglasData as ReglasVacaciones | null) ?? { meses_vigencia: null, vigencia_desde: null, flotantes_por_anio: null }
   const hoy = hoyMexico()
 
   const activos = todos.filter(e => e.activo)
@@ -54,6 +57,11 @@ export default async function VacacionesPage({
   // ── Hallazgos de la base ──
   const conDerecho = activos.filter(e => e.anios >= 1)
   const pendientes = activos.reduce((a, e) => a + Math.max(Number(e.restantes_total), 0), 0)
+  const vencidos = activos.reduce((a, e) => a + Number(e.dias_vencidos ?? 0), 0)
+  // Días que vencen en los próximos 60 días: a quién hay que mandar de vacaciones.
+  const porVencer = activos
+    .filter(e => e.proximo_vencimiento && e.proximo_vencimiento <= sumarDias(hoy, 60) && Number(e.dias_por_vencer) > 0)
+    .sort((a, b) => a.proximo_vencimiento!.localeCompare(b.proximo_vencimiento!))
   const faltaban = activos.filter(e => !e.en_ciclo1 && e.anios >= 1)
   const sinJefe = activos.filter(e => !e.jefe_id).length
   const sinCorreo = activos.filter(e => !e.email).length
@@ -148,6 +156,18 @@ export default async function VacacionesPage({
               </div>
             )}
 
+            {porVencer.length > 0 && (
+              <div className="border border-[#FFE0B2] bg-[#FFF8E1] rounded-md px-4 py-3">
+                <p className="flex items-start gap-1.5 text-[13px] text-[#8A6100] font-medium">
+                  <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                  A {porVencer.length} {porVencer.length === 1 ? 'persona se le vencen' : 'personas se les vencen'} días en los próximos 60 días
+                </p>
+                <p className="text-[12px] text-[#8A6100] mt-1">
+                  {porVencer.map(e => `${e.nombre} (${fmt(e.dias_por_vencer)} el ${fechaCorta(e.proximo_vencimiento)})`).join(' · ')}.
+                </p>
+              </div>
+            )}
+
             <form action="/vacaciones" method="get" className="flex flex-wrap items-center gap-2">
               <div className="relative">
                 <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-400" />
@@ -236,8 +256,13 @@ export default async function VacacionesPage({
 
             <p className="text-[11.5px] text-ink-400">
               &ldquo;Periodo actual&rdquo; es el último año de servicio cumplido: días tomados de los que da la ley.
-              &ldquo;Por tomar&rdquo; suma todos los periodos. Calculado al {fechaCorta(hoy)}.
+              &ldquo;Por tomar&rdquo; suma todos los periodos{reglas.meses_vigencia !== null && ' que no han vencido'}. Calculado al {fechaCorta(hoy)}.
+              {vencidos > 0 && <> Entre el personal activo se han vencido {fmt(vencidos)} días sin tomarse.</>}
             </p>
+
+            <Panel titulo="Reglas de Gente y Cultura" nota="vencimiento y días flotantes">
+              <ReglasVacacionesForm reglas={reglas} hoy={hoy} />
+            </Panel>
           </>
         )}
       </div>

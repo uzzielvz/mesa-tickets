@@ -4,7 +4,7 @@ import Header from '@/components/layout/header'
 import { Tile, Panel, Vacio } from '@/components/viz'
 import SolicitarVacaciones from '@/components/vacaciones/solicitar-form'
 import CancelarSolicitud from '@/components/vacaciones/cancelar-solicitud'
-import { antiguedad, fechaCorta, fechaLarga, hoyMexico } from '@/lib/vacaciones/calendario'
+import { antiguedad, fechaCorta, fechaLarga, hoyMexico, sumarDias } from '@/lib/vacaciones/calendario'
 import { ETIQUETA_ESTADO, TONO_ESTADO, type MisVacaciones } from '@/lib/vacaciones/tipos'
 
 export const dynamic = 'force-dynamic'
@@ -60,9 +60,20 @@ export default async function MisVacacionesPage() {
             acento
           />
           <Tile etiqueta="Próximo aniversario" valor={fechaCorta(e.proximo_aniversario)} apoyo={`ganas ${e.dias_proximo} días`} />
-          <Tile etiqueta="Días flotantes" valor={fmt(e.flotantes_anio)} apoyo={`usados en ${hoy.slice(0, 4)}`} />
+          <Tile
+            etiqueta="Días flotantes"
+            valor={fmt(e.flotantes_anio)}
+            apoyo={e.flotantes_limite !== null ? `usados de ${e.flotantes_limite} en ${hoy.slice(0, 4)}` : `usados en ${hoy.slice(0, 4)}`}
+          />
           <Tile etiqueta="Años de servicio" valor={String(e.anios)} apoyo={`desde el ${fechaLarga(e.fecha_ingreso)}`} />
         </div>
+
+        {e.proximo_vencimiento && Number(e.dias_por_vencer) > 0 && e.proximo_vencimiento <= sumarDias(hoy, 90) && (
+          <p className="text-[12.5px] text-[#8A6100] border border-[#FFE0B2] bg-[#FFF8E1] rounded-md px-4 py-2.5">
+            Tienes {fmt(e.dias_por_vencer)} {Number(e.dias_por_vencer) === 1 ? 'día que vence' : 'días que vencen'} el {fechaLarga(e.proximo_vencimiento)}.
+            Si no los tomas antes, se pierden.
+          </p>
+        )}
 
         <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-4 items-start">
           <div className="flex flex-col gap-4 min-w-0">
@@ -126,7 +137,10 @@ export default async function MisVacacionesPage() {
                     <li key={p.periodo} className="px-5 py-2.5 flex items-baseline justify-between gap-3">
                       <span className="text-[12.5px] text-ink-900">
                         Año {p.periodo}
-                        <span className="block text-[11px] text-ink-400">{fechaCorta(p.desde)} – {fechaCorta(p.hasta)}</span>
+                        <span className="block text-[11px] text-ink-400">
+                          {fechaCorta(p.desde)} – {fechaCorta(p.hasta)}
+                          {p.vence && (p.vencido ? ` · venció el ${fechaCorta(p.vence)}` : ` · vence el ${fechaCorta(p.vence)}`)}
+                        </span>
                       </span>
                       <span className="text-[12.5px] tabular-nums text-ink-700 whitespace-nowrap">
                         {fmt(p.tomados)} de {p.derecho} · <strong className="font-medium text-ink-900">quedan {fmt(p.restantes)}</strong>

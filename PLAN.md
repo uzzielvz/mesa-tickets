@@ -1268,6 +1268,7 @@ Con esta decisión, `RESEARCH §14.6` punto 1 queda **cerrado**.
 | 8 | **Afinar detalles con Montellano antes de la presentación del jueves 15** (junta con Felix del 2026-10-12): su cuenta y bandera, las preguntas del punto 2 y lo que pida del formato o los reportes | Montellano + Plataforma |
 | 9 | **Pantalla de alta de personal** y poder corregir nombre y fecha de ingreso (hoy solo por SQL; Uzziel se dio de alta así el 2026-10-09) | Plataforma |
 | 10 | **Arreglos de la revisión de avisos:** correos duplicados con acciones seguidas (M1), que un aviso fallido no tumbe la acción (M2), formato de correo validado en la base (M3), y que el recordatorio pare cuando las fechas ya pasaron | Plataforma |
+| 11 | **VAC-010 — reglas de Gente y Cultura (2026-10-21, rama `vac-010-reglas`):** vencimiento de vacaciones y tope de días flotantes como ajustes en `/vacaciones` (vacíos = como antes). Con fecha de arranque para que lo acumulado no venza de golpe. Falta: que Montellano defina los valores y aplicar `vac_010` en remoto | Montellano + Plataforma |
 
 **Decisión (2026-10-05): la firma en la plataforma reemplaza al papel.** Cuando los días vienen de una solicitud, el formato GYC es una **constancia de tres firmas electrónicas** (quién y cuándo solicitó, autorizó y dio el Vo. Bo.), sin líneas para firma autógrafa, y la pueden abrir la persona, su jefe y Gente y Cultura (`vac_formato`). Los días que RH registra a mano no pasaron por esas firmas: su formato sigue saliendo para firmar en papel.
 
