@@ -7,12 +7,13 @@ import { createClient } from '@/lib/supabase/client'
 
 interface Datos {
   id: string
+  nombre: string
+  fecha_ingreso: string
   puesto: string | null
   area: string | null
   numero_empleado: string | null
   email: string | null
   jefe_id: string | null
-  activo: boolean
 }
 
 const campo =
@@ -20,9 +21,10 @@ const campo =
 const etiqueta = 'text-[11px] uppercase tracking-[0.3px] text-ink-400 font-medium'
 
 /**
- * Lo que el Excel no trae y el formato o la fase 2 necesitan: área y número de
- * empleado (van impresos en el formato), correo y jefe directo (con ellos el
- * empleado podrá solicitar y su jefe autorizar desde la plataforma).
+ * Los datos de la persona. Nombre y fecha de ingreso se corrigen aquí desde
+ * VAC-011 (antes solo por SQL); área y número de empleado van impresos en el
+ * formato; correo y jefe directo hacen que pueda solicitar y su jefe autorizar.
+ * La baja tiene su propio panel: aquí ya no se marca "activo".
  */
 export default function DatosEmpleado({
   datos,
@@ -33,16 +35,18 @@ export default function DatosEmpleado({
 }) {
   const router = useRouter()
   const [f, setF] = useState({
+    nombre: datos.nombre,
+    fecha_ingreso: datos.fecha_ingreso,
     puesto: datos.puesto ?? '',
     area: datos.area ?? '',
     numero_empleado: datos.numero_empleado ?? '',
     email: datos.email ?? '',
     jefe_id: datos.jefe_id ?? '',
-    activo: datos.activo,
   })
   const [guardando, setGuardando] = useState(false)
 
   const limpio = (s: string) => (s.trim() === '' ? null : s.trim())
+  const cambiaIngreso = f.fecha_ingreso !== datos.fecha_ingreso
 
   async function guardar(e: React.FormEvent) {
     e.preventDefault()
@@ -53,20 +57,19 @@ export default function DatosEmpleado({
     }
     setGuardando(true)
     const supabase = createClient()
-    const { error } = await supabase
-      .from('vac_empleados')
-      .update({
-        puesto: limpio(f.puesto),
-        area: limpio(f.area),
-        numero_empleado: limpio(f.numero_empleado),
-        email,
-        jefe_id: f.jefe_id || null,
-        activo: f.activo,
-      })
-      .eq('id', datos.id)
+    const { error } = await supabase.rpc('vac_guardar_empleado', {
+      p_id: datos.id,
+      p_nombre: f.nombre,
+      p_fecha_ingreso: f.fecha_ingreso,
+      p_email: email,
+      p_puesto: limpio(f.puesto),
+      p_area: limpio(f.area),
+      p_numero_empleado: limpio(f.numero_empleado),
+      p_jefe_id: f.jefe_id || null,
+    })
     setGuardando(false)
     if (error) {
-      toast.error(error.code === '23505' ? 'Ese correo ya es de otra persona.' : `No se pudo guardar: ${error.message}`)
+      toast.error(error.message)
       return
     }
     toast.success('Datos guardados')
@@ -75,6 +78,25 @@ export default function DatosEmpleado({
 
   return (
     <form onSubmit={guardar} className="px-5 py-4 flex flex-col gap-3">
+      <label className="flex flex-col gap-1">
+        <span className={etiqueta}>Nombre (apellidos y nombres)</span>
+        <input value={f.nombre} onChange={e => setF({ ...f, nombre: e.target.value })} required className={campo} />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className={etiqueta}>Fecha de ingreso</span>
+        <input
+          type="date"
+          value={f.fecha_ingreso}
+          onChange={e => setF({ ...f, fecha_ingreso: e.target.value })}
+          required
+          className={campo}
+        />
+        {cambiaIngreso && (
+          <span className="text-[11.5px] text-[#8A6100]">
+            Cambiar la fecha recalcula sus periodos y sus días por tomar.
+          </span>
+        )}
+      </label>
       <label className="flex flex-col gap-1">
         <span className={etiqueta}>Puesto</span>
         <input value={f.puesto} onChange={e => setF({ ...f, puesto: e.target.value })} className={campo} />
@@ -105,10 +127,6 @@ export default function DatosEmpleado({
           <option value="">Sin asignar</option>
           {posiblesJefes.map(j => <option key={j.id} value={j.id}>{j.nombre}</option>)}
         </select>
-      </label>
-      <label className="flex items-center gap-2 text-[12.5px] text-ink-700">
-        <input type="checkbox" checked={f.activo} onChange={e => setF({ ...f, activo: e.target.checked })} />
-        Activo (desmarca si ya no trabaja en CrediFlexi)
       </label>
       <button
         type="submit"

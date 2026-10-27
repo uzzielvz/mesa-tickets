@@ -1713,6 +1713,9 @@ export interface Database {
           email: string | null
           jefe_id: string | null
           activo: boolean
+          /** VAC-011: último día en la empresa; null mientras está activo. */
+          fecha_baja: string | null
+          motivo_baja: string | null
           notas: string | null
           en_ciclo1: boolean
           en_ciclo2: boolean
@@ -2229,6 +2232,29 @@ export interface Database {
       vac_tiempos: {
         Args: { p_desde: string; p_hasta: string }
         Returns: unknown
+      }
+      // VAC-011: altas, correcciones y bajas de personal (solo Gente y Cultura).
+      vac_alta_empleado: {
+        Args: {
+          p_nombre: string; p_fecha_ingreso: string; p_email?: string | null; p_puesto?: string | null
+          p_area?: string | null; p_numero_empleado?: string | null; p_jefe_id?: string | null
+        }
+        Returns: string
+      }
+      vac_guardar_empleado: {
+        Args: {
+          p_id: string; p_nombre: string; p_fecha_ingreso: string; p_email: string | null; p_puesto: string | null
+          p_area: string | null; p_numero_empleado: string | null; p_jefe_id: string | null
+        }
+        Returns: undefined
+      }
+      vac_baja_empleado: {
+        Args: { p_id: string; p_fecha_baja: string; p_motivo?: string | null }
+        Returns: unknown
+      }
+      vac_reactivar_empleado: {
+        Args: { p_id: string }
+        Returns: undefined
       }
       // VAC-010: vencimiento de vacaciones y tope de flotantes.
       vac_guardar_reglas: {

@@ -7,6 +7,7 @@ import { Tile, Panel, Vacio } from '@/components/viz'
 import DatosEmpleado from '@/components/vacaciones/datos-form'
 import RegistrarDias from '@/components/vacaciones/registrar-form'
 import AnularMovimiento from '@/components/vacaciones/anular-boton'
+import BajaEmpleado from '@/components/vacaciones/baja-empleado'
 import { antiguedad, fechaCorta, fechaLarga, hoyMexico } from '@/lib/vacaciones/calendario'
 import type { Movimiento, SaldoEmpleado } from '@/lib/vacaciones/tipos'
 
@@ -28,7 +29,7 @@ export default async function EmpleadoVacacionesPage({ params }: { params: { id:
   const pr = profile as Record<string, unknown> | null
   if (!(pr?.rol === 'admin' || pr?.acceso_vacaciones_rh === true)) redirect('/vacaciones/mias')
 
-  const [{ data: saldo }, { data: movs }, { data: jefes }] = await Promise.all([
+  const [{ data: saldo }, { data: movs }, { data: jefes }, { data: baja }] = await Promise.all([
     supabase.rpc('vac_saldos', { p_empleado: params.id }),
     supabase
       .from('vac_movimientos')
@@ -41,6 +42,7 @@ export default async function EmpleadoVacacionesPage({ params }: { params: { id:
       .eq('activo', true)
       .neq('id', params.id)
       .order('nombre'),
+    supabase.from('vac_empleados').select('fecha_baja, motivo_baja').eq('id', params.id).maybeSingle(),
   ])
 
   const e = ((saldo as unknown as SaldoEmpleado[] | null) ?? [])[0]
@@ -65,7 +67,7 @@ export default async function EmpleadoVacacionesPage({ params }: { params: { id:
       <div className="px-5 md:px-9 pb-12 flex flex-col gap-4">
         {!e.activo && (
           <p className="text-[12.5px] text-ink-500 border border-[#ECECEC] bg-surface-sidebar rounded-md px-4 py-2.5">
-            Marcado como inactivo: no aparece en la lista principal.
+            Baja registrada{baja?.fecha_baja ? ` con fecha ${fechaLarga(baja.fecha_baja)}` : ''}: no aparece en la lista principal.
           </p>
         )}
 
@@ -173,13 +175,23 @@ export default async function EmpleadoVacacionesPage({ params }: { params: { id:
             </Panel>
           </div>
 
-          <Panel titulo="Datos para el formato y la fase 2">
+          <Panel titulo="Datos de la persona">
             <DatosEmpleado
               datos={{
-                id: e.id, puesto: e.puesto, area: e.area, numero_empleado: e.numero_empleado,
-                email: e.email, jefe_id: e.jefe_id, activo: e.activo,
+                id: e.id, nombre: e.nombre, fecha_ingreso: e.fecha_ingreso, puesto: e.puesto, area: e.area,
+                numero_empleado: e.numero_empleado, email: e.email, jefe_id: e.jefe_id,
               }}
               posiblesJefes={(jefes ?? []) as { id: string; nombre: string }[]}
+            />
+          </Panel>
+
+          <Panel titulo={e.activo ? 'Dar de baja' : 'Baja'}>
+            <BajaEmpleado
+              id={e.id}
+              activo={e.activo}
+              fechaBaja={baja?.fecha_baja ?? null}
+              motivoBaja={baja?.motivo_baja ?? null}
+              hoy={hoy}
             />
           </Panel>
         </div>

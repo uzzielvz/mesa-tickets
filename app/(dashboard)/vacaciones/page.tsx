@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Search, AlertTriangle, ArrowRight, Download } from 'lucide-react'
+import { Search, AlertTriangle, ArrowRight, Download, UserPlus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import Header from '@/components/layout/header'
 import { Tile, Panel, Vacio, BannerError } from '@/components/viz'
@@ -74,6 +74,14 @@ export default async function VacacionesPage({
       <Header
         title="Vacaciones"
         subtitle="La base de Gente y Cultura, con antigüedad y saldos calculados al día de hoy."
+        action={
+          <Link
+            href="/vacaciones/alta"
+            className="inline-flex items-center gap-1.5 text-[13px] font-medium text-white bg-navy hover:bg-navy/90 rounded px-3.5 py-1.5 transition-colors"
+          >
+            <UserPlus size={14} /> Dar de alta
+          </Link>
+        }
       />
 
       <div className="px-5 md:px-9 pb-12 flex flex-col gap-5">

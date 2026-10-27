@@ -594,7 +594,7 @@ function NavContent({
                 href="/vacaciones"
                 label="Personal"
                 icon={Users}
-                active={pathname === '/vacaciones' || /^\/vacaciones\/[0-9a-f-]{36}/i.test(pathname)}
+                active={pathname === '/vacaciones' || pathname.startsWith('/vacaciones/alta') || /^\/vacaciones\/[0-9a-f-]{36}/i.test(pathname)}
                 onClick={onNav}
               />
               <NavItem
