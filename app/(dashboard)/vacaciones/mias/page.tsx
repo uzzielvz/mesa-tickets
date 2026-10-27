@@ -63,7 +63,7 @@ export default async function MisVacacionesPage() {
           <Tile
             etiqueta="Días flotantes"
             valor={fmt(e.flotantes_anio)}
-            apoyo={e.flotantes_limite !== null ? `usados de ${e.flotantes_limite} en ${hoy.slice(0, 4)}` : `usados en ${hoy.slice(0, 4)}`}
+            apoyo={e.flotantes_limite != null ? `usados de ${e.flotantes_limite} en ${hoy.slice(0, 4)}` : `usados en ${hoy.slice(0, 4)}`}
           />
           <Tile etiqueta="Años de servicio" valor={String(e.anios)} apoyo={`desde el ${fechaLarga(e.fecha_ingreso)}`} />
         </div>

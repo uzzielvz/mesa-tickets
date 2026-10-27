@@ -78,7 +78,7 @@ export default async function EmpleadoVacacionesPage({ params }: { params: { id:
           <Tile
             etiqueta="Días flotantes"
             valor={fmt(e.flotantes_anio)}
-            apoyo={e.flotantes_limite !== null ? `de ${e.flotantes_limite} en ${hoy.slice(0, 4)}` : `tomados en ${hoy.slice(0, 4)}`}
+            apoyo={e.flotantes_limite != null ? `de ${e.flotantes_limite} en ${hoy.slice(0, 4)}` : `tomados en ${hoy.slice(0, 4)}`}
           />
         </div>
 
